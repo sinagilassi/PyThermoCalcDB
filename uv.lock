@@ -422,6 +422,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pythermodb" },
     { name = "pythermodb-settings" },
+    { name = "rich" },
     { name = "scipy" },
 ]
 
@@ -433,6 +434,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pythermodb", specifier = ">=1.11.53" },
     { name = "pythermodb-settings", specifier = ">=0.1.9" },
+    { name = "rich", specifier = ">=14.2.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
 

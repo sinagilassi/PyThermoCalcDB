@@ -38,6 +38,16 @@ dependencies = [
     "pycuc>=2.1.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "rich>=14.2.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "rich>=14.2.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/sinagilassi/pyThermoCalcDB"
 Source = "https://github.com/sinagilassi/pyThermoCalcDB"
