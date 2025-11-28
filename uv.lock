@@ -422,8 +422,17 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pythermodb" },
     { name = "pythermodb-settings" },
-    { name = "rich" },
     { name = "scipy" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "rich" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "rich" },
 ]
 
 [package.metadata]
@@ -434,9 +443,13 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pythermodb", specifier = ">=1.11.53" },
     { name = "pythermodb-settings", specifier = ">=0.1.9" },
-    { name = "rich", specifier = ">=14.2.0" },
+    { name = "rich", marker = "extra == 'dev'", specifier = ">=14.2.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
+provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "rich", specifier = ">=14.2.0" }]
 
 [[package]]
 name = "pythermodb"
