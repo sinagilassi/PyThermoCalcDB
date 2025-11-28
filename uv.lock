@@ -422,6 +422,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pythermodb" },
     { name = "pythermodb-settings" },
+    { name = "pythermolinkdb" },
     { name = "scipy" },
 ]
 
@@ -443,6 +444,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pythermodb", specifier = ">=1.11.53" },
     { name = "pythermodb-settings", specifier = ">=0.1.9" },
+    { name = "pythermolinkdb", specifier = ">=1.3.11" },
     { name = "rich", marker = "extra == 'dev'", specifier = ">=14.2.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
@@ -481,6 +483,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b2/5c/63210e027bb4506fc46200cbdabf28ee0f5c1b1c440f07371065451ad324/pythermodb_settings-0.1.9.tar.gz", hash = "sha256:391bd58bd946a14044892ce9f094621e5fd86ed37c529a4025c909cde97c8b9b", size = 10487, upload-time = "2025-10-10T23:40:02.387Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/c5/6b2ce43988eee822657834993a8c089405aa4818c1ae463380dbf1c10319/pythermodb_settings-0.1.9-py3-none-any.whl", hash = "sha256:e52237f2548703cd1ee5cb9045eecc44594352b4ed16fd6c96175f4468b78a44", size = 12061, upload-time = "2025-10-10T23:40:01.296Z" },
+]
+
+[[package]]
+name = "pythermolinkdb"
+version = "1.3.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pythermodb" },
+    { name = "pythermodb-settings" },
+    { name = "pyyaml" },
+    { name = "rich" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6c/52/47c89639bd9b64aa4abf4a7d7cc94940a26a0f6e9f07b015e064ea075ff8/pythermolinkdb-1.3.11.tar.gz", hash = "sha256:69e1af289ce407d654a35d9cdb15a48a4681876df8a7206b44c78b2efbbe84b5", size = 22703, upload-time = "2025-10-09T20:49:12.606Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/35/52cf9c01db0ed228196b4ec61fe412ef2936013fc94575c09ac9cd04458d/pythermolinkdb-1.3.11-py3-none-any.whl", hash = "sha256:9367ed97555d3092a626cbde7260b59973215f4af27b54fabb4fe692130d869f", size = 26079, upload-time = "2025-10-09T20:49:11.333Z" },
 ]
 
 [[package]]
