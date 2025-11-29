@@ -2,7 +2,7 @@
 import logging
 from typing import List, Dict, Optional, Any, Tuple
 import pycuc
-from pyThermoDB.docs import TableEquation
+from pyThermoDB.core import TableEquation
 # local
 from pyThermoCalcDB.configs.constants import DATASOURCE, EQUATIONSOURCE
 
