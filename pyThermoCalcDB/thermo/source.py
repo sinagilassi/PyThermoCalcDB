@@ -1,8 +1,10 @@
 # import libs
 import logging
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional, Any, Tuple, Literal, cast
 import pycuc
 from pyThermoDB.core import TableEquation
+from pythermodb_settings.models import Component
+from pythermodb_settings.utils import set_component_id
 # local
 from pyThermoCalcDB.configs.constants import DATASOURCE, EQUATIONSOURCE
 
@@ -105,7 +107,7 @@ class Source:
 
     def eq_extractor(
         self,
-        component_name: str,
+        component_id: str,
         prop_name: str
     ) -> Optional[TableEquation]:
         '''
@@ -113,8 +115,8 @@ class Source:
 
         Parameters
         ----------
-        component_name : str
-            The name of the component.
+        component_id : str
+            The id of the component.
         prop_name : str
             The name of the property to extract.
 
@@ -129,25 +131,25 @@ class Source:
                 return None
 
             # NOTE: check component
-            if component_name not in self.equationsource.keys():
+            if component_id not in self.equationsource.keys():
                 logger.error(
-                    f"Component '{component_name}' not found in model source.")
+                    f"Component '{component_id}' not found in model source.")
                 return None
 
             # NOTE: check property
-            if prop_name not in self.equationsource[component_name].keys():
+            if prop_name not in self.equationsource[component_id].keys():
                 logger.error(
-                    f"Property '{prop_name}' not found in model source registered for {component_name}.")
+                    f"Property '{prop_name}' not found in model source registered for {component_id}.")
                 return None
 
-            return self.equationsource[component_name][prop_name]
+            return self.equationsource[component_id][prop_name]
         except Exception as e:
             logger.error(f"Equation extraction failed: {e}")
             return None
 
     def data_extractor(
             self,
-            component_name: str,
+            component_id: str,
             prop_name: str
     ) -> Optional[Dict[str, Any]]:
         '''
@@ -155,8 +157,8 @@ class Source:
 
         Parameters
         ----------
-        component_name : str
-            The name of the component.
+        component_id : str
+            The id of the component.
         prop_name : str
             The name of the property to extract.
 
@@ -179,25 +181,25 @@ class Source:
                 return None
 
             # NOTE: check component
-            if component_name not in self.datasource.keys():
+            if component_id not in self.datasource.keys():
                 logger.error(
-                    f"Component '{component_name}' not found in model datasource.")
+                    f"Component '{component_id}' not found in model datasource.")
                 return None
 
             # NOTE: check property
-            if prop_name not in self.datasource[component_name].keys():
+            if prop_name not in self.datasource[component_id].keys():
                 logger.error(
-                    f"Property '{prop_name}' not found in model datasource registered for {component_name}.")
+                    f"Property '{prop_name}' not found in model datasource registered for {component_id}.")
                 return None
 
-            return self.datasource[component_name][prop_name]
+            return self.datasource[component_id][prop_name]
         except Exception as e:
             logger.error(f"Data extraction failed: {e}")
             return None
 
     def check_args(
         self,
-        component_name: str,
+        component_id: str,
         args
     ):
         '''
@@ -205,8 +207,8 @@ class Source:
 
         Parameters
         ----------
-        component_name : str
-            The name of the component.
+        component_id : str
+            The id of the component.
         args : tuple
             equation args
         '''
@@ -216,7 +218,7 @@ class Source:
 
             # datasource list
             datasource_component_list = list(
-                self.datasource[component_name].keys())
+                self.datasource[component_id].keys())
 
             # NOTE: default args
             datasource_component_list.append("P")
@@ -239,7 +241,7 @@ class Source:
 
     def build_args(
         self,
-        component_name: str,
+        component_id: str,
         args,
         ignore_symbols: List[str] = ["T", "P"]
     ):
@@ -248,16 +250,26 @@ class Source:
 
         Parameters
         ----------
-        component_name : str
-            The name of the component.
+        component_id : str
+            The id of the component.
         args : tuple
             equation args
         ignore_symbols : list
             list of symbols to ignore, default is ["T", "P"]
         '''
         try:
-            # res
+            # SECTION: data source for component
+            # check component in datasource
+            if component_id not in self.datasource.keys():
+                raise Exception('Component not in datasource!')
+
+            # NOTE: component datasource
+            component_datasource = self.datasource[component_id]
+
+            # init res
             res = {}
+
+            # looping through args
             for arg in args:
                 # symbol
                 symbol = arg['symbol']
@@ -267,12 +279,12 @@ class Source:
                     # check in ignore symbols
                     if symbol not in ignore_symbols:
                         # check in component database
-                        for key, value in self.datasource.items():
+                        for key, value in component_datasource.items():
                             if symbol == key:
                                 res[symbol] = value
                 else:
                     # check in component database
-                    for key, value in self.datasource.items():
+                    for key, value in component_datasource.items():
                         if symbol == key:
                             res[symbol] = value
             return res
@@ -281,8 +293,16 @@ class Source:
 
     def eq_builder(
         self,
-        components: List[str],
+        components: List[Component],
         prop_name: str,
+        component_key: Literal[
+            'Name-State',
+            'Formula-State',
+            'Name',
+            'Formula',
+            'Name-Formula-State',
+            'Formula-Name-State'
+        ] = 'Name-State',
         **kwargs
     ) -> Optional[Dict[str, Any]]:
         '''
@@ -290,10 +310,12 @@ class Source:
 
         Parameters
         ----------
-        components : List[str]
-            List of component names to build the equation for.
+        components : List[Component]
+            List of component to build the equation for.
         prop_name : str
             The name of the property to build the equation for.
+        component_key : Literal['Name-State', 'Formula-State', 'Name', 'Formula', 'Name-Formula-State', 'Formula-Name-State']
+            The key to identify the component, default is 'Name-State'.
         **kwargs : dict
             Additional keyword arguments for the equation builder.
 
@@ -306,8 +328,18 @@ class Source:
         if self.equationsource is None:
             raise ValueError("Equation source is not defined.")
 
-        # NOTE: check property
+        # NOTE: extract component ids
+        component_ids = []
         for component in components:
+            # set component id
+            component_id = set_component_id(
+                component=component,
+                component_key=component_key
+            )
+            component_ids.append(component_id)
+
+        # NOTE: check property
+        for component in component_ids:
             # check equation availability
             if prop_name not in self.equationsource[component].keys():
                 raise ValueError(
@@ -324,7 +356,7 @@ class Source:
         eq_src_comp = {}
 
         # looping through components
-        for component in components:
+        for component in component_ids:
             # NOTE: equation source
             _eq = None
             # select equation [?]
@@ -343,7 +375,7 @@ class Source:
 
             # build args
             _args_ = self.build_args(
-                component_name=component,
+                component_id=component,
                 args=_args_required
             )
 
@@ -363,10 +395,18 @@ class Source:
 
     def exec_eq(
         self,
-        components: List[str],
+        components: List[Component],
         eq_src_comp: Dict[str, Any],
         prop_res_unit: str,
         args_values: Optional[Dict[str, float]] = None,
+        component_key: Literal[
+            'Name-State',
+            'Formula-State',
+            'Name',
+            'Formula',
+            'Name-Formula-State',
+            'Formula-Name-State'
+        ] = 'Name-State',
         **kwargs
     ) -> Optional[Tuple[List[float], Dict[str, Any]]]:
         '''
@@ -374,14 +414,16 @@ class Source:
 
         Parameters
         ----------
-        components : List[str]
-            List of component names to execute the equation for.
+        components : List[Component]
+            List of components to execute the equation for.
         eq_src_comp : Dict[str, Any]
             Dictionary containing the equation source for each component.
         prop_res_unit : str
             The unit of the property result.
         args_values : Dict[str, float]
             Dictionary containing the values for the arguments.
+        component_key : Literal['Name-State', 'Formula-State', 'Name', 'Formula', 'Name-Formula-State', 'Formula-Name-State']
+            The key to identify the component, default is 'Name-State'.
         **kwargs : dict
             Additional keyword arguments for the equation execution.
 
@@ -397,6 +439,16 @@ class Source:
                 logger.error("Components must be a list.")
                 return None
 
+            # SECTION: component ids
+            component_ids = []
+            for component in components:
+                # set component id
+                component_id = set_component_id(
+                    component=component,
+                    component_key=component_key
+                )
+                component_ids.append(component_id)
+
             # NOTE: check if eq_src_comp is a dictionary
             if not isinstance(eq_src_comp, dict):
                 logger.error("Equation source must be a dictionary.")
@@ -411,7 +463,7 @@ class Source:
                 return None
 
             # NOTE: check if components are in eq_src_comp
-            for component in components:
+            for component in component_ids:
                 if component not in eq_src_comp:
                     logger.error(
                         f"Component '{component}' not found in equation source.")
@@ -429,7 +481,7 @@ class Source:
             prop_res_dict = {}
 
             # looping over components
-            for i, component in enumerate(components):
+            for i, component in enumerate(component_ids):
                 # NOTE: equation [unit:?]
                 eq_ = eq_src_comp[component]['value']
                 args_ = eq_src_comp[component]['args']
@@ -499,18 +551,28 @@ class Source:
 
     def get_component_data(
         self,
-        component_name: str,
-        components: List[str]
+        component_id: str,
+        components: List[Component],
+        component_key: Literal[
+            'Name-State',
+            'Formula-State',
+            'Name',
+            'Formula',
+            'Name-Formula-State',
+            'Formula-Name-State'
+        ] = 'Name-State',
     ) -> Optional[Dict[str, Any]]:
         """
         Get the component data from the datasource.
 
         Parameters
         ----------
-        component_name : str
-            The name of the component.
+        component_id : str
+            The id of the component.
         components : List[str]
             List of available components.
+        component_key : Literal['Name-State', 'Formula-State', 'Name', 'Formula', 'Name-Formula-State', 'Formula-Name-State']
+            The key to identify the component, default is 'Name-State'.
 
         Returns
         -------
@@ -519,8 +581,8 @@ class Source:
         """
         try:
             # check
-            if not isinstance(component_name, str):
-                logger.error("Component name must be a string.")
+            if not isinstance(component_id, str):
+                logger.error("Component id must be a string.")
                 return None
 
             # check available
@@ -528,9 +590,19 @@ class Source:
                 logger.error("Components must be a list.")
                 return None
 
-            if component_name not in components:
+            # SECTION: set component id
+            component_ids = []
+            for component in components:
+                # set component id
+                comp_id = set_component_id(
+                    component=component,
+                    component_key=component_key
+                )
+                component_ids.append(comp_id)
+
+            if component_id not in component_ids:
                 logger.error(
-                    f"Component {component_name} is not available in the system.")
+                    f"Component {component_id} is not available in the system.")
                 return None
 
             # data
@@ -542,7 +614,7 @@ class Source:
                 isinstance(self.datasource, dict)
             ):
                 # add
-                dt_ = self.datasource.get(component_name)
+                dt_ = self.datasource.get(component_id)
                 if dt_ is not None:
                     data.update(dt_)
 
@@ -552,7 +624,7 @@ class Source:
                 isinstance(self.equationsource, dict)
             ):
                 # add
-                eq_ = self.equationsource.get(component_name)
+                eq_ = self.equationsource.get(component_id)
                 if eq_ is not None:
                     data.update(eq_)
 

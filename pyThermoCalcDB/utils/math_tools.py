@@ -1,90 +1,129 @@
-from typing import Callable, TypedDict, Literal
+import logging
+from typing import Literal, Dict
 import numpy as np
-from scipy.integrate import quad, simps
+from pyThermoDB.core import TableEquation
+from pyThermoDB.models import EquationResult
+from scipy.integrate import quad, simpson
 
 
-class QuantityResult(TypedDict):
-    value: float
-    unit: str
-    symbol: str
-    prop_name: str
+# NOTE: Logger
+logger = logging.getLogger(__name__)
 
 
-def integrate_quantity_function(
-    func: Callable[..., QuantityResult],
-    var: str,
+def integrate_function(
+    func: TableEquation,
+    var_symbol: str,
+    vars: Dict[str, float],
     a: float,
     b: float,
     *,
     integral_mode: Literal["quad", "trapz", "simps"] = "quad",
     n_points: int = 1000,
+    decimal_accuracy: int = 4,
     **kwargs
-) -> QuantityResult:
+) -> float:
     """
     Integrate a quantity-returning function over [a, b].
-
-    Parameters
-    ----------
-    func : Callable[..., QuantityResult]
-        Function that returns a dict with keys:
-        value, unit, symbol, prop_name.
-        The integration is applied only to the `value` field.
-    var : str
-        Name of the integration variable (e.g. 'T', 'x').
-    a : float
-        Lower integration limit.
-    b : float
-        Upper integration limit.
-    integral_mode : {'quad', 'trapz', 'simps'}, optional
-        Numerical integration method:
-        - 'quad'  : scipy.integrate.quad (adaptive, default)
-        - 'trapz' : numpy.trapz on an evenly spaced grid
-        - 'simps' : scipy.integrate.simps on an evenly spaced grid
-    n_points : int, optional
-        Number of grid points for 'trapz' and 'simps'.
-    **kwargs :
-        Extra parameters forwarded to `func`.
-
-    Returns
-    -------
-    QuantityResult
-        Same structure as func(...) but with `value` replaced by
-        the definite integral over [a, b].
     """
+    try:
+        # SECTION: Validate inputs
+        if a >= b:
+            logger.error(
+                f"Invalid integration limits: a={a} must be less than b={b}")
+            return 0.0
 
-    # ---------- Choose integration core ----------
-    if integral_mode == "quad":
-        # quad expects a float -> float function
-        def integrand(x: float) -> float:
-            result = func(x, **kwargs)
-            return result["value"]
+        # >> vars
+        if var_symbol in vars:
+            logger.warning(
+                f"Variable symbol '{var_symbol}' is also in vars; it will be overwritten during integration.")
 
-        integral_value, _err = quad(integrand, a, b)
+        # >> check vars
+        if not isinstance(vars, dict):
+            logger.error(
+                "vars must be a dictionary of variable names to values.")
+            return 0.0
 
-    else:
-        # Grid-based methods: build x-grid and evaluate func
-        x = np.linspace(a, b, n_points)
-        y = np.empty_like(x)
+        if all(not isinstance(v, (int, float)) for v in vars.values()):
+            logger.error("vars must contain at least one numeric value.")
+            return 0.0
 
-        for i, xi in enumerate(x):
-            result = func(xi, **kwargs)
-            y[i] = result["value"]
+        if n_points < 2 and integral_mode in {"trapz", "simps"}:
+            logger.error(
+                f"n_points must be at least 2 for '{integral_mode}' method; got n_points={n_points}")
+            return 0.0
 
-        if integral_mode == "trapz":
-            integral_value = np.trapz(y, x)
-        elif integral_mode == "simps":
-            integral_value = simps(y, x)
+        # >> check
+        if integral_mode not in {"quad", "trapz", "simps"}:
+            logger.error(
+                f"Invalid integral_mode: {integral_mode}. Must be 'quad', 'trapz', or 'simps'.")
+            return 0.0
+
+        # NOTE: input settings
+        var_symbol = var_symbol.strip()
+
+        # SECTION: Integration methods
+        if integral_mode == "quad":
+            # SECTION: quad expects a float -> float function
+            def integrand(x: float) -> float:
+                # NOTE: Set variable
+                args = {**vars, var_symbol: x}
+                # EVALUATE function
+                result: EquationResult = func.cal(
+                    message='',
+                    decimal_accuracy=decimal_accuracy,
+                    **args
+                )
+
+                # NOTE: Error handling
+                if result['value'] is None:
+                    logger.error(
+                        f"Function evaluation returned None at x={x}")
+                    return 0.0
+                # NOTE: Type checking
+                if not isinstance(result['value'], (int, float)):
+                    logger.error(
+                        f"Function evaluation returned non-numeric value at x={x}: {result['value']}")
+                    return 0.0
+
+                # NOTE: Return value
+                return result['value']
+
+            integral_value, _err = quad(integrand, a, b)
         else:
-            raise ValueError(f"Unknown integral_mode: {integral_mode}")
+            # SECTION: Grid-based methods: build x-grid and evaluate func
+            x = np.linspace(a, b, n_points)
+            y = np.empty_like(x)
 
-    # ---------- Build output metadata ----------
-    # Call once (e.g. at midpoint) to copy metadata
-    sample = func((a + b) / 2.0, **kwargs)
+            for i, xi in enumerate(x):
+                result: EquationResult = func.cal(
+                    message='', decimal_accuracy=4, **{**vars, var_symbol: xi})
+                # NOTE: Error handling
+                if result['value'] is None:
+                    logger.error(
+                        f"Function evaluation returned None at x={xi}")
+                    return 0.0
+                # NOTE: Type checking
+                if not isinstance(result['value'], (int, float)):
+                    logger.error(
+                        f"Function evaluation returned non-numeric value at x={xi}: {result['value']}")
+                    return 0.0
 
-    return QuantityResult(
-        value=integral_value,
-        # You can adjust this to your unit system
-        unit=f"{sample['unit']} * {var}",
-        symbol=f"∫ {sample['symbol']} d{var}",
-        prop_name=f"integral_of_{sample['prop_name']}",
-    )
+                # NOTE: Store value
+                y[i] = result['value']
+
+            # SECTION: Perform integration
+            if integral_mode == "trapz":
+                # ! Trapezoidal rule
+                integral_value = float(np.trapezoid(y, x))
+            elif integral_mode == "simps":
+                # ! Simpson's rule
+                integral_value = float(simpson(y, x))
+            else:
+                logger.error(
+                    f"Unsupported integral_mode: {integral_mode}")
+                return 0.0
+
+        return integral_value
+    except Exception as e:
+        logger.exception(f"Error during integration: {e}")
+        return 0.0
