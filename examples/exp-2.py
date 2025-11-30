@@ -7,7 +7,12 @@ import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
-from pyThermoCalcDB.docs.thermo import calc_enthalpy_of_formation_at_temperature, calc_gibbs_energy_of_formation_at_temperature
+from pyThermoCalcDB.docs.thermo import (
+    calc_enthalpy_of_formation_at_temperature,
+    calc_gibbs_energy_of_formation_at_temperature,
+    calc_enthalpy_of_formation_range,
+    calc_gibbs_energy_of_formation_range
+)
 
 # check version
 print(ptdb.__version__)
@@ -231,7 +236,8 @@ temperature_ = Temperature(value=300.0, unit='K')
 EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
     component=CO2,
     model_source=model_source_,
-    temperature=temperature_
+    temperature=temperature_,
+    mode='attach'
 )
 print(EnFo_IG_T_res)
 
@@ -240,6 +246,32 @@ print(EnFo_IG_T_res)
 GiEnFo_IG_T_res = calc_gibbs_energy_of_formation_at_temperature(
     component=CO2,
     model_source=model_source_,
-    temperature=temperature_
+    temperature=temperature_,
+    mode='log'
 )
 print(GiEnFo_IG_T_res)
+
+# ! calculate enthalpy of formation range
+temperature_range_ = [
+    Temperature(value=295.0, unit='K'),
+    Temperature(value=300.0, unit='K'),
+    Temperature(value=350.0, unit='K'),
+    Temperature(value=370.0, unit='K'),
+]
+
+EnFo_IG_range_res = calc_enthalpy_of_formation_range(
+    component=CO2,
+    model_source=model_source_,
+    temperatures=temperature_range_,
+    mode='attach'
+)
+print(EnFo_IG_range_res)
+
+# ! calculate gibbs free energy of formation range
+GiEnFo_IG_range_res = calc_gibbs_energy_of_formation_range(
+    component=CO2,
+    model_source=model_source_,
+    temperatures=temperature_range_,
+    mode='log'
+)
+print(GiEnFo_IG_range_res)
