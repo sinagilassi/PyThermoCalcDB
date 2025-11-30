@@ -1,6 +1,11 @@
 {
     "cSpell.words": [
+        "brentq",
         "dataequation",
-        "trapz"
+        "fprime",
+        "maxiter",
+        "Psat",
+        "trapz",
+        "xtol"
     ]
 }
