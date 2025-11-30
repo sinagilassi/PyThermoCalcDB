@@ -44,8 +44,7 @@ def integrate_function(
             return 0.0
 
         if all(not isinstance(v, (int, float)) for v in vars.values()):
-            logger.error("vars must contain at least one numeric value.")
-            return 0.0
+            logger.warning("vars must contain at least one numeric value.")
 
         if n_points < 2 and integral_mode in {"trapz", "simps"}:
             logger.error(

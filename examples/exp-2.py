@@ -7,7 +7,7 @@ import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
-from pyThermoCalcDB.docs.thermo import calc_enthalpy_of_formation_at_temperature
+from pyThermoCalcDB.docs.thermo import calc_enthalpy_of_formation_at_temperature, calc_gibbs_energy_of_formation_at_temperature
 
 # check version
 print(ptdb.__version__)
@@ -234,3 +234,12 @@ EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
     temperature=temperature_
 )
 print(EnFo_IG_T_res)
+
+
+# ! calculate gibbs free energy of formation at temperature
+GiEnFo_IG_T_res = calc_gibbs_energy_of_formation_at_temperature(
+    component=CO2,
+    model_source=model_source_,
+    temperature=temperature_
+)
+print(GiEnFo_IG_T_res)

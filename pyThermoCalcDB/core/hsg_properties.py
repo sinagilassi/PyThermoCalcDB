@@ -13,9 +13,12 @@ from ..configs.thermo_props import (
     EnFo_IG_SYMBOL,
     Ent_STD_SYMBOL,
     GiEnFo_IG_SYMBOL,
-    Cp_IG_SYMBOL
+    Cp_IG_SYMBOL,
+    Cp_IG_UNIT
 )
 from ..utils.math_tools import integrate_function
+from .calc import Cp_integral, Cp__RT_integral
+from ..models import ComponentEquationSource
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
@@ -126,6 +129,17 @@ class HSGProperties:
             A dictionary containing the calculated enthalpy of formation.
         '''
         try:
+            # SECTION: temperature value
+            T_val = temperature.value
+            T_unit = temperature.unit
+
+            # >> convert temperature to K if necessary
+            if T_unit != 'K':
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => K"
+                )
+
             # SECTION: get formation data
             # >> enthalpy of formation (EnFo_IG) unit ?
             formation_data = self._get_formation_data(EnFo_IG_SYMBOL)
@@ -142,7 +156,7 @@ class HSGProperties:
             EnFo_unit = formation_data['unit']
             # ! to [J/mol]
             unit_ = f"{EnFo_unit} => {EnFo_IG_UNIT}"
-            EnFo = pycuc.to(
+            EnFo_IG_val = pycuc.to(
                 EnFo_val,
                 unit_
             )
@@ -162,53 +176,35 @@ class HSGProperties:
                 return None
 
             # >> for component
-            component_Cp_eq_src = Cp_eq_src.get(self.component_id)
+            component_Cp_eq_src: ComponentEquationSource | None = Cp_eq_src.get(
+                self.component_id)
 
             if component_Cp_eq_src is None:
                 logger.warning(
                     f"No heat capacity equation available for component {self.component_id}.")
                 return None
 
-            # NOTE: extract Cp equation
-            # ! args
-            Cp_eq_args = component_Cp_eq_src['args']
-            # ! arg symbols
-            Cp_eq_arg_symbols = component_Cp_eq_src['arg_symbols']
-            # ! returns
-            Cp_eq_returns = component_Cp_eq_src['returns']
-            # >> get return units
-            returns_outer_key, returns_inner = next(
-                iter(Cp_eq_returns.items()))
-            Cp_eq_return_unit = returns_inner['unit']
-
-            # ! return symbols
-            Cp_eq_return_symbols = component_Cp_eq_src['return_symbols']
-            # ! equation
-            Cp_eq = component_Cp_eq_src['value']
-
-            # NOTE: calculate heat capacity at given temperature
-            delta_Cp = integrate_function(
-                func=Cp_eq,
-                var_symbol='T',
-                vars=Cp_eq_args,
-                a=self.T_ref,
-                b=temperature.value,
+            # NOTE: integrate Cp from T_ref to T
+            # ! [J/mol]
+            delta_Cp_val = Cp_integral(
+                eq_src=component_Cp_eq_src,
+                T_ref=self.T_ref,
+                T=T_val,
             )
 
-            # >> unit conversion if necessary
-            unit_ = f"{Cp_eq_return_unit} => {EnFo_IG_UNIT}"
-            delta_Cp_value = pycuc.to(
-                delta_Cp,
-                unit_
-            )
+            # >> check
+            if delta_Cp_val is None:
+                logger.error(
+                    f"Failed to integrate Cp equation from T={self.T_ref} K to T={T_val} K.")
+                return None
 
             # SECTION: calculate enthalpy of formation at temperature
             # ! J/mol
-            EnFo_T = EnFo + delta_Cp_value
+            EnFo_IG_T_val = EnFo_IG_val + delta_Cp_val
 
             # SECTION: prepare result
             result = {
-                'value': EnFo_T,
+                'value': EnFo_IG_T_val,
                 'unit': EnFo_IG_UNIT,
                 'symbol': EnFo_IG_SYMBOL
             }
@@ -219,4 +215,144 @@ class HSGProperties:
             return None
 
     def calc_gibbs_free_energy_of_formation(self, temperature: Temperature):
-        pass
+        '''
+        Calculate the Gibbs free energy of formation at a given temperature.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the Gibbs free energy of formation.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the calculated Gibbs free energy of formation.
+        '''
+        try:
+            # SECTION: temperature value
+            T_val = temperature.value
+            T_unit = temperature.unit
+
+            # >> convert temperature to K if necessary
+            if T_unit != 'K':
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => K"
+                )
+
+            # SECTION: get formation data
+            # >> enthalpy of formation (EnFo_IG) unit ?
+            formation_data = self._get_formation_data(EnFo_IG_SYMBOL)
+            # >> gibbs energy of formation (GiEnFo_IG) unit ?
+            gibbs_formation_data = self._get_formation_data(GiEnFo_IG_SYMBOL)
+
+            # >> check formation data
+            if formation_data is None:
+                logger.warning(
+                    f"No formation data available for enthalpy of formation.")
+                return None
+
+            if gibbs_formation_data is None:
+                logger.warning(
+                    f"No formation data available for Gibbs free energy of formation.")
+                return None
+
+            # NOTE: unit conversion if necessary
+            # TODO: convert to [J/mol]
+            EnFo_IG_val = formation_data['value']
+            EnFo_IG_unit = formation_data['unit']
+            # ! to [J/mol]
+            unit_ = f"{EnFo_IG_unit} => {EnFo_IG_UNIT}"
+            EnFo_IG_val = pycuc.to(
+                EnFo_IG_val,
+                unit_
+            )
+
+            GiEnFo_IG_val = gibbs_formation_data['value']
+            GiEnFo_IG_unit = gibbs_formation_data['unit']
+            # ! to [J/mol]
+            unit_ = f"{GiEnFo_IG_unit} => {GiEnFo_IG_UNIT}"
+            GiEnFo_IG_val = pycuc.to(
+                GiEnFo_IG_val,
+                unit_
+            )
+
+            # SECTION: heat capacity calculation
+            # NOTE: build equation
+            Cp_eq_src = self.source.eq_builder(
+                components=[self.component],
+                prop_name=Cp_IG_SYMBOL,
+                component_key=self.component_key  # type: ignore
+            )
+
+            # >> check Cp equation
+            if Cp_eq_src is None:
+                logger.warning(
+                    f"No heat capacity equation available for component {self.component_id}.")
+                return None
+
+            # >> for component
+            component_Cp_eq_src: ComponentEquationSource | None = Cp_eq_src.get(
+                self.component_id)
+
+            if component_Cp_eq_src is None:
+                logger.warning(
+                    f"No heat capacity equation available for component {self.component_id}.")
+                return None
+
+            # NOTE: integrate Cp from T_ref to T
+            # ! [J/mol]
+            _eq_Cp_integral = Cp_integral(
+                eq_src=component_Cp_eq_src,
+                T_ref=self.T_ref,
+                T=T_val,
+            )
+
+            # >> check
+            if _eq_Cp_integral is None:
+                logger.error(
+                    f"Failed to integrate Cp equation from T={self.T_ref} K to T={T_val} K.")
+                return None
+
+            # NOTE: integrate Cp/RT from T_ref to T
+            # ! dimensionless
+            _eq_Cp_integral_Cp__RT = Cp__RT_integral(
+                eq_src=component_Cp_eq_src,
+                T_ref=self.T_ref,
+                T=T_val,
+                R=self.R
+            )
+
+            # >> check
+            if _eq_Cp_integral_Cp__RT is None:
+                logger.error(
+                    f"Failed to integrate Cp/RT equation from T={self.T_ref} K to T={T_val} K.")
+                return None
+
+            # SECTION: calculate Gibbs free energy of formation at temperature
+            # ! Gibbs free energy of formation at T [J/mol]
+            # A [J/mol]
+            A = (GiEnFo_IG_val - EnFo_IG_val)/(self.R*self.T_ref)
+            # B
+            B = EnFo_IG_val/(self.R*T_val)
+            # C
+            C = (1/T_val)*_eq_Cp_integral/self.R
+            # D
+            D = _eq_Cp_integral_Cp__RT
+            # E
+            E = A + B + C - D
+            # at T [J/mol]
+            GiEn_IG_T = float(E*self.R*T_val)
+
+            # SECTION: prepare result
+            result = {
+                'value': GiEn_IG_T,
+                'unit': GiEnFo_IG_UNIT,
+                'symbol': GiEnFo_IG_SYMBOL
+            }
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error calculating Gibbs free energy of formation: {e}")
+            return None

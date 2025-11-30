@@ -6,12 +6,16 @@ from pyThermoDB.core import TableEquation
 from pythermodb_settings.models import Component
 from pythermodb_settings.utils import set_component_id
 from pyThermoLinkDB.models import ModelSource
+from pydantic import BaseModel, Field
 # local
 from pyThermoCalcDB.configs.constants import DATASOURCE, EQUATIONSOURCE
+from ..models import ComponentEquationSource
 
 # logger
 logger = logging.getLogger(__name__)
 
+
+# SECTION: Source class
 
 class Source:
     '''
@@ -311,7 +315,7 @@ class Source:
             'Formula-Name-State'
         ] = 'Name-State',
         **kwargs
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Dict[str, ComponentEquationSource]]:
         '''
         Builds the equation for the given components and property name.
 
@@ -328,8 +332,13 @@ class Source:
 
         Returns
         -------
-        Dict[str, Any] or None
-            The built equation for each component.
+        Dict[str, ComponentEquationSource] or None
+            The built equation for each component which includes:
+            - value: The equation value.
+            - args: The equation arguments.
+            - arg_symbols: The equation argument symbols.
+            - returns: The equation returns.
+            - return_symbols: The equation return symbols.
         '''
         # NOTE: check if model source is valid
         if self.equationsource is None:
@@ -378,26 +387,30 @@ class Source:
             _args = _eq.args
             # check args (SI)
             _args_required = self.check_args(
-                component, _args)
+                component,
+                _args
+            )
 
             # build args
             _args_ = self.build_args(
                 component_id=component,
-                args=_args_required
+                args=_args_required,
             )
 
             # NOTE: update P and T
-            _args_['T'] = None
-            _args_['P'] = None
+            # _args_['T'] = None
+            # _args_['P'] = None
 
-            # set
-            eq_src_comp[component] = {
-                "value": _eq,
-                "args": _args_,
-                "arg_symbols": _eq.arg_symbols,
-                "returns": _eq.returns,
-                "return_symbols": _eq.return_symbols
-            }
+            # create equation builder result
+            _res = ComponentEquationSource(
+                value=_eq,
+                args=_args_,
+                arg_symbols=_eq.arg_symbols,
+                returns=_eq.returns if isinstance(_eq.returns, dict) else {},
+                return_symbols=_eq.return_symbols
+            )
+
+            eq_src_comp[component] = _res
 
         # res
         return eq_src_comp
