@@ -134,6 +134,7 @@ class HSGProperties:
             T_unit = temperature.unit
 
             # >> convert temperature to K if necessary
+            # ! K
             if T_unit != 'K':
                 T_val = pycuc.to(
                     T_val,
@@ -177,7 +178,8 @@ class HSGProperties:
 
             # >> for component
             component_Cp_eq_src: ComponentEquationSource | None = Cp_eq_src.get(
-                self.component_id)
+                self.component_id
+            )
 
             if component_Cp_eq_src is None:
                 logger.warning(
@@ -293,7 +295,8 @@ class HSGProperties:
 
             # >> for component
             component_Cp_eq_src: ComponentEquationSource | None = Cp_eq_src.get(
-                self.component_id)
+                self.component_id
+            )
 
             if component_Cp_eq_src is None:
                 logger.warning(

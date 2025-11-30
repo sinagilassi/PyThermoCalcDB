@@ -17,18 +17,18 @@ class ComponentEquationSource(BaseModel):
         description="The equation value."
     )
     args: Dict[str, Any] = Field(
-        ...,
+        default_factory=dict,
         description="The equation arguments."
     )
-    arg_symbols: Dict[str, str] = Field(
-        ...,
+    arg_symbols: Dict[str, Any] = Field(
+        default_factory=dict,
         description="The equation argument symbols."
     )
     returns: Dict[str, Any] = Field(
-        ...,
+        default_factory=dict,
         description="The equation returns."
     )
-    return_symbols: Dict[str, str] = Field(
-        ...,
+    return_symbols: Dict[str, Any] = Field(
+        default_factory=dict,
         description="The equation return symbols."
     )

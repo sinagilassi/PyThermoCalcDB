@@ -401,13 +401,20 @@ class Source:
             # _args_['T'] = None
             # _args_['P'] = None
 
-            # create equation builder result
+            # NOTE: create equation builder result
+            # ! arg symbols
+            arg_symbols_ = _eq.arg_symbols
+            # ! returns
+            returns_ = _eq.returns if isinstance(_eq.returns, dict) else {}
+            # ! return symbols
+            return_symbols_ = _eq.return_symbols
+
             _res = ComponentEquationSource(
                 value=_eq,
                 args=_args_,
-                arg_symbols=_eq.arg_symbols,
-                returns=_eq.returns if isinstance(_eq.returns, dict) else {},
-                return_symbols=_eq.return_symbols
+                arg_symbols=arg_symbols_,
+                returns=returns_,
+                return_symbols=return_symbols_
             )
 
             eq_src_comp[component] = _res

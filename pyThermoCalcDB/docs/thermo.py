@@ -23,6 +23,7 @@ def calc_enthalpy_of_formation_at_temperature(
         'Name-Formula-State',
         'Formula-Name-State'
     ] = 'Name-State',
+    **kwargs
 ) -> Optional[Dict[str, Any]]:
     """
     Calculate the enthalpy of formation at a given temperature for a component.
@@ -37,6 +38,10 @@ def calc_enthalpy_of_formation_at_temperature(
         The temperature at which to calculate the enthalpy of formation.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
+    **kwargs
+        Additional keyword arguments.
+        - computation_time: bool, default False
+            If True, computation time will be measured and returned.
 
     Returns
     -------
