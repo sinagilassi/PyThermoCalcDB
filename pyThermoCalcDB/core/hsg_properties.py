@@ -18,7 +18,11 @@ from ..configs.thermo_props import (
 )
 from ..utils.math_tools import integrate_function
 from .calc import Cp_integral, Cp__RT_integral
-from ..models import ComponentEquationSource, ComponentEnthalpyOfFormation, ComponentGibbsEnergyOfFormation
+from ..models import (
+    ComponentEquationSource,
+    ComponentEnthalpyOfFormation,
+    ComponentGibbsEnergyOfFormation
+)
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
