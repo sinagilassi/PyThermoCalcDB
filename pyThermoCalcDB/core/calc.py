@@ -111,15 +111,17 @@ def Cp_integral(
                     f"Equation does not have a unit for Cp integral.")
                 raise
 
+            # >> check
+            if _eq_Cp_integral is None:
+                logger.error(
+                    f"Failed to calculate Cp integral from T={T_ref} K to T={T} K.")
+                return None
+
             # TODO: FINALLY convert Cp equation to [J/mol.K] (after integration means the unit is [J/mol])
             _eq_Cp_integral = pycuc.to(
-                _eq_Cp_integral, f"{unit_} => J/mol.K")
-
-        # check
-        if not _eq_Cp_integral:
-            logger.error(
-                f"Failed to integrate Cp equation from T={T_ref} K to T={T} K.")
-            return None
+                _eq_Cp_integral,
+                f"{unit_} => J/mol.K"
+            )
 
         return _eq_Cp_integral
     except Exception as e:
@@ -225,6 +227,13 @@ def Cp__RT_integral(
                 T_ref,
                 T
             )
+
+            # >> check
+            if _eq_Cp_integral_Cp__RT is None:
+                logger.error(
+                    f"Failed to calculate Cp/RT integral from T={T_ref} K to T={T} K.")
+                return None
+
             # check
             if unit_ is None:
                 logger.error(
@@ -236,12 +245,6 @@ def Cp__RT_integral(
                 _eq_Cp_integral_Cp__RT,
                 f"{unit_} => J/mol.K"
             )
-
-        # check
-        if not _eq_Cp_integral_Cp__RT:
-            logger.error(
-                f"Failed to integrate Cp/RT equation from T={T_ref} K to T={T} K.")
-            return None
 
         return _eq_Cp_integral_Cp__RT
     except Exception as e:

@@ -6,11 +6,14 @@ from pythermodb_settings.models import Component, Temperature
 # local
 from ..core.hsg_properties import HSGProperties
 from ..thermo import Source
+from ..utils.tools import measure_time
+from ..models.component_ref import ComponentGibbsEnergyOfFormation, ComponentEnthalpyOfFormation
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
 
 
+@measure_time
 def calc_enthalpy_of_formation_at_temperature(
     component: Component,
     model_source: ModelSource,
@@ -24,7 +27,7 @@ def calc_enthalpy_of_formation_at_temperature(
         'Formula-Name-State'
     ] = 'Name-State',
     **kwargs
-) -> Optional[Dict[str, Any]]:
+) -> Optional[ComponentEnthalpyOfFormation]:
     """
     Calculate the enthalpy of formation at a given temperature for a component.
 
@@ -40,13 +43,13 @@ def calc_enthalpy_of_formation_at_temperature(
         The key to identify the component, by default 'Name-State'.
     **kwargs
         Additional keyword arguments.
-        - computation_time: bool, default False
-            If True, computation time will be measured and returned.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
 
     Returns
     -------
-    Optional[Dict[str, Any]]
-        A dictionary containing the enthalpy of formation value, unit, and symbol, or None if calculation fails.
+    Optional[ComponentEnthalpyOfFormation]
+        A ComponentEnthalpyOfFormation object containing the enthalpy of formation value, unit, and symbol, or None if calculation fails.
 
     Notes
     -----
@@ -89,6 +92,7 @@ def calc_enthalpy_of_formation_at_temperature(
         return None
 
 
+@measure_time
 def calc_gibbs_energy_of_formation_at_temperature(
         component: Component,
         model_source: ModelSource,
@@ -101,7 +105,8 @@ def calc_gibbs_energy_of_formation_at_temperature(
             'Name-Formula-State',
             'Formula-Name-State'
         ] = 'Name-State',
-) -> Optional[Dict[str, Any]]:
+        **kwargs
+) -> Optional[ComponentGibbsEnergyOfFormation]:
     """
     Calculate the Gibbs free energy of formation at a given temperature for a component.
 
@@ -115,11 +120,15 @@ def calc_gibbs_energy_of_formation_at_temperature(
         The temperature at which to calculate the Gibbs free energy of formation.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
 
     Returns
     -------
-    Optional[Dict[str, Any]]
-        A dictionary containing the Gibbs free energy of formation value, unit, and symbol, or None if calculation fails.
+    Optional[ComponentGibbsEnergyOfFormation]
+        A ComponentGibbsEnergyOfFormation object containing the Gibbs free energy of formation value, unit, and symbol, or None if calculation fails.
 
     Notes
     -----
@@ -159,4 +168,151 @@ def calc_gibbs_energy_of_formation_at_temperature(
     except Exception as e:
         logger.error(
             f"Error calculating Gibbs free energy of formation for component '{component.name}': {e}")
+        return None
+
+
+@measure_time
+def calc_enthalpy_of_formation_range(
+        component: Component,
+        model_source: ModelSource,
+        temperatures: list[Temperature],
+        component_key: Literal[
+            'Name-State',
+            'Formula-State',
+            'Name',
+            'Formula',
+            'Name-Formula-State',
+            'Formula-Name-State'
+        ] = 'Name-State',
+        **kwargs
+) -> Optional[list[ComponentEnthalpyOfFormation]]:
+    """
+    Calculate the enthalpy of formation over a range of temperatures for a component.
+
+    Parameters
+    ----------
+    component : Component
+        The chemical component for which to calculate the enthalpy of formation.
+    model_source : ModelSource
+        The source model containing necessary data.
+    temperatures : list[Temperature]
+        The list of temperatures at which to calculate the enthalpy of formation.
+    component_key : Literal[..., optional]
+        The key to identify the component, by default 'Name-State'.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[list[ComponentEnthalpyOfFormation]]
+        A list of ComponentEnthalpyOfFormation objects containing the enthalpy of formation values, units, and symbols, or None if calculation fails.
+    """
+    try:
+        # SECTION: Input validation
+        if not isinstance(component, Component):
+            logger.error("Invalid component provided.")
+            return None
+
+        if not isinstance(model_source, ModelSource):
+            logger.error("Invalid model_source provided.")
+            return None
+
+        if not all(isinstance(temp, Temperature) for temp in temperatures):
+            logger.error("Invalid temperatures provided.")
+            return None
+
+        # SECTION: Prepare source
+        Source_ = Source(model_source=model_source)
+
+        # SECTION: Initialize HSGProperties
+        hsg_props = HSGProperties(
+            component=component,
+            source=Source_,
+            component_key=component_key
+        )
+
+        # NOTE: calculate
+        EnFo_results = hsg_props.calc_enthalpy_of_formation_range(
+            temperatures=temperatures
+        )
+
+        return EnFo_results
+    except Exception as e:
+        logger.error(
+            f"Error calculating enthalpy of formation range for component '{component.name}': {e}")
+        return None
+
+
+def calc_gibbs_energy_of_formation_range(
+        component: Component,
+        model_source: ModelSource,
+        temperatures: list[Temperature],
+        component_key: Literal[
+            'Name-State',
+            'Formula-State',
+            'Name',
+            'Formula',
+            'Name-Formula-State',
+            'Formula-Name-State'
+        ] = 'Name-State',
+        **kwargs
+) -> Optional[list[ComponentGibbsEnergyOfFormation]]:
+    """
+    Calculate the Gibbs free energy of formation over a range of temperatures for a component.
+
+    Parameters
+    ----------
+    component : Component
+        The chemical component for which to calculate the Gibbs free energy of formation.
+    model_source : ModelSource
+        The source model containing necessary data.
+    temperatures : list[Temperature]
+        The list of temperatures at which to calculate the Gibbs free energy of formation.
+    component_key : Literal[..., optional]
+        The key to identify the component, by default 'Name-State'.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[list[ComponentGibbsEnergyOfFormation]]
+        A list of ComponentGibbsEnergyOfFormation objects containing the Gibbs free energy of formation values, units, and symbols, or None if calculation fails.
+    """
+    try:
+        # SECTION: Input validation
+        if not isinstance(component, Component):
+            logger.error("Invalid component provided.")
+            return None
+
+        if not isinstance(model_source, ModelSource):
+            logger.error("Invalid model_source provided.")
+            return None
+
+        if not all(isinstance(temp, Temperature) for temp in temperatures):
+            logger.error("Invalid temperatures provided.")
+            return None
+
+        # SECTION: Prepare source
+        Source_ = Source(model_source=model_source)
+
+        # SECTION: Initialize HSGProperties
+        hsg_props = HSGProperties(
+            component=component,
+            source=Source_,
+            component_key=component_key
+        )
+
+        # NOTE: calculate
+        GiEnFo_results = hsg_props.calc_gibbs_free_energy_of_formation_range(
+            temperatures=temperatures
+        )
+
+        return GiEnFo_results
+    except Exception as e:
+        logger.error(
+            f"Error calculating Gibbs free energy of formation range for component '{component.name}': {e}")
         return None
