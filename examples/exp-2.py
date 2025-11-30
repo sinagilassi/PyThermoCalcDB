@@ -6,6 +6,8 @@ import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
+# local
+from pyThermoCalcDB.docs.thermo import calc_enthalpy_of_formation_at_temperature
 
 # check version
 print(ptdb.__version__)
@@ -159,7 +161,9 @@ thermodb_rules: Dict[str, Dict[str, ComponentRule]] = {
         'DATA': {
             'critical-pressure': 'Pc',
             'critical-temperature': 'Tc',
-            'acentric-factor': 'AcFa'
+            'acentric-factor': 'AcFa',
+            'Enthalpy-of-Formation': 'EnFo_IG',
+            'Gibbs-Energy-of-Formation': 'GiEnFo_IG',
         },
         'EQUATIONS': {
             'CUSTOM-REF-1::vapor-pressure': 'VaPr',
@@ -204,5 +208,29 @@ equationsource = model_source_.equation_source
 # ! THERMODYNAMIC PROPERTIES
 # ------------------------------------------------
 # vapor pressure
-VaPr = equationsource['propane-g']['VaPr'].cal(T=300.1)
+VaPr = equationsource['carbon dioxide-g']['VaPr'].cal(T=300.1)
 print(VaPr)
+# heat capacity
+Cp_IG = equationsource['carbon dioxide-g']['Cp_IG'].cal(T=300.1)
+print(Cp_IG)
+
+# =======================================
+# SECTION: CALCULATE ENTHALPY OF FORMATION
+# =======================================
+# ! component
+CO2 = Component(
+    name='carbon dioxide',
+    formula='CO2',
+    state='g'
+)
+
+# ! temperature
+temperature_ = Temperature(value=300.0, unit='K')
+
+# ! calculate enthalpy of formation at temperature
+EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
+    component=CO2,
+    model_source=model_source_,
+    temperature=temperature_
+)
+print(EnFo_IG_T_res)

@@ -5,6 +5,7 @@ import pycuc
 from pyThermoDB.core import TableEquation
 from pythermodb_settings.models import Component
 from pythermodb_settings.utils import set_component_id
+from pyThermoLinkDB.models import ModelSource
 # local
 from pyThermoCalcDB.configs.constants import DATASOURCE, EQUATIONSOURCE
 
@@ -20,7 +21,7 @@ class Source:
 
     def __init__(
         self,
-        model_source: Optional[Dict] = None,
+        model_source: Optional[ModelSource] = None,
         **kwargs
     ):
         '''Initialize the Source class.'''
@@ -32,12 +33,18 @@ class Source:
             self._datasource = None
             self._equationsource = None
         else:
-            # set
+            # >> extract
+            model_source_dict = {
+                DATASOURCE: model_source.data_source,
+                EQUATIONSOURCE: model_source.equation_source
+            }
+
+            # reset
             (
                 self._datasource,
                 self._equationsource
             ) = self.set_source(
-                model_source=model_source
+                model_source=model_source_dict
             )
 
     def __repr__(self):
@@ -387,7 +394,9 @@ class Source:
             eq_src_comp[component] = {
                 "value": _eq,
                 "args": _args_,
-                "return": _eq.returns
+                "arg_symbols": _eq.arg_symbols,
+                "returns": _eq.returns,
+                "return_symbols": _eq.return_symbols
             }
 
         # res
