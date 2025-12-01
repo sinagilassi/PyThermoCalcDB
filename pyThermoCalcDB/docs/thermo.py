@@ -1,13 +1,18 @@
 # import libs
 import logging
-from typing import Dict, Any, Literal, Optional
+from typing import Dict, Any, Literal, Optional, Tuple
 from pyThermoLinkDB.models import ModelSource
-from pythermodb_settings.models import Component, Temperature
+from pythermodb_settings.models import Component, Temperature, Pressure
 # local
 from ..core.hsg_properties import HSGProperties
 from ..thermo import Source
 from ..utils.tools import measure_time
-from ..models.component_ref import ComponentGibbsEnergyOfFormation, ComponentEnthalpyOfFormation
+from ..models.component_ref import (
+    ComponentGibbsEnergyOfFormation,
+    ComponentEnthalpyOfFormation,
+)
+from ..models import CalcResult
+from ..core.component_vapr import ComponentVaporPressure
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
@@ -245,6 +250,7 @@ def calc_enthalpy_of_formation_range(
         return None
 
 
+@measure_time
 def calc_gibbs_energy_of_formation_range(
         component: Component,
         model_source: ModelSource,
