@@ -1,3 +1,6 @@
+from .ref import CalcResult
+
+
 from .component_ref import (
     ComponentEquationSource,
     ComponentEnthalpyOfFormation,
@@ -7,5 +10,6 @@ from .component_ref import (
 __all__ = [
     'ComponentEquationSource',
     'ComponentEnthalpyOfFormation',
-    'ComponentGibbsEnergyOfFormation'
+    'ComponentGibbsEnergyOfFormation',
+    'CalcResult',
 ]
