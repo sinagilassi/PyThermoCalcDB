@@ -6,6 +6,8 @@
         "maxiter",
         "Psat",
         "trapz",
+        "Tsat",
+        "vapr",
         "xtol"
     ]
 }
