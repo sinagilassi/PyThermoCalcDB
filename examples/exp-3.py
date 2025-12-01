@@ -6,12 +6,13 @@ import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
+from pyThermoDB.core import TableEquation
 # local
-from pyThermoCalcDB.docs.thermo import (
-    calc_enthalpy_of_formation_at_temperature,
-    calc_gibbs_energy_of_formation_at_temperature,
-    calc_enthalpy_of_formation_range,
-    calc_gibbs_energy_of_formation_range
+from pyThermoCalcDB.docs.sat import (
+    calc_vapor_pressure_at_temperature,
+    calc_enthalpy_of_vaporization_at_temperature,
+    calc_saturated_temperature_at_pressure,
+    calc_vapor_pressure_sensitivity_at_temperature
 )
 
 # check version
@@ -213,8 +214,16 @@ equationsource = model_source_.equation_source
 # ! THERMODYNAMIC PROPERTIES
 # ------------------------------------------------
 # vapor pressure
-VaPr = equationsource['carbon dioxide-g']['VaPr'].cal(T=300.1)
-print(VaPr)
+VaPr = equationsource['carbon dioxide-g']['VaPr']
+if not isinstance(VaPr, TableEquation):
+    raise ValueError("VaPr is not an EquationModel")
+
+VaPr_res = VaPr.cal(T=300.1)
+print(VaPr_res)
+# >> variable range
+VaPr_range = VaPr.get_variable_range_values()
+print(VaPr_range)
+
 # heat capacity
 Cp_IG = equationsource['carbon dioxide-g']['Cp_IG'].cal(T=300.1)
 print(Cp_IG)
@@ -229,36 +238,7 @@ CO2 = Component(
     state='g'
 )
 
-# ! temperature
-temperature_ = Temperature(value=300.0, unit='K')
-
-# ! calculate enthalpy of formation at temperature
-EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
-    component=CO2,
-    model_source=model_source_,
-    temperature=temperature_,
-    mode='attach'
-)
-print(EnFo_IG_T_res)
-
-EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
-    component=CO2,
-    model_source=model_source_,
-    temperature=temperature_,
-    mode='silent'
-)
-print(EnFo_IG_T_res)
-
-# ! calculate gibbs free energy of formation at temperature
-GiEnFo_IG_T_res = calc_gibbs_energy_of_formation_at_temperature(
-    component=CO2,
-    model_source=model_source_,
-    temperature=temperature_,
-    mode='log'
-)
-print(GiEnFo_IG_T_res)
-
-# ! calculate enthalpy of formation range
+# ! range of temperature
 temperature_range_ = [
     Temperature(value=295.0, unit='K'),
     Temperature(value=300.0, unit='K'),
@@ -266,19 +246,60 @@ temperature_range_ = [
     Temperature(value=370.0, unit='K'),
 ]
 
-EnFo_IG_range_res = calc_enthalpy_of_formation_range(
-    component=CO2,
-    model_source=model_source_,
-    temperatures=temperature_range_,
-    mode='attach'
-)
-print(EnFo_IG_range_res)
+# ! calculate vapor pressure at temperatures
+for T in temperature_range_:
+    Pvap = calc_vapor_pressure_at_temperature(
+        component=CO2,
+        temperature=T,
+        model_source=model_source_,
+        mode='attach'
+    )
+    if Pvap is not None:
+        print(Pvap)
 
-# ! calculate gibbs free energy of formation range
-GiEnFo_IG_range_res = calc_gibbs_energy_of_formation_range(
-    component=CO2,
-    model_source=model_source_,
-    temperatures=temperature_range_,
-    mode='log'
-)
-print(GiEnFo_IG_range_res)
+# ! calculate enthalpy of vaporization at temperatures
+for T in temperature_range_:
+    Hvap = calc_enthalpy_of_vaporization_at_temperature(
+        component=CO2,
+        temperature=T,
+        model_source=model_source_,
+        mode='attach'
+    )
+    if Hvap is not None:
+        print(Hvap)
+
+# ! calculate saturated temperature at pressures
+pressure_range_ = [
+    Pressure(value=5000.0, unit='kPa'),
+    Pressure(value=10000.0, unit='kPa'),
+    Pressure(value=15000.0, unit='kPa'),
+    Pressure(value=20000.0, unit='kPa'),
+]
+# {'T': {'min': {'value': 216.58, 'unit': 'K', 'symbol': 'Tmin'}, 'max': {'value': 304.21, 'unit': 'K', 'symbol': 'Tmax'}}}
+
+for P in pressure_range_:
+    Tsat = calc_saturated_temperature_at_pressure(
+        component=CO2,
+        pressure=P,
+        model_source=model_source_,
+        temperature_guess=Temperature(value=250.0, unit='K'),
+        T_bracket=(
+            Temperature(value=216.58, unit='K'),
+            Temperature(value=304.21, unit='K')
+        ),
+        method='least_squares',
+        mode='attach'
+    )
+    if Tsat is not None:
+        print(Tsat)
+
+# ! calculate vapor pressure sensitivity at temperatures
+for T in temperature_range_:
+    dPvap_dT = calc_vapor_pressure_sensitivity_at_temperature(
+        component=CO2,
+        temperature=T,
+        model_source=model_source_,
+        mode='attach'
+    )
+    if dPvap_dT is not None:
+        print(dPvap_dT)
