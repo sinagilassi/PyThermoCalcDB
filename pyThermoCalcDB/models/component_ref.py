@@ -1,10 +1,57 @@
 # import libs
-from typing import Any, Dict
+from typing import Any, Dict, Callable
 from pydantic import BaseModel, Field, ConfigDict
 from pyThermoDB.core import TableEquation
 from pythermodb_settings.models import Temperature
 
 # NOTE: Equation Builder Result
+
+
+class ComponentEquation(BaseModel):
+    '''
+    Component Equation Result Model
+
+    Attributes
+    ----------
+    equation : TableEquation
+        The equation value.
+    body : str
+        The body of the equation.
+    args : Dict[str, Any]
+        The equation arguments.
+    arg_symbols : Dict[str, Any]
+        The equation argument symbols.
+    returns : Dict[str, Any]
+        The equation returns.
+    return_symbols : Dict[str, Any]
+        The equation return symbols.
+    '''
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    equation: TableEquation = Field(
+        ...,
+        description="The equation value."
+    )
+    body: str = Field(
+        ...,
+        description="The body of the equation."
+    )
+    args: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="The equation arguments."
+    )
+    arg_symbols: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="The equation argument symbols."
+    )
+    returns: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="The equation returns."
+    )
+    return_symbol: str = Field(
+        default_factory=str,
+        description="The equation return symbols."
+    )
 
 
 class ComponentEquationSource(BaseModel):
