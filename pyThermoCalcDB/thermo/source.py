@@ -254,7 +254,7 @@ class Source:
         self,
         component_id: str,
         args,
-        ignore_symbols: List[str] = ["T", "P"]
+        ignore_symbols: Optional[List[str]] = None
     ):
         '''
         Builds args
@@ -266,7 +266,7 @@ class Source:
         args : tuple
             equation args
         ignore_symbols : list
-            list of symbols to ignore, default is ["T", "P"]
+            list of symbols to ignore, default is None but it can be defined as ["T", "P"]
         '''
         try:
             # SECTION: data source for component
@@ -287,17 +287,23 @@ class Source:
 
                 # NOTE: check if symbol is in ignore symbols
                 if ignore_symbols is not None:
-                    # check in ignore symbols
+                    # ! check in ignore symbols
                     if symbol not in ignore_symbols:
                         # check in component database
                         for key, value in component_datasource.items():
                             if symbol == key:
                                 res[symbol] = value
+                            else:
+                                # default None
+                                res[symbol] = None
                 else:
-                    # check in component database
+                    # ! check in component database
                     for key, value in component_datasource.items():
                         if symbol == key:
                             res[symbol] = value
+                        else:
+                            # default None
+                            res[symbol] = None
             return res
         except Exception as e:
             raise Exception('Building args failed!, ', e)
@@ -662,3 +668,126 @@ class Source:
         except Exception as e:
             logger.error(f"Getting component data failed: {e}")
             return None
+
+    def is_prop_available(
+        self,
+        component_id: str,
+        prop_name: str
+    ) -> bool:
+        '''
+        Check if the property is available for the given component either in datasource or equationsource.
+
+        Parameters
+        ----------
+        component_id : str
+            The id of the component.
+        prop_name : str
+            The name of the property to check.
+
+        Returns
+        -------
+        bool
+            True if the property is available, False otherwise.
+        '''
+        try:
+            # SECTION: check equationsource
+            if (
+                self.equationsource is not None and
+                isinstance(self.equationsource, dict)
+            ):
+                # check component
+                if component_id in self.equationsource.keys():
+                    # ! check property in equationsource
+                    if prop_name in self.equationsource[component_id].keys():
+                        return True
+
+            # SECTION: check datasource
+            if (
+                self.datasource is not None and
+                isinstance(self.datasource, dict)
+            ):
+                # check component
+                if component_id in self.datasource.keys():
+                    # ! check property in datasource
+                    if prop_name in self.datasource[component_id].keys():
+                        return True
+
+            return False
+        except Exception as e:
+            logger.error(f"Checking property availability failed: {e}")
+            return False
+
+    def is_prop_eq_available(
+        self,
+        component_id: str,
+        prop_name: str
+    ) -> bool:
+        '''
+        Check if the property equation is available for the given component in equationsource.
+
+        Parameters
+        ----------
+        component_id : str
+            The id of the component.
+        prop_name : str
+            The name of the property to check.
+
+        Returns
+        -------
+        bool
+            True if the property equation is available, False otherwise.
+        '''
+        try:
+            # SECTION: check equationsource
+            if (
+                self.equationsource is not None and
+                isinstance(self.equationsource, dict)
+            ):
+                # check component
+                if component_id in self.equationsource.keys():
+                    # ! check property in equationsource
+                    if prop_name in self.equationsource[component_id].keys():
+                        return True
+
+            return False
+        except Exception as e:
+            logger.error(
+                f"Checking property equation availability failed: {e}")
+            return False
+
+    def is_prop_data_available(
+        self,
+        component_id: str,
+        prop_name: str
+    ) -> bool:
+        '''
+        Check if the property data is available for the given component in datasource.
+
+        Parameters
+        ----------
+        component_id : str
+            The id of the component.
+        prop_name : str
+            The name of the property to check.
+
+        Returns
+        -------
+        bool
+            True if the property data is available, False otherwise.
+        '''
+        try:
+            # SECTION: check datasource
+            if (
+                self.datasource is not None and
+                isinstance(self.datasource, dict)
+            ):
+                # check component
+                if component_id in self.datasource.keys():
+                    # ! check property in datasource
+                    if prop_name in self.datasource[component_id].keys():
+                        return True
+
+            return False
+        except Exception as e:
+            logger.error(f"Checking property data availability failed: {e}")
+            return False
