@@ -4,6 +4,7 @@
         "dataequation",
         "fprime",
         "maxiter",
+        "mkeq",
         "Psat",
         "trapz",
         "Tsat",
