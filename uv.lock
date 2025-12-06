@@ -438,12 +438,12 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=2.3.5" },
-    { name = "pycuc", specifier = ">=2.1.0" },
+    { name = "pycuc" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
-    { name = "pythermodb", specifier = ">=1.11.53" },
-    { name = "pythermodb-settings", specifier = ">=0.1.9" },
-    { name = "pythermolinkdb", specifier = ">=1.3.11" },
+    { name = "pythermodb" },
+    { name = "pythermodb-settings" },
+    { name = "pythermolinkdb" },
     { name = "rich", marker = "extra == 'dev'", specifier = ">=14.2.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
@@ -485,7 +485,7 @@ wheels = [
 
 [[package]]
 name = "pythermolinkdb"
-version = "1.4.0"
+version = "1.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -494,9 +494,9 @@ dependencies = [
     { name = "pythermodb-settings" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/d7/425b4072d0ff691a5e8cd3086bbed95bb234a30cc1a0ba2074fd0137542a/pythermolinkdb-1.4.0.tar.gz", hash = "sha256:78c1ee5fabc5ff59e21993f921595263281b98f76e289604d550edf3fcb3f806", size = 30950, upload-time = "2025-12-06T02:25:30.877Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/f0/c9b8bae01dc548ad9d958712747fd0cad5d87a12432c2cec016d6a0f89c2/pythermolinkdb-1.4.1.tar.gz", hash = "sha256:44c7a5423d6d62de593e23a9f75b8435d33fdc4f2fc56433fdb90616301e992f", size = 30913, upload-time = "2025-12-06T03:10:29.062Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/66/c78bdd40157222c5dc74a1f5954bb76bedc188af4411d4facd70c67f9ce9/pythermolinkdb-1.4.0-py3-none-any.whl", hash = "sha256:f414ecb2aede1c711baa75e6332cb0374b8ef716e7a9206d36db6f547b39ce96", size = 38436, upload-time = "2025-12-06T02:25:29.704Z" },
+    { url = "https://files.pythonhosted.org/packages/94/52/550d7fc3da4e8ca59b51a7cb28048b76554429b62647b794b74112415960/pythermolinkdb-1.4.1-py3-none-any.whl", hash = "sha256:8fa85216ad71b6a54f0d18897a41e36a3e7661315401e1474dd2739079687e5f", size = 38487, upload-time = "2025-12-06T03:10:27.825Z" },
 ]
 
 [[package]]

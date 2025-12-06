@@ -5,6 +5,7 @@
         "fprime",
         "maxiter",
         "mkeq",
+        "mkeqs",
         "Psat",
         "trapz",
         "Tsat",
