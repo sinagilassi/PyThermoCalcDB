@@ -1,18 +1,16 @@
 # import libs
 import logging
-from typing import Dict, Any, Literal, Optional, Tuple
+from typing import Literal, Optional
 from pyThermoLinkDB.models import ModelSource
-from pythermodb_settings.models import Component, Temperature, Pressure
+from pythermodb_settings.models import Component, Temperature
 from pyThermoLinkDB.thermo import Source
 # local
-from ..core.hsg_properties import HSGProperties
 from ..utils.tools import measure_time
+from ..core.hsg_properties import HSGProperties
 from ..models.component_ref import (
     ComponentGibbsEnergyOfFormation,
     ComponentEnthalpyOfFormation,
 )
-from ..models import CalcResult
-from ..core.component_vapr import ComponentVaporPressure
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)

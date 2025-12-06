@@ -8,7 +8,15 @@ from pydantic import BaseModel, Field, ConfigDict
 class CalcResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    value: float = Field(..., description="Calculated value")
-    unit: str = Field(..., description="Unit of the calculated value")
-    symbol: str = Field(...,
-                        description="Symbol representing the calculated property")
+    value: float = Field(
+        ...,
+        description="Calculated value"
+    )
+    unit: str = Field(
+        ...,
+        description="Unit of the calculated value"
+    )
+    symbol: str = Field(
+        ...,
+        description="Symbol representing the calculated property"
+    )
