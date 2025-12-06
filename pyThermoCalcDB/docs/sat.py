@@ -54,6 +54,12 @@ def calc_vapor_pressure_at_temperature(
     -------
     Optional[CalcResult]
         A CalcResult object containing the vapor pressure value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - Model source must contain vapor pressure equations for the specified component.
+    - `Vapor pressure` should be returned in `Pa` unit.
+    - `Temperature` should be provided in `K` unit.
     """
     try:
         # SECTION: Input validation
@@ -128,6 +134,12 @@ def calc_vapor_pressure_range_at_temperature(
     -------
     Optional[list[CalcResult]]
         A list of CalcResult objects containing the vapor pressure values, units, and symbols, or None if calculation fails.
+
+    Notes
+    -----
+    - Model source must contain vapor pressure equations for the specified component.
+    - `Vapor pressure` should be returned in `Pa` unit.
+    - `Temperature` should be provided in `K` unit.
     """
     try:
         # SECTION: Input validation
@@ -205,6 +217,12 @@ def calc_enthalpy_of_vaporization_at_temperature(
     -------
     Optional[CalcResult]
         A CalcResult object containing the enthalpy of vaporization value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - Model source must contain vapor pressure equations for the specified component.
+    - `Vapor pressure` should be returned in `Pa` unit.
+    - `Temperature` should be provided in `K` unit.
     """
     try:
         # SECTION: Input validation
@@ -279,6 +297,12 @@ def calc_enthalpy_of_vaporization_range_at_temperature(
     -------
     Optional[list[CalcResult]]
         A list of CalcResult objects containing the enthalpy of vaporization values, units, and symbols, or None if calculation fails.
+
+    Notes
+    -----
+    - Model source must contain vapor pressure equations for the specified component.
+    - `Vapor pressure` should be returned in `Pa` unit.
+    - `Temperature` should be provided in `K` unit.
     """
     try:
         # SECTION: Input validation
@@ -379,6 +403,12 @@ def calc_saturated_temperature_at_pressure(
     -------
     Optional[CalcResult]
         A CalcResult object containing the saturated temperature value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - Model source must contain vapor pressure equations for the specified component.
+    - `Vapor pressure` should be returned in `Pa` unit.
+    - `Temperature` should be provided in `K` unit.
     """
     try:
         # SECTION: Input validation
@@ -463,6 +493,12 @@ def calc_vapor_pressure_sensitivity_at_temperature(
     -------
     Optional[CalcResult]
         A CalcResult object containing the vapor pressure sensitivity value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - Model source must contain vapor pressure equations for the specified component.
+    - `Vapor pressure` should be returned in `Pa` unit.
+    - `Temperature` should be provided in `K` unit.
     """
     try:
         # SECTION: Input validation
@@ -537,6 +573,12 @@ def calc_vapor_pressure_sensitivity_range_at_temperature(
     -------
     Optional[list[CalcResult]]
         A list of CalcResult objects containing the vapor pressure sensitivity values, units, and symbols, or None if calculation fails.
+
+    Notes
+    -----
+    - Model source must contain vapor pressure equations for the specified component.
+    - `Vapor pressure` should be returned in `Pa` unit.
+    - `Temperature` should be provided in `K` unit.
     """
     try:
         # SECTION: Input validation
