@@ -26,6 +26,12 @@ class ComponentVaporPressure:
     - Saturation pressure VaPr(T)
     - Enthalpy of vaporization EnVap(T)
     - Temperature at given vapor pressure TeVaPr(P)
+
+    Notes
+    -----
+    - All calculations are based on the vapor pressure equation retrieved from the source for the given component.
+    - `Pressure` unit defined in the model source should be in `Pa`.
+    - `Temperature` unit defined in the model source should be in `K`.
     """
 
     # NOTE: attributes
