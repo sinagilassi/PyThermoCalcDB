@@ -1,10 +1,10 @@
 # import libs
 import logging
 from typing import Literal, Optional, Tuple
-from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, Temperature, Pressure
+from pyThermoLinkDB.models import ModelSource
+from pyThermoLinkDB.thermo import Source
 # local
-from ..thermo import Source
 from ..utils.tools import measure_time
 from ..models import CalcResult
 from ..core.component_vapr import ComponentVaporPressure
