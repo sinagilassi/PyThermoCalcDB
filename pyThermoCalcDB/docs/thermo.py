@@ -3,9 +3,9 @@ import logging
 from typing import Dict, Any, Literal, Optional, Tuple
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, Temperature, Pressure
+from pyThermoLinkDB.thermo import Source
 # local
 from ..core.hsg_properties import HSGProperties
-from ..thermo import Source
 from ..utils.tools import measure_time
 from ..models.component_ref import (
     ComponentGibbsEnergyOfFormation,
