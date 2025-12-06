@@ -4,8 +4,8 @@ from typing import Dict, Literal, Optional, Any
 from pyThermoDB.core import TableEquation
 import pycuc
 from scipy import integrate
+from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
-from ..models import ComponentEquationSource
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def Cp_integral(
         # ! return symbols
         eq_return_symbols = eq_src.return_symbols
         # ! equation
-        Cp_eq = eq_src.value
+        Cp_eq = eq_src.source
 
         # NOTE: Cp integral
         # unit: [J/mol]
@@ -172,7 +172,7 @@ def Cp__RT_integral(
         # ! return symbols
         eq_return_symbols = eq_src.return_symbols
         # ! equation
-        Cp_eq = eq_src.value
+        Cp_eq = eq_src.source
 
         # NOTE: integral [Cp/RT]
         # unit: [dimensionless]

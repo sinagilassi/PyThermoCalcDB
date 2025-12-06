@@ -4,8 +4,9 @@ from typing import Dict, Any, Literal, Optional, List
 from pythermodb_settings.models import Component, Temperature
 from pythermodb_settings.utils import set_component_id
 import pycuc
+from pyThermoLinkDB.thermo import Source
+from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # local
-from ..thermo import Source
 from ..configs.thermo_props import (
     EnFo_IG_UNIT,
     Ent_STD_UNIT,
@@ -19,7 +20,6 @@ from ..configs.thermo_props import (
 from ..utils.math_tools import integrate_function
 from .calc import Cp_integral, Cp__RT_integral
 from ..models import (
-    ComponentEquationSource,
     ComponentEnthalpyOfFormation,
     ComponentGibbsEnergyOfFormation
 )
