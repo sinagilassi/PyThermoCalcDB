@@ -9,11 +9,12 @@ from pyThermoDB.models import EquationResult
 from scipy.optimize import root_scalar, least_squares
 import pycuc
 from math import pow
+from pyThermoLinkDB.thermo import Source
+from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # local
-from ..thermo import Source
 from ..configs.thermo_props import VaPr_SYMBOL, VaPr_UNIT
 from ..configs.constants import R_J_molK, T_ref_K
-from ..models import ComponentEquationSource, CalcResult
+from ..models import CalcResult
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
@@ -78,7 +79,7 @@ class ComponentVaporPressure:
 
         # NOTE: equation
         # ! vapor pressure equation
-        self.VaPr_eq: TableEquation = self.vapor_pressure_equation.value
+        self.VaPr_eq: TableEquation = self.vapor_pressure_equation.source
         # ! vapor pressure equation args/returns/symbols
         self.VaPr_args: Dict[
             str,
@@ -129,7 +130,8 @@ class ComponentVaporPressure:
 
             # SECTION: select for component
             eq: ComponentEquationSource | None = equations.get(
-                self.component_id)
+                self.component_id
+            )
 
             # >> check
             if eq is None:
@@ -173,6 +175,8 @@ class ComponentVaporPressure:
 
             # NOTE: check unit from args
             if "T" in self.VaPr_arg_symbols:
+                # ! >> get expected unit from args >>
+                # ? as pycuc handle unit conversion for temperature (careful with other units)
                 arg_T_unit = self.VaPr_arg_symbols["T"].get(
                     "unit",
                     "K"
@@ -307,7 +311,8 @@ class ComponentVaporPressure:
             # SECTION: validate temperature
             if T_value <= 0.0:
                 raise ValueError(
-                    "Temperature must be greater than zero Kelvin.")
+                    "Temperature must be greater than zero Kelvin."
+                )
 
             # SECTION: numerical derivative
             # NOTE: central difference
@@ -318,12 +323,14 @@ class ComponentVaporPressure:
             T_minus = T_value - delta_T
 
             # >> calculate Psat values
+            # ! same unit as args
             VaPr_plus = self.calc_VaPr(
                 Temperature(value=T_plus, unit='K')
             )
             # >> value
             VaPr_plus_value = float(VaPr_plus.value)
 
+            # ! same unit as args
             VaPr_minus = self.calc_VaPr(
                 Temperature(value=T_minus, unit='K')
             )
