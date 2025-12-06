@@ -15,5 +15,4 @@ __all__ = [
     "__email__",
     "__license__",
     # app
-
 ]

@@ -7,9 +7,7 @@ import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
-from pyThermoCalcDB.docs import (
-    mkeq
-)
+
 
 # check version
 print(ptdb.__version__)
