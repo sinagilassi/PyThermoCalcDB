@@ -11,21 +11,6 @@ from ..models.vapor_pressure import AntoineVaporPressureResult, WagnerVaporPress
 logger = logging.getLogger(__name__)
 
 
-class VaporPressure:
-    '''
-    A class to calculate vapor pressure using predefined equations such as Antoine and Wagner.
-
-    ## Antoine Equation defined as:
-    - log10(P) = A - B / (T + C)   (if base is "log10")
-    - ln(P)   = A - B / (T + C)    (if base is "ln")
-
-    ## Wagner Equation defined as:
-    - ln(P/Pc) = (A * τ + B * τ^1.5 + C * τ^3 + D * τ^6)
-
-    where τ = 1 - (T / Tc)
-    '''
-
-
 def antoine(
     A: float,
     B: float,
@@ -129,6 +114,7 @@ def antoine(
                 "value": temperature_value,
                 "unit": temperature_unit
             },
+            "temperature_range": temperature_range,
             "pressure": {
                 "value": pressure_value,
                 "unit": pressure_unit
@@ -268,6 +254,7 @@ def wagner(
                 "value": T,
                 "unit": temperature.unit
             },
+            "temperature_range": temperature_range,
             "critical_temperature": {
                 "value": Tc,
                 "unit": critical_temperature.unit
