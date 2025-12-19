@@ -22,6 +22,8 @@ class AntoineVaporPressureResult(BaseModel):
         Logarithmic base used in the Antoine equation ('log10' or 'ln')
     temperature : Temperature
         Temperature at which to calculate vapor pressure
+    temperature_range : Optional[tuple[Temperature, Temperature]]
+        Optional temperature range for validity check
     pressure : Pressure
         Calculated vapor pressure
     """
@@ -34,6 +36,10 @@ class AntoineVaporPressureResult(BaseModel):
     temperature: Temperature = Field(
         ...,
         description="Temperature at which to calculate vapor pressure"
+    )
+    temperature_range: Optional[tuple[Temperature, Temperature]] = Field(
+        None,
+        description="Optional temperature range for validity check"
     )
     pressure: Pressure = Field(
         ...,
@@ -65,6 +71,8 @@ class WagnerVaporPressureResult(BaseModel):
         Critical pressure of the substance
     temperature : Temperature
         Temperature at which to calculate vapor pressure
+    temperature_range : Optional[tuple[Temperature, Temperature]]
+        Optional temperature range for validity check
     pressure : Pressure
         Calculated vapor pressure
     """
@@ -81,6 +89,10 @@ class WagnerVaporPressureResult(BaseModel):
     temperature: Temperature = Field(
         ...,
         description="Temperature at which to calculate vapor pressure"
+    )
+    temperature_range: Optional[tuple[Temperature, Temperature]] = Field(
+        None,
+        description="Optional temperature range for validity check"
     )
     pressure: Pressure = Field(
         ...,
