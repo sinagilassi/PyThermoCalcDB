@@ -12,12 +12,18 @@ C = 233.426
 # temperature at which to calculate vapor pressure
 temperature = Temperature(value=100, unit='C')  # 100 °C
 
+# temperature range for validity check (optional)
+T_min = Temperature(value=0, unit='C')
+T_max = Temperature(value=374, unit='C')
+temperature_range = (T_min, T_max)
+
 # calculate vapor pressure using Antoine equation
 result = antoine(
     A=A,
     B=B,
     C=C,
     temperature=temperature,
+    temperature_range=temperature_range,
     output_unit='kPa', base='log10',
     message="Calculated vapor pressure for water at 100 °C"
 )
