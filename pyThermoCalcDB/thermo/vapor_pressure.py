@@ -1,6 +1,6 @@
 # import libs
 import logging
-from typing import List, Dict, Any, Optional, Literal
+from typing import Optional, Literal, Tuple
 from pythermodb_settings.models import Temperature, Pressure
 import pycuc
 from math import exp
@@ -31,6 +31,7 @@ def antoine(
     B: float,
     C: float,
     temperature: Temperature,
+    temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
     output_unit: Optional[Literal[
         'Pa', 'kPa', 'MPa', 'bar', 'atm', 'psi', 'mmHg'
     ]] = None,
@@ -54,6 +55,8 @@ def antoine(
         Antoine equation constant C
     temperature : Temperature
         Temperature at which to calculate vapor pressure defined in pythermodb_settings.models.Temperature
+    temperature_range : Optional[Tuple[Temperature, Temperature]], optional
+        Optional temperature range for validity check, default is None. The tuple should contain (T_min, T_max).
     output_unit : Literal['Pa', 'kPa', 'MPa', 'bar', 'atm', 'psi', 'mmHg'], optional
         Desired output unit for vapor pressure ('Pa', 'kPa', 'MPa', 'bar', 'atm', 'psi', 'mmHg'), default is None.
     base : Literal['log10', 'ln'], optional
@@ -89,6 +92,16 @@ def antoine(
         # NOTE: check temperature unit
         temperature_value = temperature.value
         temperature_unit = temperature.unit
+
+        # NOTE: check temperature range validity
+        if temperature_range:
+            T_min, T_max = temperature_range
+            if not (T_min.value <= temperature_value <= T_max.value):
+                logger.error(
+                    f"Temperature {temperature_value} {temperature_unit} is out of the valid range: "
+                    f"{T_min.value} {T_min.unit} to {T_max.value} {T_max.unit}."
+                )
+                return None
 
         # NOTE: Antoine equation calculation with log10 or ln
         if base == "log10":
@@ -140,6 +153,7 @@ def wagner(
     temperature: Temperature,
     critical_temperature: Temperature,
     critical_pressure: Pressure,
+    temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
     output_unit: Optional[Literal[
         'Pa', 'kPa', 'MPa', 'bar', 'atm', 'psi', 'mmHg'
     ]] = None,
@@ -169,6 +183,8 @@ def wagner(
         Critical temperature of the substance defined in pythermodb_settings.models.Temperature
     critical_pressure : Pressure
         Critical pressure of the substance defined in pythermodb_settings.models.Pressure
+    temperature_range : Optional[Tuple[Temperature, Temperature]], optional
+        Optional temperature range for validity check, default is None. The tuple should contain (T_min, T_max).
     output_unit : Literal['Pa', 'kPa', 'MPa', 'bar', 'atm', 'psi', 'mmHg'], optional
         Desired output unit for vapor pressure ('Pa', 'kPa', 'MPa', 'bar', 'atm', 'psi', 'mmHg'), default is None.
     message : str, optional
@@ -212,6 +228,16 @@ def wagner(
         # SECTION: Calculation
         T = temperature.value
         Tc = critical_temperature.value
+
+        # NOTE: check temperature range validity
+        if temperature_range:
+            T_min, T_max = temperature_range
+            if not (T_min.value <= T <= T_max.value):
+                logger.error(
+                    f"Temperature {T} {temperature.unit} is out of the valid range: "
+                    f"{T_min.value} {T_min.unit} to {T_max.value} {T_max.unit}."
+                )
+                return None
 
         # >> check T < Tc
         if T >= Tc:
