@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyThermoCalcDB"
-version = "0.4.0"
+version = "0.4.1"
 description = "Python Thermodynamic Calculation Engine powered by PyThermoDB."
 readme = "README.md"
 requires-python = ">=3.11"
