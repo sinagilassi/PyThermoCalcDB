@@ -1,6 +1,6 @@
 # import libs
 from pythermodb_settings.models import Temperature
-from pyThermoCalcDB.thermo.enthalpy import En_IG_NASA9_polynomial
+from pyThermoCalcDB.thermo.enthalpy import En_IG_NASA9_polynomial, En_IG_shomate
 from rich import print
 
 # NOTE: Example NASA polynomial coefficients for a hypothetical substance
@@ -37,3 +37,30 @@ result = En_IG_NASA9_polynomial(
 )
 # Print the result
 print(result)
+
+
+# NOTE: Example Shomate coefficients for a hypothetical substance
+A = 25.56759
+B = 6.096130
+C = 4.054656
+D = -2.671301
+E = 0.131021
+F = -30.327060
+G = 223.3967
+
+# NOTE: Calculate the ideal gas enthalpy using the Shomate equation
+result_shomate = En_IG_shomate(
+    A=A,
+    B=B,
+    C=C,
+    D=D,
+    E=E,
+    F=F,
+    G=G,
+    temperature=temperature,
+    temperature_range=temperature_range,
+    output_unit="kJ/mol",
+    message="Shomate enthalpy calculation successful"
+)
+# Print the result
+print(result_shomate)
