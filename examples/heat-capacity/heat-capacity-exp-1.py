@@ -1,5 +1,9 @@
 # import libs
-from pyThermoCalcDB.thermo.heat_capacity import Cp_IG_polynomial, Cp_IG_NASA9_polynomial
+from pyThermoCalcDB.thermo.heat_capacity import (
+    Cp_IG_polynomial,
+    Cp_IG_NASA9_polynomial,
+    Cp_IG_shomate,
+)
 from pythermodb_settings.models import Temperature
 from rich import print
 
@@ -60,3 +64,19 @@ nasa_result = Cp_IG_NASA9_polynomial(
 )
 # Print the NASA result
 print(nasa_result)
+
+
+# NOTE: Calculate the ideal gas heat capacity using the Shomate equation
+shomate_result = Cp_IG_shomate(
+    A=A,
+    B=B,
+    C=C,
+    D=D,
+    E=E,
+    temperature=temperature,
+    temperature_range=temperature_range,
+    output_unit="J/mol.K",
+    message="Shomate calculation successful"
+)
+# Print the Shomate result
+print(shomate_result)
