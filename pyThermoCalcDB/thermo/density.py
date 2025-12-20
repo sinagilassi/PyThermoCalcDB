@@ -1,6 +1,6 @@
 # import libs
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from pythermodb_settings.models import (
     Temperature,
     Pressure,
@@ -8,7 +8,6 @@ from pythermodb_settings.models import (
 )
 import pycuc
 # locals
-from ..models.density import RackettDensityResult
 
 
 # NOTE: set up logger
@@ -22,7 +21,7 @@ def rackett(
         molecular_weight: CustomProp,
         critical_compressibility: CustomProp,
         message: Optional[str] = None,
-) -> Optional[RackettDensityResult]:
+) -> Optional[Dict[str, Any]]:
     """
     Calculate the density of a substance using the Rackett equation.
 
@@ -43,8 +42,8 @@ def rackett(
 
     Returns
     -------
-    Optional[RackettDensityResult]
-        The result of the Rackett density calculation, or None if an error occurred.
+    Optional[Dict[str, Any]]
+        A dictionary containing the calculation results, or None if an error occurs.
     """
     try:
         # SECTION: Input validation
@@ -126,17 +125,13 @@ def rackett(
         rho = MW_value / V_sat
 
         res = {
-            "density": CustomProp(value=rho, unit="kg/m3"),
-            "molar_volume": CustomProp(value=V_sat, unit="m3/mol"),
-            "temperature": Temperature(value=T_value, unit="K"),
-            "critical_temperature": Temperature(value=Tc_value, unit="K"),
-            "critical_pressure": Pressure(value=Pc_value, unit="bar"),
-            "critical_compressibility": CustomProp(value=Z_value, unit="dimensionless"),
+            "result": {
+                "value": rho,
+                "unit": "kg/m3",
+                "symbol": 'rho_LIQ'
+            },
             "message": message,
         }
-
-        # >> return result model
-        res = RackettDensityResult(**res)
 
         # res
         return res
