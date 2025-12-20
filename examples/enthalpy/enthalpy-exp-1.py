@@ -1,0 +1,39 @@
+# import libs
+from pythermodb_settings.models import Temperature
+from pyThermoCalcDB.thermo.enthalpy import En_IG_NASA9_polynomial
+from rich import print
+
+# NOTE: Example NASA polynomial coefficients for a hypothetical substance
+a1 = 30.09200
+a2 = 6.832514
+a3 = 6.793435
+a4 = -2.534480
+a5 = 0.082139
+a6 = -250.8810
+a7 = 223.3967
+b1 = -242.7400
+
+# NOTE: Define the temperature at which to calculate enthalpy
+temperature = Temperature(value=300.0, unit="K")
+# temperature range for validity check (optional)
+T_min = Temperature(value=200.0, unit="K")
+T_max = Temperature(value=1000.0, unit="K")
+temperature_range = (T_min, T_max)
+
+# NOTE: Calculate the ideal gas enthalpy using the NASA polynomial equation
+result = En_IG_NASA9_polynomial(
+    a1=a1,
+    a2=a2,
+    a3=a3,
+    a4=a4,
+    a5=a5,
+    a6=a6,
+    a7=a7,
+    b1=b1,
+    temperature=temperature,
+    temperature_range=temperature_range,
+    output_unit="J/mol",
+    message="NASA enthalpy calculation successful"
+)
+# Print the result
+print(result)

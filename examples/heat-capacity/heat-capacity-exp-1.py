@@ -1,5 +1,5 @@
 # import libs
-from pyThermoCalcDB.thermo.heat_capacity import Cp_IG_polynomial, Cp_IG_NASA_polynomial
+from pyThermoCalcDB.thermo.heat_capacity import Cp_IG_polynomial, Cp_IG_NASA9_polynomial
 from pythermodb_settings.models import Temperature
 from rich import print
 
@@ -40,14 +40,19 @@ a2 = 6.832514
 a3 = 6.793435
 a4 = -2.534480
 a5 = 0.082139
+a6 = -250.8810
+a7 = 223.3967
+
 
 # NOTE: Calculate the ideal gas heat capacity using the NASA polynomial equation
-nasa_result = Cp_IG_NASA_polynomial(
+nasa_result = Cp_IG_NASA9_polynomial(
     a1=a1,
     a2=a2,
     a3=a3,
     a4=a4,
     a5=a5,
+    a6=a6,
+    a7=a7,
     temperature=temperature,
     temperature_range=temperature_range,
     output_unit="J/mol.K",
