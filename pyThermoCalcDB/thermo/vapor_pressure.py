@@ -1,11 +1,9 @@
 # import libs
 import logging
-from typing import Optional, Literal, Tuple
+from typing import Optional, Literal, Tuple, Dict, Any
 from pythermodb_settings.models import Temperature, Pressure
-import pycuc
 from math import exp
 # local
-from ..models.vapor_pressure import AntoineVaporPressureResult, WagnerVaporPressureResult
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -22,7 +20,7 @@ def antoine(
     ]] = None,
     base: Literal['log10', 'ln'] = "log10",
     message: Optional[str] = None
-) -> Optional[AntoineVaporPressureResult]:
+) -> Optional[Dict[str, Any]]:
     '''
     Calculate vapor pressure using the Antoine equation with specified constants and temperature. The result can be returned in various pressure units.
 
@@ -51,8 +49,8 @@ def antoine(
 
     Returns
     -------
-    Optional[AntoineVaporPressureResult]
-        An instance of AntoineVaporPressureResult containing the calculation results, or None if an error occurs.
+    Optional[Dict[str, Any]]
+        A dictionary containing the calculation results, or None if an error occurs.
     '''
     try:
         # SECTION: Input Validation
@@ -106,24 +104,13 @@ def antoine(
 
         # >> prepare result dict
         res = {
-            "A": A,
-            "B": B,
-            "C": C,
-            "base": base,
-            "temperature": {
-                "value": temperature_value,
-                "unit": temperature_unit
-            },
-            "temperature_range": temperature_range,
-            "pressure": {
+            "result": {
                 "value": pressure_value,
-                "unit": pressure_unit
+                "unit": pressure_unit,
+                "symbol": 'VaPr'
             },
             "message": message
         }
-
-        # >> convert to AntoineVaporPressureResult model
-        res = AntoineVaporPressureResult(**res)
 
         return res
     except Exception as e:
@@ -144,7 +131,7 @@ def wagner(
         'Pa', 'kPa', 'MPa', 'bar', 'atm', 'psi', 'mmHg'
     ]] = None,
     message: Optional[str] = None
-) -> Optional[WagnerVaporPressureResult]:
+) -> Optional[Dict[str, Any]]:
     '''
     Calculate vapor pressure using the Wagner equation with specified constants, temperature, critical temperature, and critical pressure. The result can be returned in various pressure units.
 
@@ -178,8 +165,8 @@ def wagner(
 
     Returns
     -------
-    Optional[WagnerVaporPressureResult]
-        An instance of WagnerVaporPressureResult containing the calculation results, or None if an error occurs.
+    Optional[Dict[str, Any]]
+        A dictionary containing the calculation results, or None if an error occurs.
 
     References
     ----------
@@ -246,32 +233,13 @@ def wagner(
 
         # SECTION: Result preparation
         res = {
-            "A": A,
-            "B": B,
-            "C": C,
-            "D": D,
-            "temperature": {
-                "value": T,
-                "unit": temperature.unit
-            },
-            "temperature_range": temperature_range,
-            "critical_temperature": {
-                "value": Tc,
-                "unit": critical_temperature.unit
-            },
-            "critical_pressure": {
-                "value": Pc,
-                "unit": critical_pressure.unit
-            },
-            "pressure": {
+            "result": {
                 "value": pressure_value,
-                "unit": pressure_unit
+                "unit": pressure_unit,
+                "symbol": 'VaPr'
             },
             "message": message
         }
-
-        # >> convert to WagnerVaporPressureResult model
-        res = WagnerVaporPressureResult(**res)
 
         return res
     except Exception as e:
