@@ -29,4 +29,4 @@ result = antoine(
 )
 if result:
     print("Antoine Vapor Pressure Calculation Result:")
-    print(result.model_dump())
+    print(result)

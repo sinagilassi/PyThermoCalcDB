@@ -36,4 +36,4 @@ result = wagner(
 )
 if result:
     print("Wagner Vapor Pressure Calculation Result:")
-    print(result.model_dump())
+    print(result)
