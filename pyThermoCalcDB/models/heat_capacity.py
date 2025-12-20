@@ -67,9 +67,9 @@ class PolynomialCpIGResult(BaseModel):
     )
 
 
-class NASAPolynomialCpIGResult(BaseModel):
+class NASA9PolynomialCpIGResult(BaseModel):
     """
-    NASA Polynomial Heat Capacity Calculation Result Model
+    NASA Polynomial (NASA-9) Heat Capacity Calculation Result Model
     Represents the result of ideal gas heat capacity calculation using NASA polynomial equation.
 
     Attributes
@@ -81,17 +81,21 @@ class NASAPolynomialCpIGResult(BaseModel):
     temperature_range : Optional[tuple[Temperature, Temperature]]
         Optional temperature range for validity check
     equation : str
-        NASA polynomial equation used for the calculation
+        NASA-9 polynomial equation used for the calculation
     a1 : float
-        NASA polynomial coefficient a1
+        NASA-9 polynomial coefficient a1
     a2 : float
-        NASA polynomial coefficient a2
+        NASA-9 polynomial coefficient a2
     a3 : float
-        NASA polynomial coefficient a3
+        NASA-9 polynomial coefficient a3
     a4 : float
-        NASA polynomial coefficient a4
+        NASA-9 polynomial coefficient a4
     a5 : float
-        NASA polynomial coefficient a5
+        NASA-9 polynomial coefficient a5
+    a6 : float
+        NASA-9 polynomial coefficient a6
+    a7 : float
+        NASA-9 polynomial coefficient a7
     message : Optional[str]
         Optional message regarding the calculation
     """
@@ -109,27 +113,35 @@ class NASAPolynomialCpIGResult(BaseModel):
     )
     equation: str = Field(
         ...,
-        description="NASA polynomial equation used for the calculation"
+        description="NASA-9 polynomial equation used for the calculation"
     )
     a1: float = Field(
         ...,
-        description="NASA polynomial coefficient a1"
+        description="NASA-9 polynomial coefficient a1"
     )
     a2: float = Field(
         ...,
-        description="NASA polynomial coefficient a2"
+        description="NASA-9 polynomial coefficient a2"
     )
     a3: float = Field(
         ...,
-        description="NASA polynomial coefficient a3"
+        description="NASA-9 polynomial coefficient a3"
     )
     a4: float = Field(
         ...,
-        description="NASA polynomial coefficient a4"
+        description="NASA-9 polynomial coefficient a4"
     )
     a5: float = Field(
         ...,
-        description="NASA polynomial coefficient a5"
+        description="NASA-9 polynomial coefficient a5"
+    )
+    a6: float = Field(
+        ...,
+        description="NASA-9 polynomial coefficient a6"
+    )
+    a7: float = Field(
+        ...,
+        description="NASA-9 polynomial coefficient a7"
     )
     message: Optional[str] = Field(
         None, description="Optional message regarding the calculation"

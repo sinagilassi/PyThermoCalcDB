@@ -6,7 +6,7 @@ import pycuc
 # locals
 from ..models.heat_capacity import (
     PolynomialCpIGResult,
-    NASAPolynomialCpIGResult
+    NASA9PolynomialCpIGResult
 )
 
 # NOTE: logger setup
@@ -117,22 +117,24 @@ def Cp_IG_polynomial(
         return None
 
 
-def Cp_IG_NASA_polynomial(
+def Cp_IG_NASA9_polynomial(
         a1: float,
         a2: float,
         a3: float,
         a4: float,
         a5: float,
+        a6: float,
+        a7: float,
         temperature: Temperature,
         temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
         output_unit: Optional[str] = None,
         universal_gas_constant: float = 8.31446261815324,  # J/mol.K
         message: Optional[str] = None,
-) -> Optional[NASAPolynomialCpIGResult]:
+) -> Optional[NASA9PolynomialCpIGResult]:
     """
-    Calculate the ideal gas heat capacity (Cp_IG) using NASA polynomial coefficients. The NASA polynomial equation is defined as:
+    Calculate the ideal gas heat capacity (Cp_IG) using NASA polynomial coefficients (NASA-9). The NASA polynomial equation is defined as:
 
-    Cp(T) = a1 + a2*T + a3*T^2 + a4*T^3 + a5*T^4
+    Cp(T) = a1*T^-2 + a2*T^-1 + a3 + a4*T + a5*T^2 + a6*T^3 + a7*T^4
 
     where Cp is the heat capacity at constant pressure and T is the temperature.
 
@@ -148,6 +150,10 @@ def Cp_IG_NASA_polynomial(
         NASA polynomial coefficient a4
     a5 : float
         NASA polynomial coefficient a5
+    a6 : float
+        NASA polynomial coefficient a6
+    a7 : float
+        NASA polynomial coefficient a7
     temperature : Temperature
         Temperature at which to calculate heat capacity defined in pythermodb_settings.models.Temperature, should be in Kelvin
     temperature_range : Optional[Tuple[Temperature, Temperature]], optional
@@ -161,7 +167,7 @@ def Cp_IG_NASA_polynomial(
 
     Returns
     -------
-    Optional[NASAPolynomialCpIGResult]
+    Optional[NASA9PolynomialCpIGResult]
         Pydantic model containing the calculated ideal gas heat capacity at constant pressure and related information. If an error occurs, returns None.
     """
     try:
@@ -179,7 +185,7 @@ def Cp_IG_NASA_polynomial(
             T_unit = "K"
 
         # NOTE: check coefficients
-        coeffs = [a1, a2, a3, a4, a5]
+        coeffs = [a1, a2, a3, a4, a5, a6, a7]
 
         # iterate and check each coefficient
         for i, coeff in enumerate(coeffs):
@@ -220,8 +226,13 @@ def Cp_IG_NASA_polynomial(
         # calculate Cp using NASA polynomial equation, temperature in K, and R in J/mol.K
         # Cp in J/mol.K
         Cp_value = universal_gas_constant*(
-            a1 + a2 * T_value + a3 * T_value**2 +
-            a4 * T_value**3 + a5 * T_value**4
+            a1*T_value**-2 +
+            a2*T_value**-1 +
+            a3 +
+            a4*T_value +
+            a5*T_value**2 +
+            a6*T_value**3 +
+            a7*T_value**4
         )
 
         # set unit
@@ -238,17 +249,19 @@ def Cp_IG_NASA_polynomial(
                 "unit": T_unit
             },
             "temperature_range": temperature_range,
-            "equation": "Cp(T) = R*(a1 + a2*T + a3*T^2 + a4*T^3 + a5*T^4)",
+            "equation": "Cp(T) = R*(a1*T^-2 + a2*T^-1 + a3 + a4*T + a5*T^2 + a6*T^3 + a7*T^4)",
             "a1": a1,
             "a2": a2,
             "a3": a3,
             "a4": a4,
             "a5": a5,
+            "a6": a6,
+            "a7": a7,
             "message": message
         }
 
         # >> convert to pydantic model
-        res = NASAPolynomialCpIGResult(**res)
+        res = NASA9PolynomialCpIGResult(**res)
 
         return res
     except Exception as e:
