@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple, Literal
 from pythermodb_settings.models import Temperature
 import pycuc
 # locals
@@ -859,4 +859,91 @@ def dEn_IG_NASA7_polynomial(
 
     except Exception as e:
         logger.error(f"Error in sensible heat effect calculation (NASA7): {e}")
+        return None
+
+
+# SECTION: General dispatcher for En_IG methods
+En_IG_Method = Literal["NASA7", "NASA9", "Shomate"]
+
+
+def _require_coeffs(coeffs: Dict[str, Any], required: Tuple[str, ...]) -> Optional[Dict[str, Any]]:
+    missing = [k for k in required if k not in coeffs]
+    if missing:
+        logger.error(
+            f"Missing coefficients for En_IG: {missing}. Required: {list(required)}")
+        return None
+    return {k: coeffs[k] for k in required}
+
+
+def En_IG(
+    method: En_IG_Method,
+    *,
+    temperature: Temperature,
+    temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
+    output_unit: Optional[str] = None,
+    universal_gas_constant: float = 8.31446261815324,  # J/mol.K
+    message: Optional[str] = None,
+    **coeffs: Any,
+) -> Optional[Dict[str, Any]]:
+    """
+    Dispatcher for ideal-gas enthalpy.
+    Routes to:
+    - En_IG_NASA7_polynomial(a1..a7, temperature=..., ...)
+    - En_IG_NASA9_polynomial(a1..a7, b1, temperature=..., ...)
+    - En_IG_shomate(A..G, temperature=..., ...)
+
+    Notes
+    -----
+    - NASA7 signature includes a7 even though enthalpy doesn't use it (kept for API consistency).
+    - This dispatcher only validates *presence* of required coeff keys; leaf functions validate numeric types.
+    """
+    try:
+        if method == "NASA7":
+            req = ("a1", "a2", "a3", "a4", "a5", "a6", "a7")
+            pack = _require_coeffs(coeffs, req)
+            if pack is None:
+                return None
+            return En_IG_NASA7_polynomial(
+                pack["a1"], pack["a2"], pack["a3"], pack["a4"], pack["a5"], pack["a6"], pack["a7"],
+                temperature=temperature,
+                temperature_range=temperature_range,
+                output_unit=output_unit,
+                universal_gas_constant=universal_gas_constant,
+                message=message,
+            )
+
+        if method == "NASA9":
+            req = ("a1", "a2", "a3", "a4", "a5", "a6", "a7", "b1")
+            pack = _require_coeffs(coeffs, req)
+            if pack is None:
+                return None
+            return En_IG_NASA9_polynomial(
+                pack["a1"], pack["a2"], pack["a3"], pack["a4"], pack["a5"], pack["a6"], pack["a7"], pack["b1"],
+                temperature=temperature,
+                temperature_range=temperature_range,
+                output_unit=output_unit,
+                universal_gas_constant=universal_gas_constant,
+                message=message,
+            )
+
+        if method == "Shomate":
+            req = ("A", "B", "C", "D", "E", "F", "G")
+            pack = _require_coeffs(coeffs, req)
+            if pack is None:
+                return None
+            return En_IG_shomate(
+                pack["A"], pack["B"], pack["C"], pack["D"], pack["E"], pack["F"], pack["G"],
+                temperature=temperature,
+                temperature_range=temperature_range,
+                output_unit=output_unit,
+                universal_gas_constant=universal_gas_constant,
+                message=message,
+            )
+
+        # Should never hit due to _normalize_method
+        logger.error(f"Unsupported En_IG method after normalization: {m!r}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error in En_IG dispatcher: {e}")
         return None
