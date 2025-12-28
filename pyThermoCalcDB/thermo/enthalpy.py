@@ -649,3 +649,214 @@ def En_IG_shomate_range(
         logger.error(
             f"Error in integral ideal gas enthalpy range calculation: {e}")
         return None
+
+# SECTION: enthalpy calculations using NASA 7-coefficient polynomial (NASA7)
+
+
+def En_IG_NASA7_polynomial(
+    a1: float,
+    a2: float,
+    a3: float,
+    a4: float,
+    a5: float,
+    a6: float,
+    # NOTE: NASA7 uses a7 for entropy; kept here for API consistency (not used in enthalpy)
+    a7: float,
+    temperature: Temperature,
+    temperature_range: Optional[tuple[Temperature, Temperature]] = None,
+    output_unit: Optional[str] = None,
+    universal_gas_constant: float = 8.31446261815324,  # J/mol.K
+    message: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Calculate ideal-gas enthalpy using NASA 7-coefficient polynomial.
+
+    NASA7 relations (T in K):
+        H/(R*T) = a1 + a2*T/2 + a3*T^2/3 + a4*T^3/4 + a5*T^4/5 + a6/T
+        => H(T) = R*T*(a1 + a2*T/2 + a3*T^2/3 + a4*T^3/4 + a5*T^4/5 + a6/T)
+
+    Notes
+    -----
+    - a7 is for entropy (S/R ... + a7), so it is not used for enthalpy.
+    """
+    try:
+        # SECTION: Input Validation
+        T_value = temperature.value
+        T_unit = temperature.unit
+
+        # >> convert to K if necessary
+        if T_unit != "K":
+            T_value = pycuc.convert_from_to(
+                value=T_value, from_unit=T_unit, to_unit="K")
+
+        # NOTE: check temperature range validity
+        if temperature_range is not None:
+            T_low = temperature_range[0].value
+            T_high = temperature_range[1].value
+            T_low_unit = temperature_range[0].unit.strip()
+            T_high_unit = temperature_range[1].unit.strip()
+
+            if T_low_unit != "K":
+                T_low = pycuc.convert_from_to(
+                    value=T_low, from_unit=T_low_unit, to_unit="K")
+            if T_high_unit != "K":
+                T_high = pycuc.convert_from_to(
+                    value=T_high, from_unit=T_high_unit, to_unit="K")
+
+            if not (T_low <= T_value <= T_high):
+                logger.warning(
+                    f"Temperature {T_value} K is out of the specified range [{T_low} K, {T_high} K]."
+                )
+                return None
+
+        # NOTE: check coefficients (a7 kept for signature consistency)
+        coeffs = [a1, a2, a3, a4, a5, a6, a7]
+        for i, coeff in enumerate(coeffs):
+            if not isinstance(coeff, (int, float)):
+                logger.error(
+                    f"Coefficient a{i+1} is not a valid number: {coeff}")
+                return None
+
+        # SECTION: calculate En (H) using NASA7 enthalpy form
+        En_value = universal_gas_constant * T_value * (
+            a1
+            + a2 * T_value / 2.0
+            + a3 * T_value**2 / 3.0
+            + a4 * T_value**3 / 4.0
+            + a5 * T_value**4 / 5.0
+            + a6 / T_value
+        )
+        En_value = float(En_value)
+
+        # set unit
+        if output_unit is None:
+            En_unit = "J/mol"
+        else:
+            En_unit = output_unit
+            En_value = pycuc.convert_from_to(
+                value=En_value, from_unit="J/mol", to_unit=En_unit)
+
+        return {
+            "result": {"value": En_value, "unit": En_unit, "symbol": "En_IG"},
+            "message": message if message is not None else "Ideal gas enthalpy calculation using NASA-7 successful",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in ideal gas enthalpy calculation (NASA7): {e}")
+        return None
+
+
+def En_IG_NASA7_polynomial_range(
+    a1: float,
+    a2: float,
+    a3: float,
+    a4: float,
+    a5: float,
+    a6: float,
+    a7: float,  # kept for API consistency
+    T_low: Temperature,
+    T_high: Temperature,
+    T_points: int = 10,
+    temperature_range: Optional[tuple[Temperature, Temperature]] = None,
+    output_unit: Optional[str] = None,
+    universal_gas_constant: float = 8.31446261815324,
+    message: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    try:
+        # SECTION: generate temperature points
+        T_low_value = T_low.value
+        T_high_value = T_high.value
+        T_low_unit = T_low.unit.strip()
+        T_high_unit = T_high.unit.strip()
+
+        if T_low_unit != "K":
+            T_low_value = pycuc.convert_from_to(
+                value=T_low_value, from_unit=T_low_unit, to_unit="K")
+        if T_high_unit != "K":
+            T_high_value = pycuc.convert_from_to(
+                value=T_high_value, from_unit=T_high_unit, to_unit="K")
+
+        temperatures = np.linspace(T_low_value, T_high_value, T_points)
+
+        enthalpy_results = []
+        for T in temperatures:
+            temp_obj = Temperature(value=float(T), unit="K")
+            res = En_IG_NASA7_polynomial(
+                a1, a2, a3, a4, a5, a6, a7,
+                temperature=temp_obj,
+                temperature_range=temperature_range,
+                output_unit=output_unit,
+                universal_gas_constant=universal_gas_constant,
+                message=None,
+            )
+            enthalpy_results.append(
+                0.0 if res is None else res["result"]["value"])
+
+        return {
+            "result": {
+                "values": {"x": temperatures.tolist(), "y": enthalpy_results},
+                "unit": output_unit if output_unit is not None else "J/mol",
+                "symbol": "En_IG",
+            },
+            "message": message if message is not None else "Integral ideal gas enthalpy over range using NASA-7 successful",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in NASA7 enthalpy range calculation: {e}")
+        return None
+
+
+def dEn_IG_NASA7_polynomial(
+    a1: float,
+    a2: float,
+    a3: float,
+    a4: float,
+    a5: float,
+    a6: float,
+    a7: float,  # kept for API consistency
+    T_initial: Temperature,
+    T_final: Temperature,
+    temperature_range: Optional[tuple[Temperature, Temperature]] = None,
+    output_unit: Optional[str] = None,
+    universal_gas_constant: float = 8.31446261815324,
+    message: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    try:
+        res_initial = En_IG_NASA7_polynomial(
+            a1, a2, a3, a4, a5, a6, a7,
+            temperature=T_initial,
+            temperature_range=temperature_range,
+            output_unit=output_unit,
+            universal_gas_constant=universal_gas_constant,
+            message=None,
+        )
+        if res_initial is None:
+            return None
+        En_initial = res_initial["result"]["value"]
+
+        res_final = En_IG_NASA7_polynomial(
+            a1, a2, a3, a4, a5, a6, a7,
+            temperature=T_final,
+            temperature_range=temperature_range,
+            output_unit=output_unit,
+            universal_gas_constant=universal_gas_constant,
+            message=None,
+        )
+        if res_final is None:
+            return None
+        En_final = res_final["result"]["value"]
+
+        delta_En = float(En_final - En_initial)
+
+        return {
+            "result": {
+                "value": delta_En,
+                "unit": output_unit if output_unit is not None else "J/mol",
+                "symbol": "dEn_IG"
+            },
+            "message": message if message is not None else "Sensible heat effect calculation using NASA-7 successful",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in sensible heat effect calculation (NASA7): {e}")
+        return None
