@@ -17,11 +17,11 @@ from ..configs.thermo_props import (
     Cp_IG_SYMBOL,
     Cp_IG_UNIT
 )
-from ..utils.math_tools import integrate_function
 from .calc import Cp_integral, Cp__RT_integral
 from ..models import (
     ComponentEnthalpyOfFormation,
-    ComponentGibbsEnergyOfFormation
+    ComponentGibbsEnergyOfFormation,
+    ComponentEnthalpyChange
 )
 
 # NOTE: Logger
@@ -32,16 +32,18 @@ class HSGProperties:
     """
     HSG Properties class to calculate enthalpy and entropy of formation, and Gibbs free energy of formation for a given compound.
 
-    Attributes
-    ----------
-    component : Component
-        The chemical component for which HSG properties are to be calculated.
-    source : Source
-        The source containing data for calculations.
+    Notes
+    -----
+    - HSG stands for Enthalpy (H), Entropy (S), and Gibbs free energy (G).
+    - This class uses component data and equations from a specified source to perform calculations.
+    - Heat capacity equations are used to calculate temperature-dependent properties and should have units in J/mol.K for accurate results.
+    - All enthalpy and Gibbs energy results are provided in J/mol.
     """
     # NOTE: attributes
-    T_ref = 298.15  # reference temperature in K
-    R = 8.3145  # universal gas constant in J/mol·K
+    # reference temperature in K
+    T_ref = 298.15
+    # universal gas constant in J/mol.K
+    R = 8.3145
 
     def __init__(
         self,
@@ -164,30 +166,42 @@ class HSGProperties:
             self,
             Cp_eq_src: ComponentEquationSource,
             T1: float,
-            T2: float
+            T2: float,
     ) -> Optional[float]:
         '''
-        Calculate the enthalpy change between two temperatures using the provided equation source.
+        Calculate the enthalpy change in (J/mol) between two temperatures using the provided equation source.
 
         Parameters
         ----------
         Cp_eq_src : ComponentEquationSource
             The equation source for heat capacity.
         T1 : float
-            The initial temperature in K.
+            The initial temperature in Kelvin (K).
         T2 : float
-            The final temperature in K.
+            The final temperature in Kelvin (K).
 
         Returns
         -------
         Optional[float]
-            The calculated enthalpy change in J/mol if successful, otherwise None.
+            The calculated enthalpy change if successful, otherwise None.
+
+        Notes
+        -----
+        - The enthalpy change is calculated by integrating the heat capacity equation from T1 to T2.
+        - If output_unit is provided, the result will be converted to the specified unit.
+        - If output_unit is None, the result will be in the unit defined by the heat capacity equation. This is important because:
+        the heat capacity unit is defined, for example, as energy per mole per Kelvin (e.g., J/mol.K), so: the integrated value will be in energy per mole (e.g., J/mol), as a result.
+        - heat capacity equation usually return values in `J/mol.K` for correct enthalpy calculation.
+        - heat capacity equation integration usually yield values in `J/mol`.
         '''
         try:
+            # SECTION: integrate Cp equation from T1 to T2
+            # NOTE: output unit is usually `J/mol`
             delta_H = Cp_integral(
                 eq_src=Cp_eq_src,
                 T_ref=T1,
                 T=T2,
+                output_unit='J/mol'  # ! specify output unit as J/mol
             )
 
             # >> check
@@ -196,18 +210,87 @@ class HSGProperties:
                     f"Failed to calculate enthalpy change from {T1} K to {T2} K.")
                 return None
 
-            return float(delta_H)
+            return float(delta_H['value'])
         except Exception as e:
             logger.exception(
                 f"Error calculating enthalpy change from {T1} K to {T2} K: {e}")
             return None
 
+    def calc_enthalpy_change(
+            self,
+            T1: Temperature,
+            T2: Temperature,
+    ) -> Optional[ComponentEnthalpyChange]:
+        '''
+        Calculate the enthalpy change in (J/mol) between two temperatures using the provided equation source.
+
+        Parameters
+        ----------
+        T1 : Temperature
+            The initial temperature.
+        T2 : Temperature
+            The final temperature.
+
+        Returns
+        -------
+        Optional[ComponentEnthalpyChange]
+            A ComponentEnthalpyChange object containing the calculated enthalpy change if successful, otherwise None.
+        '''
+        try:
+            # >> convert temperatures to K if necessary
+            T1_val = T1.value
+            T1_unit = T1.unit
+            if T1_unit != 'K':
+                T1_val = pycuc.to(
+                    T1_val,
+                    f"{T1_unit} => K"
+                )
+
+            T2_val = T2.value
+            T2_unit = T2.unit
+            if T2_unit != 'K':
+                T2_val = pycuc.to(
+                    T2_val,
+                    f"{T2_unit} => K"
+                )
+
+            # >> calculate enthalpy change
+            delta_H_val = self._calc_enthalpy_change(
+                Cp_eq_src=self.Cp_eq_src,
+                T1=T1_val,
+                T2=T2_val,
+            )
+
+            # >> check
+            if delta_H_val is None:
+                logger.error(
+                    f"Failed to calculate enthalpy change between temperatures: {T1_val} K and {T2_val} K.")
+                return None
+
+            # >> prepare result
+            result = {
+                'temperature_initial': T1,
+                'temperature_final': T2,
+                'value': delta_H_val,
+                'unit': 'J/mol',
+                'symbol': 'dEn_IG'
+            }
+
+            # >> set
+            result = ComponentEnthalpyChange(**result)
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error calculating enthalpy change between temperatures: {e}")
+            return None
+
     def calc_enthalpy_of_formation(
             self,
-            temperature: Temperature
+            temperature: Temperature,
     ) -> Optional[ComponentEnthalpyOfFormation]:
         '''
-        Calculate the enthalpy of formation at a given temperature.
+        Calculate the enthalpy of formation (J/mol) at a given temperature (K).
 
         Parameters
         ----------
@@ -269,7 +352,7 @@ class HSGProperties:
                 return None
 
             # SECTION: calculate enthalpy of formation at temperature
-            # ! J/mol
+            # ! [J/mol]
             EnFo_IG_T_val = EnFo_IG_val + delta_Cp_val
 
             # SECTION: prepare result
@@ -293,7 +376,7 @@ class HSGProperties:
             temperatures: list[Temperature]
     ) -> List[ComponentEnthalpyOfFormation]:
         '''
-        Calculate the enthalpy of formation over a range of temperatures.
+        Calculate the enthalpy of formation in (J/mol) over a range of temperatures in Kelvin (K).
 
         Parameters
         ----------
@@ -319,10 +402,10 @@ class HSGProperties:
 
     def calc_gibbs_free_energy_of_formation(
             self,
-            temperature: Temperature
+            temperature: Temperature,
     ) -> Optional[ComponentGibbsEnergyOfFormation]:
         '''
-        Calculate the Gibbs free energy of formation at a given temperature.
+        Calculate the Gibbs free energy of formation (J/mol) at a given temperature (K).
 
         Parameters
         ----------
@@ -404,7 +487,8 @@ class HSGProperties:
                 eq_src=self.Cp_eq_src,
                 T_ref=self.T_ref,
                 T=T_val,
-                R=self.R
+                R=self.R,
+                R_unit='J/mol.K',
             )
 
             # >> check
@@ -415,17 +499,17 @@ class HSGProperties:
 
             # SECTION: calculate Gibbs free energy of formation at temperature
             # ! Gibbs free energy of formation at T [J/mol]
-            # A [J/mol]
+            # A
             A = (GiEnFo_IG_val - EnFo_IG_val)/(self.R*self.T_ref)
             # B
             B = EnFo_IG_val/(self.R*T_val)
             # C
             C = (1/T_val)*_eq_Cp_integral/self.R
             # D
-            D = _eq_Cp_integral_Cp__RT
-            # E
+            D = _eq_Cp_integral_Cp__RT['value']
+            # E (dimensionless)
             E = A + B + C - D
-            # at T [J/mol]
+            # >> at T [J/mol]
             GiEn_IG_T = float(E*self.R*T_val)
 
             # SECTION: prepare result
@@ -450,7 +534,7 @@ class HSGProperties:
             temperatures: list[Temperature]
     ) -> List[ComponentGibbsEnergyOfFormation]:
         '''
-        Calculate the Gibbs free energy of formation over a range of temperatures.
+        Calculate the Gibbs free energy of formation in (J/mol) over a range of temperatures in Kelvin (K).
 
         Parameters
         ----------
@@ -466,7 +550,10 @@ class HSGProperties:
         try:
             for temp in temperatures:
                 result = self.calc_gibbs_free_energy_of_formation(
-                    temperature=temp)
+                    temperature=temp
+                )
+
+                # check
                 if result is not None:
                     results.append(result)
             return results
