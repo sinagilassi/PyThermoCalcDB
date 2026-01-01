@@ -10,10 +10,93 @@ from ..core.hsg_properties import HSGProperties
 from ..models.component_ref import (
     ComponentGibbsEnergyOfFormation,
     ComponentEnthalpyOfFormation,
+    ComponentEnthalpyChange
 )
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
+
+
+@measure_time
+def calc_enthalpy_change(
+        component: Component,
+        model_source: ModelSource,
+        temperature_initial: Temperature,
+        temperature_final: Temperature,
+        component_key: Literal[
+            'Name-State',
+            'Formula-State',
+            'Name',
+            'Formula',
+            'Name-Formula-State',
+            'Formula-Name-State'
+        ] = 'Name-State',
+        **kwargs
+) -> Optional[ComponentEnthalpyChange]:
+    """
+    Calculate the enthalpy change between two temperatures for a component.
+
+    Parameters
+    ----------
+    component : Component
+        The chemical component for which to calculate the enthalpy change.
+    model_source : ModelSource
+        The source model containing necessary data.
+    temperature_initial : Temperature
+        The initial temperature.
+    temperature_final : Temperature
+        The final temperature.
+    component_key : Literal[..., optional]
+        The key to identify the component, by default 'Name-State'.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[ComponentEnthalpyChange]
+        The enthalpy change value, or None if calculation fails.
+    """
+    try:
+        # SECTION: Input validation
+        if not isinstance(component, Component):
+            logger.error("Invalid component provided.")
+            return None
+
+        if not isinstance(model_source, ModelSource):
+            logger.error("Invalid model_source provided.")
+            return None
+
+        if not isinstance(temperature_initial, Temperature):
+            logger.error("Invalid initial temperature provided.")
+            return None
+
+        if not isinstance(temperature_final, Temperature):
+            logger.error("Invalid final temperature provided.")
+            return None
+
+        # SECTION: Prepare source
+        Source_ = Source(model_source=model_source)
+
+        # SECTION: Initialize HSGProperties
+        hsg_props = HSGProperties(
+            component=component,
+            source=Source_,
+            component_key=component_key
+        )
+
+        # NOTE: calculate enthalpy change
+        delta_H = hsg_props.calc_enthalpy_change(
+            T1=temperature_initial,
+            T2=temperature_final
+        )
+
+        return delta_H
+    except Exception as e:
+        logger.error(
+            f"Error calculating enthalpy change for component '{component.name}': {e}")
+        return None
 
 
 @measure_time
