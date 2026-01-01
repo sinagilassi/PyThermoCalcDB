@@ -14,3 +14,6 @@ Ent_STD_UNIT = 'J/mol.K'  # entropy of formation unit
 GiEnFo_IG_UNIT = 'J/mol'  # Gibbs free energy of formation unit
 Cp_IG_UNIT = 'J/mol.K'  # ideal gas heat capacity unit
 VaPr_UNIT = 'Pa'  # vapor pressure unit
+
+# NOTE: integration units
+Cp_IG_INTEGRATION_UNIT = 'J/mol'  # ideal gas heat capacity integration unit
