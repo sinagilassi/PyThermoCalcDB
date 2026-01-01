@@ -6,6 +6,7 @@ import pycuc
 from scipy import integrate
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
+from ..configs.thermo_props import Cp_IG_INTEGRATION_UNIT
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
@@ -15,7 +16,8 @@ def Cp_integral(
     eq_src: ComponentEquationSource,
     T_ref: float,
     T: float,
-):
+    output_unit: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Integrate the heat capacity equation from T_ref to T (J/mol).
 
@@ -27,11 +29,23 @@ def Cp_integral(
         The reference temperature (lower limit of integration).
     T : float
         The target temperature (upper limit of integration).
+    output_unit : Optional[str], optional
+        The desired output unit for the integrated value, by default None. If None, the unit from the equation will be used.
 
     Returns
     -------
-    Optional[float]
-        The integrated heat capacity value, or None if an error occurs.
+    Optional[Dict[str, Any]]
+        The integrated heat capacity value, or None if an error occurs as:
+        {
+            'value': float,
+            'unit': str
+        }
+
+    Notes
+    -----
+    output_unit is important because:
+    - the heat capacity unit is defined, for example, as energy per mole per Kelvin (e.g., J/mol.K), so: the integrated value will be in energy per mole (e.g., J/mol), as a result.
+    - If output_unit is None, the result will be in the unit defined by the heat capacity equation.
     """
     try:
         # SECTION: equation expression
@@ -65,7 +79,7 @@ def Cp_integral(
             nonlocal unit_
             res_ = Cp_eq.cal(T=T)
             cal_ = res_.get('value', None)
-            unit_ = res_.get('unit', None)
+            unit_ = res_.get('unit', None)  # ! get unit from equation
 
             # >> check
             if cal_ is None:
@@ -73,11 +87,16 @@ def Cp_integral(
                     f"Failed to calculate Cp for equation at T={T} K.")
                 raise
 
-            if not isinstance(cal_, str) and not isinstance(cal_, float):
+            # >> check
+            if (
+                not isinstance(cal_, str) and
+                not isinstance(cal_, float)
+            ):
                 logger.error(
                     f"Invalid Cp value at T={T} K: {cal_}")
                 raise
 
+            # >> check
             if unit_ is None:
                 logger.error(
                     f"Equation does not have a unit for Cp at T={T} K.")
@@ -88,17 +107,17 @@ def Cp_integral(
         # ! check integral
         function_integral = Cp_eq.body_integral
 
-        # check
+        # NOTE: calculate integral
         if function_integral:
             # calc
-            # method 1
+            # method 1 (still takes return unit from equation)
             _eq_Cp_integral = Cp_eq.cal_integral(
                 T1=T_ref,
                 T2=T
             )
         else:
             # calc
-            # method 2
+            # method 2 (still takes return unit from equation)
             _eq_Cp_integral, _ = integrate.quad(
                 integrand_1,
                 T_ref,
@@ -118,12 +137,28 @@ def Cp_integral(
                 return None
 
             # TODO: FINALLY convert Cp equation to [J/mol.K] (after integration means the unit is [J/mol])
-            _eq_Cp_integral = pycuc.to(
-                _eq_Cp_integral,
-                f"{unit_} => J/mol.K"
-            )
+            # ! check output unit
+            if output_unit is not None:
+                if (
+                    output_unit == 'J/mol' or
+                    output_unit == 'j/mol'
+                ):
+                    # >>> use `J/mol.K`` as default only for integration unit, the actual unit after integration should be `J/mol`
+                    _eq_Cp_integral = pycuc.to(
+                        _eq_Cp_integral,
+                        f"{unit_} => J/mol.K"
+                    )
+                else:
+                    # >>> convert to desired unit
+                    _eq_Cp_integral = pycuc.to(
+                        _eq_Cp_integral,
+                        f"{unit_} => {output_unit}"
+                    )
 
-        return _eq_Cp_integral
+        return {
+            'value': _eq_Cp_integral,
+            'unit': output_unit if output_unit is not None else unit_
+        }
     except Exception as e:
         logger.error(
             f"Error integrating Cp equation from T={T_ref} K to T={T} K: {e}")
@@ -135,7 +170,8 @@ def Cp__RT_integral(
     T_ref: float,
     T: float,
     R: float,
-):
+    R_unit: str = 'J/mol.K',
+) -> Optional[Dict[str, Any]]:
     """
     Integrate the dimensionless heat capacity equation Cp/RT from T_ref to T.
 
@@ -149,11 +185,22 @@ def Cp__RT_integral(
         The target temperature (upper limit of integration).
     R : float
         The universal gas constant.
+    R_unit : str, optional
+        The unit of the universal gas constant R, by default 'J/mol.K'.
 
     Returns
     -------
-    Optional[float]
+    Optional[Dict[str, Any]]
         The integrated dimensionless heat capacity value, or None if an error occurs.
+
+    Notes
+    -----
+    output_unit is important because:
+    - the heat capacity unit is defined, for example, as energy per mole per Kelvin (e.g., J/mol.K), so: the integrated value will be dimensionless when divided by RT.
+    - as Cp and R normally have the same unit basis (energy per mole per Kelvin), the result of the integration Cp/RT is dimensionless.
+    - so R_unit is needed to ensure compatibility between Cp and R units during calculation.
+    - for better calculation performance, R is converted to the Cp unit before calculation.
+    - the term Cp/RT is dimensionless, after integration, the result remains identical even if different units are used for Cp and R, as long as they are compatible.
     """
     try:
         # SECTION: equation expression
@@ -166,15 +213,27 @@ def Cp__RT_integral(
         eq_returns = eq_src.returns
         # >> get return units
         returns_outer_key, returns_inner = next(
-            iter(eq_returns.items()))
+            iter(eq_returns.items())
+        )
+        # ! return unit
         eq_return_unit: str = returns_inner['unit']
-
         # ! return symbols
         eq_return_symbols = eq_src.return_symbols
         # ! equation
         Cp_eq = eq_src.source
 
-        # NOTE: integral [Cp/RT]
+        # SECTION: Cp and R unit compatibility check
+        # ! compatible unit check between Cp and R is done in the pycuc.to function
+        # NOTE: compatibility unit
+        # >> check Cp unit compatibility with R unit
+        if eq_return_unit.lower() != R_unit.lower():
+            # set R unit compatible with Cp unit
+            R = pycuc.to(
+                value=R,
+                unit_conversion_block=f"{R_unit} => {eq_return_unit}"
+            )
+
+        # SECTION: integral [Cp/RT]
         # unit: [dimensionless]
         # init unit
         unit_ = None
@@ -189,31 +248,37 @@ def Cp__RT_integral(
             res_ = Cp_eq.cal(T=T)
             cal_ = res_.get('value', None)
             unit_ = res_.get('unit', None)
+
+            # >> check
             if cal_ is None:
                 logger.error(
                     f"Failed to calculate Cp for equation at T={T} K.")
                 raise
 
+            # >> check
             if not isinstance(cal_, str) and not isinstance(cal_, float):
                 logger.error(
                     f"Invalid Cp value at T={T} K: {cal_}")
                 raise
 
+            # >> check
             if unit_ is None:
                 logger.error(
                     f"Equation does not have a unit for Cp at T={T} K.")
                 raise
 
+            # NOTE: calculate Cp/RT
             res = cal_/(T*R)
             return res
 
         # ! check custom
         custom_integral = Cp_eq.custom_integral
 
-        # >> check
+        # SECTION: Calculate integral
         if custom_integral.get('Cp/RT', None) is not None:
             # calc
-            # method 1
+            # method 1 (custom)
+            # >>> already takes return unit from equation and make a dimensionless unit
             _eq_Cp_integral_Cp__RT = Cp_eq.cal_custom_integral(
                 'Cp/RT',
                 T1=T_ref,
@@ -221,7 +286,8 @@ def Cp__RT_integral(
             )
         else:
             # calc
-            # method 2
+            # method 2 (scipy integrate)
+            # >>> raise error if Cp unit is not compatible with R unit.
             _eq_Cp_integral_Cp__RT, _ = integrate.quad(
                 integrand_0,
                 T_ref,
@@ -241,12 +307,13 @@ def Cp__RT_integral(
                 raise
 
             # TODO: FINALLY convert Cp equation to [J/mol.K]
-            _eq_Cp_integral_Cp__RT = pycuc.to(
-                _eq_Cp_integral_Cp__RT,
-                f"{unit_} => J/mol.K"
-            )
+            # NOTE: the unit after integration is dimensionless, so no need to convert
+            # ! very important check output unit as Cp and R have different units
 
-        return _eq_Cp_integral_Cp__RT
+        return {
+            'value': _eq_Cp_integral_Cp__RT,
+            'unit': 'dimensionless'
+        }
     except Exception as e:
         logger.error(
             f"Error integrating Cp/RT equation from T={T_ref} K to T={T} K: {e}")
