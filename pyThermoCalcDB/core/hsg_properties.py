@@ -1,7 +1,8 @@
 # import libs
 import logging
+import math
 from typing import Dict, Any, Literal, Optional, List
-from pythermodb_settings.models import Component, Temperature
+from pythermodb_settings.models import Component, Temperature, Pressure
 from pythermodb_settings.utils import set_component_id
 import pycuc
 from pyThermoLinkDB.thermo import Source
@@ -9,19 +10,22 @@ from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # local
 from ..configs.thermo_props import (
     EnFo_IG_UNIT,
+    EnFo_LIQ_UNIT,
     Ent_STD_UNIT,
     GiEnFo_IG_UNIT,
     EnFo_IG_SYMBOL,
     Ent_STD_SYMBOL,
     GiEnFo_IG_SYMBOL,
     Cp_IG_SYMBOL,
+    Cp_LIQ_SYMBOL,
     Cp_IG_UNIT
 )
-from .calc import Cp_integral, Cp__RT_integral
+from .calc import Cp_integral, Cp__RT_integral, Cp__T_integral
 from ..models import (
     ComponentEnthalpyOfFormation,
     ComponentGibbsEnergyOfFormation,
-    ComponentEnthalpyChange
+    ComponentEnthalpyChange,
+    ComponentEntropyChange
 )
 
 # NOTE: Logger
@@ -38,6 +42,19 @@ class HSGProperties:
     - This class uses component data and equations from a specified source to perform calculations.
     - Heat capacity equations are used to calculate temperature-dependent properties and should have units in J/mol.K for accurate results.
     - All enthalpy and Gibbs energy results are provided in J/mol.
+    - Reference temperature is set to 298.15 K.
+    - The Gibbs free energy of formation symbol must be consistent with the defined unit in the configuration which is GiEnFo_IG.
+    - Enthalpy of formation symbols must be consistent with their defined units in the configuration (EnFo_IG_UNIT, EnFo_LIQ_UNIT) for liquid and ideal gas phases respectively.
+
+    Equations
+    ---------
+    - Enthalpy change is calculated by integrating the heat capacity equation from T1 to T2.
+    - Enthalpy of formation at temperature T is calculated as:
+        `ΔH(T) = ΔH(298.15 K) + ∫[Cp dT]` from 298.15 K to T
+    - Gibbs free energy of formation at temperature T is calculated as:
+        `ΔG(T) = ΔH(T) - T * ΔS(T)`
+    where ΔS(T) is derived from the heat capacity equations.
+    - All integrals are evaluated using the heat capacity equations provided in the source.
     """
     # NOTE: attributes
     # reference temperature in K
@@ -95,9 +112,20 @@ class HSGProperties:
         )
 
         # SECTION: retrieve heat capacity equation source
-        self.Cp_eq_src = self._get_Cp_equation_source()
+        # NOTE: ideal gas heat capacity equation source
+        self.Cp_IG_eq_src = self._get_Cp_equation_source(
+            phase='IG'
+        )
 
-    def _get_formation_data(self, prop_name: str) -> Optional[Dict[str, Any]]:
+        # NOTE: liquid heat capacity equation source
+        self.Cp_LIQ_eq_src = self._get_Cp_equation_source(
+            phase='LIQ'
+        )
+
+    def _get_formation_data(
+            self,
+            prop_name: str
+    ) -> Optional[Dict[str, Any]]:
         '''
         Retrieve formation data for the specified property.
 
@@ -123,20 +151,37 @@ class HSGProperties:
                 f"Error retrieving formation data for {prop_name}: {e}")
             return None
 
-    def _get_Cp_equation_source(self) -> ComponentEquationSource:
+    def _get_Cp_equation_source(
+            self,
+            phase: Literal['IG', 'LIQ']
+    ) -> Optional[ComponentEquationSource]:
         '''
         Retrieve the heat capacity equation source for the component.
 
+        Parameters
+        ----------
+        phase : Literal['IG', 'LIQ']
+            The phase of the component ('IG' for ideal gas, 'LIQ' for liquid).
+
         Returns
         -------
-        ComponentEquationSource
+        Optional[ComponentEquationSource]
             The heat capacity equation source if available, otherwise None.
         '''
         try:
+            # NOTE: select symbol based on phase
+            if phase == 'IG':
+                Cp_symbol = Cp_IG_SYMBOL
+            elif phase == 'LIQ':
+                Cp_symbol = Cp_LIQ_SYMBOL
+            else:
+                raise ValueError(
+                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
+
             # NOTE: build equation
             Cp_eq_src = self.source.eq_builder(
                 components=[self.component],
-                prop_name=Cp_IG_SYMBOL,
+                prop_name=Cp_symbol,
                 component_key=self.component_key  # type: ignore
             )
 
@@ -144,7 +189,7 @@ class HSGProperties:
             if Cp_eq_src is None:
                 logger.warning(
                     f"No heat capacity equation available for component {self.component_id}.")
-                raise ValueError("No heat capacity equation source found.")
+                return None
 
             # >> for component
             component_Cp_eq_src: ComponentEquationSource | None = Cp_eq_src.get(
@@ -220,6 +265,7 @@ class HSGProperties:
             self,
             T1: Temperature,
             T2: Temperature,
+            phase: Literal['IG', 'LIQ'] = 'IG',
     ) -> Optional[ComponentEnthalpyChange]:
         '''
         Calculate the enthalpy change in (J/mol) between two temperatures using the provided equation source.
@@ -230,6 +276,8 @@ class HSGProperties:
             The initial temperature.
         T2 : Temperature
             The final temperature.
+        phase : Literal['IG', 'LIQ']
+            The phase of the component ('IG' for ideal gas, 'LIQ' for liquid). Defaults to 'IG'.
 
         Returns
         -------
@@ -237,7 +285,7 @@ class HSGProperties:
             A ComponentEnthalpyChange object containing the calculated enthalpy change if successful, otherwise None.
         '''
         try:
-            # >> convert temperatures to K if necessary
+            # SECTION: convert temperatures to K if necessary
             T1_val = T1.value
             T1_unit = T1.unit
             if T1_unit != 'K':
@@ -254,9 +302,32 @@ class HSGProperties:
                     f"{T2_unit} => K"
                 )
 
-            # >> calculate enthalpy change
+            # SECTION: calculate enthalpy change
+            # NOTE: check Cp equation source
+            if phase == 'IG':
+                if self.Cp_IG_eq_src is None:
+                    logger.error(
+                        f"No ideal gas heat capacity equation source available for component {self.component_id}.")
+                    return None
+
+                # set
+                Cp_eq_src = self.Cp_IG_eq_src
+            elif phase == 'LIQ':
+                if self.Cp_LIQ_eq_src is None:
+                    logger.error(
+                        f"No liquid heat capacity equation source available for component {self.component_id}.")
+                    return None
+
+                # set
+                Cp_eq_src = self.Cp_LIQ_eq_src
+            else:
+                logger.error(
+                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
+                return None
+
+            # NOTE: calculate enthalpy change
             delta_H_val = self._calc_enthalpy_change(
-                Cp_eq_src=self.Cp_eq_src,
+                Cp_eq_src=Cp_eq_src,
                 T1=T1_val,
                 T2=T2_val,
             )
@@ -271,9 +342,10 @@ class HSGProperties:
             result = {
                 'temperature_initial': T1,
                 'temperature_final': T2,
+                'phase': phase,
                 'value': delta_H_val,
                 'unit': 'J/mol',
-                'symbol': 'dEn_IG'
+                'symbol': 'dEn_IG' if phase == 'IG' else 'dEn_LIQ'
             }
 
             # >> set
@@ -288,6 +360,7 @@ class HSGProperties:
     def calc_enthalpy_of_formation(
             self,
             temperature: Temperature,
+            phase: Literal['IG', 'LIQ'] = 'IG',
     ) -> Optional[ComponentEnthalpyOfFormation]:
         '''
         Calculate the enthalpy of formation (J/mol) at a given temperature (K).
@@ -315,14 +388,42 @@ class HSGProperties:
                     f"{T_unit} => K"
                 )
 
+            # SECTION: check phase
+            if phase != 'IG':
+                logger.error(
+                    f"Enthalpy of formation calculation currently only supports 'IG' phase. Given phase: {phase}")
+                return None
+
+            # NOTE: get symbol based on phase
+            if phase == 'IG':
+                # set
+                EnFo_SYMBOL = EnFo_IG_SYMBOL
+                EnFo_UNIT = EnFo_IG_UNIT
+                Cp_eq_src = self.Cp_IG_eq_src
+            elif phase == 'LIQ':
+                EnFo_SYMBOL = EnFo_LIQ_SYMBOL
+                Cp_eq_src = self.Cp_LIQ_eq_src
+                EnFo_UNIT = EnFo_LIQ_UNIT
+            else:
+                logger.error(
+                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
+                return None
+
+            # >> check Cp equation source
+            if Cp_eq_src is None:
+                logger.error(
+                    f"No heat capacity equation source available for component {self.component_id} in phase {phase}.")
+                return None
+
             # SECTION: get formation data
-            # >> enthalpy of formation (EnFo_IG) unit ?
-            formation_data = self._get_formation_data(EnFo_IG_SYMBOL)
+            # >> enthalpy of formation (EnFo_X) unit ?
+            formation_data = self._get_formation_data(EnFo_SYMBOL)
 
             # >> check formation data
             if formation_data is None:
                 logger.warning(
-                    f"No formation data available for enthalpy of formation.")
+                    f"No formation data available for enthalpy of formation."
+                )
                 return None
 
             # NOTE: unit conversion if necessary
@@ -330,7 +431,7 @@ class HSGProperties:
             EnFo_val = formation_data['value']
             EnFo_unit = formation_data['unit']
             # ! to [J/mol]
-            unit_ = f"{EnFo_unit} => {EnFo_IG_UNIT}"
+            unit_ = f"{EnFo_unit} => {EnFo_UNIT}"
             EnFo_IG_val = pycuc.to(
                 EnFo_val,
                 unit_
@@ -338,9 +439,10 @@ class HSGProperties:
 
             # SECTION: heat capacity calculation
             # NOTE: integrate Cp from T_ref to T
+            # ! reference temperature is 298.15 K
             # ! [J/mol]
             delta_Cp_val = self._calc_enthalpy_change(
-                Cp_eq_src=self.Cp_eq_src,
+                Cp_eq_src=Cp_eq_src,
                 T1=self.T_ref,
                 T2=T_val,
             )
@@ -373,7 +475,8 @@ class HSGProperties:
 
     def calc_enthalpy_of_formation_range(
             self,
-            temperatures: list[Temperature]
+            temperatures: list[Temperature],
+            phase: Literal['IG', 'LIQ'] = 'IG',
     ) -> List[ComponentEnthalpyOfFormation]:
         '''
         Calculate the enthalpy of formation in (J/mol) over a range of temperatures in Kelvin (K).
@@ -382,6 +485,8 @@ class HSGProperties:
         ----------
         temperatures : list[Temperature]
             A list of temperatures at which to calculate the enthalpy of formation.
+        phase : Literal['IG', 'LIQ']
+            The phase of the component ('IG' for ideal gas, 'LIQ' for liquid). Defaults to 'IG'.
 
         Returns
         -------
@@ -391,7 +496,10 @@ class HSGProperties:
         results = []
         try:
             for temp in temperatures:
-                result = self.calc_enthalpy_of_formation(temperature=temp)
+                result = self.calc_enthalpy_of_formation(
+                    temperature=temp,
+                    phase=phase
+                )
                 if result is not None:
                     results.append(result)
             return results
@@ -416,6 +524,13 @@ class HSGProperties:
         -------
         Optional[ComponentGibbsEnergyOfFormation]
             A ComponentGibbsEnergyOfFormation object containing the calculated Gibbs free energy of formation if successful, otherwise None.
+
+        Notes
+        -----
+        - The Gibbs free energy of formation is calculated using the enthalpy of formation and heat capacity equations.
+        - All Gibbs energy results are provided in J/mol.
+        - Reference temperature is set to 298.15 K.
+        - The Gibbs free energy of formation symbol must be consistent with the defined unit in the configuration which is GiEnFo_IG.
         '''
         try:
             # SECTION: temperature value
@@ -467,10 +582,16 @@ class HSGProperties:
             )
 
             # SECTION: heat capacity calculation
+            # NOTE: check Cp equation source
+            if self.Cp_IG_eq_src is None:
+                logger.error(
+                    f"No ideal gas heat capacity equation source available for component {self.component_id}.")
+                return None
+
             # NOTE: integrate Cp from T_ref to T
             # ! [J/mol]
             _eq_Cp_integral = self._calc_enthalpy_change(
-                Cp_eq_src=self.Cp_eq_src,
+                Cp_eq_src=self.Cp_IG_eq_src,
                 T1=self.T_ref,
                 T2=T_val,
             )
@@ -484,7 +605,7 @@ class HSGProperties:
             # NOTE: integrate Cp/RT from T_ref to T
             # ! dimensionless
             _eq_Cp_integral_Cp__RT = Cp__RT_integral(
-                eq_src=self.Cp_eq_src,
+                eq_src=self.Cp_IG_eq_src,
                 T_ref=self.T_ref,
                 T=T_val,
                 R=self.R,
@@ -561,3 +682,136 @@ class HSGProperties:
             logger.exception(
                 f"Error calculating Gibbs free energy of formation over range: {e}")
             return results
+
+    def calc_entropy_change(
+            self,
+            T1: Temperature,
+            T2: Temperature,
+            P1: Pressure,
+            P2: Pressure,
+            phase: Literal['IG', 'LIQ'],
+    ) -> Optional[ComponentEntropyChange]:
+        '''
+        Calculate the entropy change (J/mol.K) between two temperatures using the provided equation source.
+
+        Parameters
+        ----------
+        T1 : Temperature
+            The initial temperature.
+        T2 : Temperature
+            The final temperature.
+        P1 : Pressure
+            The initial pressure.
+        P2 : Pressure
+            The final pressure.
+        phase : Literal['IG', 'LIQ']
+            The phase of the component ('IG' for ideal gas, 'LIQ' for liquid).
+
+        Returns
+        -------
+        Optional[ComponentEntropyChange]
+            The calculated entropy change if successful, otherwise None.
+
+        Notes
+        -----
+        - The entropy change is calculated by integrating the heat capacity equation from T1 to T2 and accounting for pressure changes.
+        - Phase-specific calculations are performed based on the provided phase.
+        - The general equation is ΔS = ∫(Cp/T dT) - R ln(P2/P1) for both ideal gases and liquids.
+        - For ideal gases, the pressure change contribution is included using the relation ΔS = nR ln(P2/P1).
+        - For liquids, the pressure change contribution is typically negligible and may be omitted.
+        - The result is provided in J/mol.K.
+        - R is the universal gas constant (8.3145 J/mol.K).
+        '''
+        try:
+            # SECTION: convert temperatures to K if necessary
+            T1_val = T1.value
+            T1_unit = T1.unit
+            if T1_unit != 'K':
+                T1_val = pycuc.to(
+                    T1_val,
+                    f"{T1_unit} => K"
+                )
+
+            T2_val = T2.value
+            T2_unit = T2.unit
+            if T2_unit != 'K':
+                T2_val = pycuc.to(
+                    T2_val,
+                    f"{T2_unit} => K"
+                )
+
+            # SECTION: calculate entropy change
+            # NOTE: check Cp equation source
+            if phase == 'IG':
+                if self.Cp_IG_eq_src is None:
+                    logger.error(
+                        f"No ideal gas heat capacity equation source available for component {self.component_id}.")
+                    return None
+
+                # set
+                Cp_eq_src = self.Cp_IG_eq_src
+            elif phase == 'LIQ':
+                if self.Cp_LIQ_eq_src is None:
+                    logger.error(
+                        f"No liquid heat capacity equation source available for component {self.component_id}.")
+                    return None
+
+                # set
+                Cp_eq_src = self.Cp_LIQ_eq_src
+            else:
+                logger.error(
+                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
+                return None
+
+            # SECTION: integrate Cp/T dT from T1 to T2
+            # ! [J/mol.K]
+            delta_S_temp = Cp__T_integral(
+                eq_src=Cp_eq_src,
+                T_ref=T1_val,
+                T=T2_val,
+                output_unit='J/mol.K'  # ! specify output unit as J/mol.K
+            )
+
+            # >> check
+            if delta_S_temp is None:
+                logger.error(
+                    f"Failed to calculate entropy change from {T1_val} K to {T2_val} K.")
+                return None
+
+            # SECTION: pressure change contribution
+            # ! [J/mol.K]
+            delta_S_pressure = 0.0
+            if phase == 'IG':
+                # ideal gas
+                delta_S_pressure = -self.R * math.log(P2.value / P1.value)
+            elif phase == 'LIQ':
+                # liquid - typically negligible
+                delta_S_pressure = 0.0
+            else:
+                logger.error(
+                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
+                return None
+
+            # SECTION: total entropy change
+            # ! [J/mol.K]
+            delta_S_val = delta_S_temp['value'] + delta_S_pressure
+            # >> prepare result
+            result = {
+                'temperature_initial': T1,
+                'temperature_final': T2,
+                'pressure_initial': P1,
+                'pressure_final': P2,
+                'phase': phase,
+                'value': delta_S_val,
+                'unit': 'J/mol.K',
+                'symbol': 'dEnt_IG' if phase == 'IG' else 'dEnt_LIQ'
+            }
+
+            # >> set
+            result = ComponentEntropyChange(**result)
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error calculating entropy change between temperatures: {e}")
+            return None
