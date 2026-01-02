@@ -12,7 +12,8 @@ from pyThermoCalcDB.docs.thermo import (
     calc_gibbs_energy_of_formation_at_temperature,
     calc_enthalpy_of_formation_range,
     calc_gibbs_energy_of_formation_range,
-    calc_enthalpy_change
+    calc_enthalpy_change,
+    calc_entropy_change,
 )
 
 # check version
@@ -102,6 +103,10 @@ print(Cp_IG)
 temperature_ref = Temperature(value=298.15, unit='K')
 temperature_ = Temperature(value=300.0, unit='K')
 
+# ! pressure
+pressure_ref = Pressure(value=1.0, unit='atm')
+pressure_ = Pressure(value=1.0, unit='atm')
+
 # ! calculate enthalpy change from reference temperature to temperature
 dEn_IG_res = calc_enthalpy_change(
     component=CO2_comp,
@@ -111,6 +116,19 @@ dEn_IG_res = calc_enthalpy_change(
     mode='log'
 )
 print(dEn_IG_res)
+
+# ! calculate entropy change from reference temperature to temperature
+dS_IG_res = calc_entropy_change(
+    component=CO2_comp,
+    model_source=model_source_,
+    temperature_initial=temperature_ref,
+    temperature_final=temperature_,
+    pressure_initial=pressure_ref,
+    pressure_final=pressure_,
+    phase='IG',
+    mode='log'
+)
+print(dS_IG_res)
 
 # ! calculate enthalpy of formation at temperature
 EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
