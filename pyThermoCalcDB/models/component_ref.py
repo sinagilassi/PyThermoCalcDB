@@ -2,7 +2,7 @@
 from typing import Any, Dict, Callable
 from pydantic import BaseModel, Field, ConfigDict
 from pyThermoDB.core import TableEquation
-from pythermodb_settings.models import Temperature
+from pythermodb_settings.models import Temperature, Pressure
 
 
 # NOTE: enthalpy change result model
@@ -123,4 +123,70 @@ class ComponentGibbsEnergyOfFormation(BaseModel):
     symbol: str = Field(
         ...,
         description="The Gibbs energy of formation symbol."
+    )
+
+# NOTE: entropy change result model
+
+
+class ComponentEntropyChange(BaseModel):
+    '''
+    Component Entropy Change Result Model
+
+    Attributes
+    ----------
+    temperature_initial : Temperature
+        The initial temperature for the entropy change calculation.
+    temperature_final : Temperature
+        The final temperature for the entropy change calculation.
+    pressure_initial : Pressure
+        The initial pressure for the entropy change calculation.
+    pressure_final : Pressure
+        The final pressure for the entropy change calculation.
+    phase : str
+        The phase of the component ('IG' for ideal gas, 'LIQ' for liquid
+    value : float
+        The entropy change value.
+    unit : str
+        The entropy change unit.
+    symbol : str
+        The entropy change symbol.
+    '''
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    temperature_initial: Temperature = Field(
+        ...,
+        description="The initial temperature for the entropy change calculation."
+    )
+
+    temperature_final: Temperature = Field(
+        ...,
+        description="The final temperature for the entropy change calculation."
+    )
+
+    pressure_initial: Pressure = Field(
+        ...,
+        description="The initial pressure for the entropy change calculation."
+    )
+
+    pressure_final: Pressure = Field(
+        ...,
+        description="The final pressure for the entropy change calculation."
+    )
+
+    phase: str = Field(
+        ...,
+        description="The phase of the component ('IG' for ideal gas, 'LIQ' for liquid)."
+    )
+
+    value: float = Field(
+        ...,
+        description="The entropy change value."
+    )
+    unit: str = Field(
+        ...,
+        description="The entropy change unit."
+    )
+    symbol: str = Field(
+        ...,
+        description="The entropy change symbol."
     )
