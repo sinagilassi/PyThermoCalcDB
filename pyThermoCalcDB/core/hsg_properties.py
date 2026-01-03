@@ -278,7 +278,7 @@ class HSGProperties:
             if component_eq_src is None:
                 logger.warning(
                     f"No equation available for property {prop_name} for component {self.component_id}.")
-                raise ValueError("No equation source found.")
+                return None
 
             return component_eq_src
         except Exception as e:
