@@ -2,11 +2,12 @@
 import logging
 from typing import Literal, Optional, List
 from pyThermoLinkDB.models import ModelSource
-from pythermodb_settings.models import Component, Temperature, Pressure
+from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp
 from pyThermoLinkDB.thermo import Source
 # local
 from ..utils.tools import measure_time
 from ..core.hsg_properties import HSGProperties
+from ..core.hsg_mixture import HSGMixture
 from ..models.component_ref import (
     ComponentGibbsEnergyOfFormation,
     ComponentEnthalpyOfFormation,
@@ -432,28 +433,6 @@ def calc_gibbs_energy_of_formation_range(
 
 
 @measure_time
-def calc_mixture_enthalpy(
-        component: List[Component],
-        model_source: ModelSource,
-        temperature: Temperature,
-        phases: List[Literal['Liquid', 'Vapor', 'Vapor-Liquid']],
-        include_departure: bool = False,
-        include_excess: bool = False,
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
-        verbose: bool = False,
-        **kwargs
-):
-    pass
-
-
-@measure_time
 def calc_entropy_change(
         component: Component,
         model_source: ModelSource,
@@ -574,4 +553,102 @@ def calc_entropy_change(
     except Exception as e:
         logger.error(
             f"Error calculating entropy change for component '{component.name}': {e}")
+        return None
+
+
+@measure_time
+def calc_mixture_enthalpy(
+        components: List[Component],
+        model_source: ModelSource,
+        temperature: Temperature,
+        phase: Literal['IG', 'LIQ'],
+        departure_enthalpy: Optional[CustomProp] = None,
+        excess_enthalpy: Optional[CustomProp] = None,
+        component_key: Literal[
+            'Name-State',
+            'Formula-State',
+            'Name',
+            'Formula',
+            'Name-Formula-State',
+            'Formula-Name-State'
+        ] = 'Name-State',
+        verbose: bool = False,
+        **kwargs
+):
+    """
+    Calculate the mixture enthalpy at a given temperature (K) for specified phase. The result is provided in J/mol.
+
+    Parameters
+    ----------
+    components : List[Component]
+        The list of chemical components in the mixture.
+    model_source : ModelSource
+        The source model containing necessary data.
+    temperature : Temperature
+        The temperature of the mixture.
+    phase : Literal['IG', 'LIQ']
+        The phase of the mixture ('IG' for ideal gas, 'LIQ' for liquid).
+    departure_enthalpy : Optional[CustomProp], optional
+        Custom departure enthalpy property, by default None.
+    excess_enthalpy : Optional[CustomProp], optional
+        Custom excess enthalpy property, by default None.
+    component_key : Literal[..., optional]
+        The key to identify the components, by default 'Name-State'.
+    verbose : bool, optional
+        If True, enables verbose logging, by default False.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        A CustomProp object containing the mixture enthalpy value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - The function initializes the HSGMixture class and uses it to compute the mixture enthalpy.
+    - The mixture enthalpy is calculated based on the individual component enthalpies and their mole fractions.
+    - The result is provided in J/mol.
+    - The calculation may involve ideal and non-ideal contributions depending on the phase.
+    - Only 'IG' and 'LIQ' phases are currently supported.
+    - Flash calculations are not performed; the phase must be specified.
+    """
+    try:
+        # SECTION: Input validation
+        if not all(isinstance(comp, Component) for comp in components):
+            logger.error("Invalid components provided.")
+            return None
+
+        if not isinstance(model_source, ModelSource):
+            logger.error("Invalid model_source provided.")
+            return None
+
+        if not isinstance(temperature, Temperature):
+            logger.error("Invalid temperature provided.")
+            return None
+
+        # SECTION: Prepare source
+        Source_ = Source(model_source=model_source)
+
+        # SECTION: Initialize HSGMixture
+        hsg_mixture = HSGMixture(
+            components=components,
+            source=Source_,
+            component_key=component_key
+        )
+
+        # NOTE: calculate mixture enthalpy
+        mixture_enthalpy = hsg_mixture.calc_mixture_enthalpy(
+            temperature=temperature,
+            phase=phase,
+            departure_enthalpy=departure_enthalpy,
+            excess_enthalpy=excess_enthalpy,
+        )
+
+        return mixture_enthalpy
+    except Exception as e:
+        logger.error(
+            f"Error calculating mixture enthalpy: {e}")
         return None
