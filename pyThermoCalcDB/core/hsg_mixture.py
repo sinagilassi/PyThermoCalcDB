@@ -1,6 +1,6 @@
 # import libs
 import logging
-from typing import Optional, List, Dict, Literal, cast
+from typing import Optional, List, Dict, Literal, cast, Any
 from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp
 from pythermodb_settings.utils import set_component_id
 import pycuc
@@ -75,9 +75,13 @@ class HSGMixture:
             A dictionary mapping component IDs to their corresponding HSGProperties instances.
         """
         try:
+            # NOTE: initialize hsg properties dict
+            hsg_properties = {}
+
+            # SECTION: build hsg properties for components
             for component_id, component in zip(self.component_ids, self.components):
-                if component_id not in self.hsg_properties:
-                    self.hsg_properties[component_id] = HSGProperties(
+                if component_id not in hsg_properties:
+                    hsg_properties[component_id] = HSGProperties(
                         component=component,
                         source=self.source,
                         component_key=cast(Literal[
@@ -89,7 +93,9 @@ class HSGMixture:
                             'Formula-Name-State'
                         ], self.component_key)
                     )
-            return self.hsg_properties
+
+            # >> hsg properties
+            return hsg_properties
         except Exception as e:
             logger.error(
                 f"Error in getting HSG properties for components: {e}")
@@ -101,9 +107,9 @@ class HSGMixture:
             phase: Literal['IG', 'LIQ'] = 'IG',
             departure_enthalpy: Optional[CustomProp] = None,
             excess_enthalpy: Optional[CustomProp] = None,
-    ):
+    ) -> Optional[Dict[str, Any]]:
         """
-        Calculate the mixture enthalpy at a given temperature and pressure for specified phase.
+        Calculate the mixture enthalpy (J/mol) at a given temperature (K) and pressure for specified phase.
 
         Parameters
         ----------
@@ -118,7 +124,8 @@ class HSGMixture:
 
         Returns
         -------
-        Mixture enthalpy value (J/mol) or None if calculation fails.
+        Optional[Dict[str, Any]]
+            A dictionary containing the mixture enthalpy value and unit, or None if calculation fails.
 
         Notes
         -----
