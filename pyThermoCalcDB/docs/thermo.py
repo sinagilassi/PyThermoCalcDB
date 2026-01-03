@@ -4,6 +4,7 @@ from typing import Literal, Optional, List
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp
 from pyThermoLinkDB.thermo import Source
+import pycuc
 # local
 from ..utils.tools import measure_time
 from ..core.hsg_properties import HSGProperties
@@ -12,7 +13,8 @@ from ..models.component_ref import (
     ComponentGibbsEnergyOfFormation,
     ComponentEnthalpyOfFormation,
     ComponentEnthalpyChange,
-    ComponentEntropyChange
+    ComponentEntropyChange,
+    MixtureEnthalpyResult
 )
 
 # NOTE: Logger
@@ -561,6 +563,7 @@ def calc_mixture_enthalpy(
         components: List[Component],
         model_source: ModelSource,
         temperature: Temperature,
+        pressure: Pressure,
         phase: Literal['IG', 'LIQ'],
         departure_enthalpy: Optional[CustomProp] = None,
         excess_enthalpy: Optional[CustomProp] = None,
@@ -572,9 +575,9 @@ def calc_mixture_enthalpy(
             'Name-Formula-State',
             'Formula-Name-State'
         ] = 'Name-State',
-        verbose: bool = False,
+        output_unit: Optional[str] = None,
         **kwargs
-):
+) -> Optional[MixtureEnthalpyResult]:
     """
     Calculate the mixture enthalpy at a given temperature (K) for specified phase. The result is provided in J/mol.
 
@@ -586,6 +589,8 @@ def calc_mixture_enthalpy(
         The source model containing necessary data.
     temperature : Temperature
         The temperature of the mixture.
+    pressure : Pressure
+        The pressure of the mixture.
     phase : Literal['IG', 'LIQ']
         The phase of the mixture ('IG' for ideal gas, 'LIQ' for liquid).
     departure_enthalpy : Optional[CustomProp], optional
@@ -594,8 +599,8 @@ def calc_mixture_enthalpy(
         Custom excess enthalpy property, by default None.
     component_key : Literal[..., optional]
         The key to identify the components, by default 'Name-State'.
-    verbose : bool, optional
-        If True, enables verbose logging, by default False.
+    output_unit : Optional[str], optional
+        The desired output unit for mixture enthalpy, by default None (J/mol).
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -603,8 +608,8 @@ def calc_mixture_enthalpy(
 
     Returns
     -------
-    Optional[CustomProp]
-        A CustomProp object containing the mixture enthalpy value, unit, and symbol, or None if calculation fails.
+    Optional[MixtureEnthalpyResult]
+        A MixtureEnthalpyResult object containing the mixture enthalpy value, unit, and symbol, or None if calculation fails.
 
     Notes
     -----
@@ -647,7 +652,43 @@ def calc_mixture_enthalpy(
             excess_enthalpy=excess_enthalpy,
         )
 
-        return mixture_enthalpy
+        # >> check
+        if mixture_enthalpy is None:
+            logger.error("Mixture enthalpy calculation failed.")
+            return None
+
+        # set
+        mixture_enthalpy_value = mixture_enthalpy['value']
+        mixture_enthalpy_unit = mixture_enthalpy['unit']
+
+        # SECTION: convert unit if needed
+        if (
+            output_unit is not None and
+            mixture_enthalpy_unit != output_unit
+        ):
+            # >> convert
+            converted_value = pycuc.convert_from_to(
+                value=mixture_enthalpy_value,
+                from_unit=mixture_enthalpy_unit,
+                to_unit=output_unit
+            )
+            # >> update
+            mixture_enthalpy_value = converted_value
+            mixture_enthalpy_unit = output_unit
+
+        # NOTE: prepare result
+        res = {
+            'temperature': temperature,
+            'pressure': pressure,
+            'phase': str(phase),
+            'value': mixture_enthalpy_value,
+            'unit': mixture_enthalpy_unit,
+            'symbol': 'EnFo_mix'
+        }
+
+        # set
+        res = MixtureEnthalpyResult(**res)
+        return res
     except Exception as e:
         logger.error(
             f"Error calculating mixture enthalpy: {e}")
