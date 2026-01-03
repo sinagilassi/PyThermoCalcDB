@@ -2,6 +2,7 @@
 import logging
 from typing import Dict, Literal, Optional, Any
 from pyThermoDB.core import TableEquation
+from pyThermoDB.models import EquationResult
 import pycuc
 from scipy import integrate
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -483,4 +484,98 @@ def Cp__T_integral(
     except Exception as e:
         logger.error(
             f"Error integrating Cp/T equation from T={T_ref} K to T={T} K: {e}")
+        return None
+
+
+def calc_eq(
+    eq_src: ComponentEquationSource,
+    vars: Dict[str, Any],
+    output_unit: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Calculate the value of an equation given its source and arguments.
+
+    Parameters
+    ----------
+    eq_src : ComponentEquationSource
+        The equation source to be calculated.
+    vars : Dict[str, Any]
+        A dictionary of variable names and their corresponding values to be used in the equation.
+    output_unit : Optional[str], optional
+        The desired output unit for the calculated value, by default None.
+
+    Returns
+    -------
+    Optional[Dict[str, Any]]
+        The result of the equation calculation, or None if an error occurs.
+    """
+    try:
+        # SECTION: equation expression
+        # NOTE: extract Cp equation
+        # ! args
+        eq_args = eq_src.args
+        # ! arg symbols
+        eq_arg_symbols = eq_src.arg_symbols
+        # ! returns
+        eq_returns = eq_src.returns
+        # >> get return units
+        returns_outer_key, returns_inner = next(
+            iter(eq_returns.items())
+        )
+        eq_return_unit: str = returns_inner['unit']
+
+        # ! return symbols
+        eq_return_symbols = eq_src.return_symbols
+        # ! equation
+        equation = eq_src.source
+
+        # SECTION: check all vars are provided
+        for arg in eq_args:
+            if arg not in vars:
+                logger.error(
+                    f"Missing argument '{arg}' for equation calculation.")
+                raise ValueError(
+                    f"Missing argument '{arg}' for equation calculation.")
+
+        # SECTION: calculate equation
+        res: EquationResult = equation.cal(**vars)
+
+        # NOTE: value
+        value = res['value']
+        unit_ = res['unit']
+
+        # >> check
+        if value is None or unit_ is None:
+            logger.error(
+                f"Equation calculation returned None value or unit.")
+            return None
+
+        # >> check
+        if not isinstance(value, (float, int)):
+            logger.error(
+                f"Equation calculation returned invalid value type: {type(value)}.")
+            return None
+
+        # SECTION: convert unit if needed
+        if output_unit is not None:
+            if (
+                output_unit.lower() == unit_.lower()
+            ):
+                # >> same unit, no conversion needed
+                pass
+            else:
+                # >>> convert to desired unit
+                value = pycuc.to(
+                    value,
+                    f"{unit_} => {output_unit}"
+                )
+                unit_ = output_unit
+
+        return {
+            'value': value,
+            'unit': unit_
+        }
+    except Exception as e:
+        logger.error(
+            f"Error calculating equation: {e}")
         return None
