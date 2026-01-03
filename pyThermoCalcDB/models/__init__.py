@@ -8,6 +8,7 @@ from .component_ref import (
     ComponentEntropyChange,
     ComponentHeatOfVaporization,
     ComponentHeatOfSublimation,
+    MixtureEnthalpyResult
 )
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     'ComponentEntropyChange',
     'ComponentHeatOfVaporization',
     'ComponentHeatOfSublimation',
+    'MixtureEnthalpyResult',
     'CalcResult',
 ]
