@@ -2,7 +2,7 @@
 import logging
 import math
 from typing import Dict, Any, Literal, Optional, List
-from pythermodb_settings.models import Component, Temperature, Pressure
+from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp
 from pythermodb_settings.utils import set_component_id
 import pycuc
 from pyThermoLinkDB.thermo import Source
@@ -11,21 +11,36 @@ from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from ..configs.thermo_props import (
     EnFo_IG_UNIT,
     EnFo_LIQ_UNIT,
+    EnFo_SOL_UNIT,
     Ent_STD_UNIT,
     GiEnFo_IG_UNIT,
     EnFo_IG_SYMBOL,
+    EnFo_LIQ_SYMBOL,
+    EnFo_SOL_SYMBOL,
+    GiEnFo_IG_SYMBOL,
     Ent_STD_SYMBOL,
     GiEnFo_IG_SYMBOL,
     Cp_IG_SYMBOL,
     Cp_LIQ_SYMBOL,
-    Cp_IG_UNIT
+    Cp_IG_UNIT,
+    EnVap_SYMBOL,
+    EnVap_UNIT,
+    EnSub_SYMBOL,
+    EnSub_UNIT
 )
-from .calc import Cp_integral, Cp__RT_integral, Cp__T_integral
+from .calc import (
+    Cp_integral,
+    Cp__RT_integral,
+    Cp__T_integral,
+    calc_eq
+)
 from ..models import (
     ComponentEnthalpyOfFormation,
     ComponentGibbsEnergyOfFormation,
     ComponentEnthalpyChange,
-    ComponentEntropyChange
+    ComponentEntropyChange,
+    ComponentHeatOfVaporization,
+    ComponentHeatOfSublimation
 )
 
 # NOTE: Logger
@@ -55,6 +70,12 @@ class HSGProperties:
         `ΔG(T) = ΔH(T) - T * ΔS(T)`
     where ΔS(T) is derived from the heat capacity equations.
     - All integrals are evaluated using the heat capacity equations provided in the source.
+    - Heat capacity equation is defined as Cp = f(T) with units in J/mol.K.
+    - Integration of Cp over temperature yields enthalpy changes in J/mol.
+    - Integration of Cp/RT over temperature is used in Gibbs energy calculations.
+    - Evaporation and sublimation enthalpies can be calculated if the respective equations are provided in the source.
+    - Both evaporation and sublimation enthalpy equations are defined as functions of temperature with units in J/mol as:
+        EnVap = f(T)  and  EnSub = f(T)
     """
     # NOTE: attributes
     # reference temperature in K
@@ -120,6 +141,17 @@ class HSGProperties:
         # NOTE: liquid heat capacity equation source
         self.Cp_LIQ_eq_src = self._get_Cp_equation_source(
             phase='LIQ'
+        )
+
+        # SECTION: retrieve other necessary data if needed
+        # NOTE: enthalpy of vaporization equation source
+        self.EnVap_eq_src = self._get_equation_source(
+            prop_name=EnVap_SYMBOL
+        )
+
+        # NOTE: enthalpy of sublimation equation source
+        self.EnSub_eq_src = self._get_equation_source(
+            prop_name=EnSub_SYMBOL
         )
 
     def _get_formation_data(
@@ -205,6 +237,53 @@ class HSGProperties:
         except Exception as e:
             logger.exception(
                 f"Error retrieving heat capacity equation source: {e}")
+            raise
+
+    def _get_equation_source(
+            self,
+            prop_name: str
+    ) -> Optional[ComponentEquationSource]:
+        '''
+        Retrieve the equation source for the specified property.
+
+        Parameters
+        ----------
+        prop_name : str
+            The name of the property for which the equation source is to be retrieved.
+
+        Returns
+        -------
+        Optional[ComponentEquationSource]
+            The equation source if available, otherwise None.
+        '''
+        try:
+            # NOTE: build equation
+            eq_src = self.source.eq_builder(
+                components=[self.component],
+                prop_name=prop_name,
+                component_key=self.component_key  # type: ignore
+            )
+
+            # >> check equation
+            if eq_src is None:
+                logger.warning(
+                    f"No equation available for property {prop_name} for component {self.component_id}.")
+                return None
+
+            # >> for component
+            component_eq_src: ComponentEquationSource | None = eq_src.get(
+                self.component_id
+            )
+
+            if component_eq_src is None:
+                logger.warning(
+                    f"No equation available for property {prop_name} for component {self.component_id}.")
+                raise ValueError("No equation source found.")
+
+            return component_eq_src
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving equation source for {prop_name}: {e}")
             raise
 
     def _calc_enthalpy_change(
@@ -814,4 +893,269 @@ class HSGProperties:
         except Exception as e:
             logger.exception(
                 f"Error calculating entropy change between temperatures: {e}")
+            return None
+
+    def calc_evaporation_enthalpy(
+            self,
+            temperature: Temperature,
+    ) -> Optional[ComponentHeatOfVaporization]:
+        '''
+        Calculate the enthalpy of evaporation (J/mol) at a given temperature (K).
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the enthalpy of evaporation.
+
+        Returns
+        -------
+        Optional[ComponentHeatOfVaporization]
+            A ComponentHeatOfVaporization object containing the calculated enthalpy of evaporation if successful, otherwise None.
+        '''
+        try:
+            # SECTION: temperature value
+            T_val = temperature.value
+            T_unit = temperature.unit
+
+            # >> convert temperature to K if necessary
+            if T_unit != 'K':
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => K"
+                )
+
+            # SECTION: check EnVap equation source
+            if self.EnVap_eq_src is None:
+                logger.error(
+                    f"No enthalpy of vaporization equation source available for component {self.component_id}.")
+                return None
+
+            # SECTION: evaluate EnVap equation at temperature
+            EnVap_result = calc_eq(
+                eq_src=self.EnVap_eq_src,
+                vars={
+                    'T': T_val
+                },
+                output_unit='J/mol'  # ! specify output unit as J/mol
+            )
+
+            # >> check
+            if EnVap_result is None:
+                logger.error(
+                    f"Failed to evaluate enthalpy of vaporization equation at T={T_val} K.")
+                return None
+
+            # SECTION: prepare result
+            result_ = {
+                'temperature': temperature,
+                'value': EnVap_result['value'],
+                'unit': 'J/mol',
+                'symbol': EnVap_SYMBOL
+            }
+
+            # >> set
+            result = ComponentHeatOfVaporization(**result_)
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error calculating enthalpy of evaporation: {e}")
+            return None
+
+    def calc_sublimation_enthalpy(
+            self,
+            temperature: Temperature,
+    ) -> Optional[ComponentHeatOfSublimation]:
+        '''
+        Calculate the enthalpy of sublimation (J/mol) at a given temperature (K).
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the enthalpy of sublimation.
+
+        Returns
+        -------
+        Optional[ComponentHeatOfSublimation]
+            A ComponentHeatOfSublimation object containing the calculated enthalpy of sublimation if successful, otherwise None.
+        '''
+        try:
+            # SECTION: temperature value
+            T_val = temperature.value
+            T_unit = temperature.unit
+
+            # >> convert temperature to K if necessary
+            if T_unit != 'K':
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => K"
+                )
+
+            # SECTION: check EnSub equation source
+            if self.EnSub_eq_src is None:
+                logger.error(
+                    f"No enthalpy of sublimation equation source available for component {self.component_id}.")
+                return None
+
+            # SECTION: evaluate EnSub equation at temperature
+            EnSub_result = calc_eq(
+                eq_src=self.EnSub_eq_src,
+                vars={
+                    'T': T_val
+                },
+                output_unit='J/mol'  # ! specify output unit as J/mol
+            )
+
+            # >> check
+            if EnSub_result is None:
+                logger.error(
+                    f"Failed to evaluate enthalpy of sublimation equation at T={T_val} K.")
+                return None
+
+            # SECTION: prepare result
+            result_ = {
+                'temperature': temperature,
+                'value': EnSub_result['value'],
+                'unit': 'J/mol',
+                'symbol': EnSub_SYMBOL
+            }
+
+            # >> set
+            result = ComponentHeatOfSublimation(**result_)
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error calculating enthalpy of sublimation: {e}")
+            return None
+
+    def calc_phase_enthalpy(
+            self,
+            temperature: Temperature,
+            phase: Literal['IG', 'LIQ', 'SOL'],
+    ) -> Optional[ComponentEnthalpyOfFormation]:
+        """
+        Calculate the enthalpy of formation (J/mol) for a specific phase at a given temperature (K). The phases supported are ideal gas (IG), liquid (LIQ), and solid (SOL).
+        The reference phase is ideal gas at 298.15 K and 1 atm.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the enthalpy of formation.
+        phase : Literal['IG', 'LIQ', 'SOL']
+            The phase of the component ('IG' for ideal gas, 'LIQ' for liquid, 'SOL' for solid).
+
+        Returns
+        -------
+        Optional[ComponentEnthalpyOfFormation]
+            A ComponentEnthalpyOfFormation object containing the calculated enthalpy of formation if successful, otherwise None.
+
+        Notes
+        -----
+        - The enthalpy of formation for each phase is calculated based on the ideal gas enthalpy and phase change enthalpies.
+        - All enthalpy results are provided in J/mol.
+        - Reference temperature is set to 298.15 K.
+        - The enthalpy of formation symbols must be consistent with the defined units in the configuration which are EnFo_IG, EnFo_LIQ, and EnFo_SOL.
+
+        Equations
+        ---------
+        - ideal gas enthalpy (H_IG) is calculated as:
+            H_IG(T) = ΔH_f(T) + ∫(Cp_IG dT) from 298.15 K to T
+
+        - liquid enthalpy (H_LIQ) is calculated as:
+            H_LIQ(T) = H_IG(T) - ΔH_vap(T)
+
+        - solid enthalpy (H_SOL) is calculated as (not implemented):
+            H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fusion(T)
+        """
+        try:
+            # SECTION: calculate ideal gas enthalpy
+            # ! [J/mol]
+            EnFo_IG = self.calc_enthalpy_of_formation(
+                temperature=temperature,
+                phase='IG'
+            )
+
+            if EnFo_IG is None:
+                logger.error(
+                    f"Failed to calculate ideal gas enthalpy of formation for liquid phase calculation.")
+                return None
+
+            # SECTION: calculate phase-specific enthalpy of formation
+            if phase == 'IG':
+                return EnFo_IG
+            elif phase == 'LIQ':
+                # NOTE: calculate enthalpy of vaporization
+                # ! [J/mol]
+                EnVap = self.calc_evaporation_enthalpy(
+                    temperature=temperature
+                )
+
+                if EnVap is None:
+                    logger.error(
+                        f"Failed to calculate enthalpy of vaporization for liquid phase calculation.")
+                    return None
+
+                # NOTE: calculate liquid enthalpy of formation
+                # ! [J/mol]
+                EnFo_LIQ_value = EnFo_IG.value - EnVap.value
+
+                # prepare result
+                result_ = {
+                    'temperature': temperature,
+                    'value': EnFo_LIQ_value,
+                    'unit': 'J/mol',
+                    'symbol': EnFo_LIQ_SYMBOL
+                }
+
+                # set
+                result = ComponentEnthalpyOfFormation(**result_)
+
+                return result
+            elif phase == 'SOL':
+                # NOTE: calculate enthalpy of vaporization
+                # ! [J/mol]
+                EnVap = self.calc_evaporation_enthalpy(
+                    temperature=temperature
+                )
+
+                if EnVap is None:
+                    logger.error(
+                        f"Failed to calculate enthalpy of vaporization for liquid phase calculation.")
+                    return None
+
+                # NOTE: calculate enthalpy of sublimation
+                # ! [J/mol]
+                EnSub = self.calc_sublimation_enthalpy(
+                    temperature=temperature
+                )
+
+                if EnSub is None:
+                    logger.error(
+                        f"Failed to calculate enthalpy of sublimation for solid phase calculation.")
+                    return None
+
+                # NOTE: calculate solid enthalpy of formation
+                # ! [J/mol]
+                EnFo_SOL_value = EnFo_IG.value - EnVap.value - EnSub.value
+
+                # prepare result
+                result_ = {
+                    'temperature': temperature,
+                    'value': EnFo_SOL_value,
+                    'unit': 'J/mol',
+                    'symbol': EnFo_SOL_SYMBOL
+                }
+
+                # set
+                result = ComponentEnthalpyOfFormation(**result_)
+
+                return result
+            else:
+                logger.error(
+                    f"Invalid phase: {phase}. Must be 'IG', 'LIQ', or 'SOL'.")
+                return None
+        except Exception as e:
+            logger.exception(
+                f"Error calculating phase enthalpy of formation: {e}")
             return None
