@@ -190,3 +190,79 @@ class ComponentEntropyChange(BaseModel):
         ...,
         description="The entropy change symbol."
     )
+
+# NOTE: component heat of vaporization result model
+
+
+class ComponentHeatOfVaporization(BaseModel):
+    '''
+    Component Heat of Vaporization Result Model
+
+    Attributes
+    ----------
+    temperature : Temperature
+        The temperature at which the heat of vaporization is calculated.
+    value : float
+        The heat of vaporization value.
+    unit : str
+        The heat of vaporization unit.
+    symbol : str
+        The heat of vaporization symbol.
+    '''
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    temperature: Temperature = Field(
+        ...,
+        description="The temperature at which the heat of vaporization is calculated."
+    )
+
+    value: float = Field(
+        ...,
+        description="The heat of vaporization value."
+    )
+    unit: str = Field(
+        ...,
+        description="The heat of vaporization unit."
+    )
+    symbol: str = Field(
+        ...,
+        description="The heat of vaporization symbol."
+    )
+
+# NOTE: component heat of sublimation result model
+
+
+class ComponentHeatOfSublimation(BaseModel):
+    '''
+    Component Heat of Sublimation Result Model
+
+    Attributes
+    ----------
+    temperature : Temperature
+        The temperature at which the heat of sublimation is calculated.
+    value : float
+        The heat of sublimation value.
+    unit : str
+        The heat of sublimation unit.
+    symbol : str
+        The heat of sublimation symbol.
+    '''
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    temperature: Temperature = Field(
+        ...,
+        description="The temperature at which the heat of sublimation is calculated."
+    )
+
+    value: float = Field(
+        ...,
+        description="The heat of sublimation value."
+    )
+    unit: str = Field(
+        ...,
+        description="The heat of sublimation unit."
+    )
+    symbol: str = Field(
+        ...,
+        description="The heat of sublimation symbol."
+    )
