@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyThermoCalcDB"
-version = "0.5.1"
+version = "0.6.0"
 description = "Python Thermodynamic Calculation Engine powered by PyThermoDB."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,10 +29,10 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-    "pydantic>=2.12.5",
-    "pydantic-settings>=2.12.0",
     "scipy>=1.16.3",
     "numpy>=2.3.5",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
     "rich>=14.2.0",
     "pythermodb",
     "pythermolinkdb",
