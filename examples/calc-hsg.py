@@ -14,6 +14,7 @@ from pyThermoCalcDB.docs.thermo import (
     calc_gibbs_energy_of_formation_range,
     calc_enthalpy_change,
     calc_entropy_change,
+    calc_mixture_enthalpy
 )
 
 # check version
@@ -35,6 +36,9 @@ print(thermodb_dir)
 # thermodb file name
 CO2_thermodb_file = os.path.join(thermodb_dir, 'carbon dioxide-g.pkl')
 
+# ! CO
+CO_thermodb_file = os.path.join(thermodb_dir, 'carbon monoxide-g.pkl')
+
 # =======================================
 # SECTION: COMPONENTS THERMODB SOURCE
 # =======================================
@@ -51,10 +55,24 @@ CO2_component_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
     source=CO2_thermodb_file
 )
 
+# ! CO
+CO_comp = Component(
+    name='carbon monoxide',
+    formula='CO',
+    state='g'
+)
+# ! component thermodb source
+CO_component_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=CO_comp,
+    source=CO_thermodb_file
+)
+
 # NOTE: component thermodb source
 _component_thermodb: list = [
     CO2_component_thermodb,
+    CO_component_thermodb
 ]
+
 # =======================================
 # SECTION: BUILD THERMODB MODEL SOURCE
 # =======================================
