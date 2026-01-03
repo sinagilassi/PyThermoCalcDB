@@ -6,6 +6,8 @@ from .component_ref import (
     ComponentGibbsEnergyOfFormation,
     ComponentEnthalpyChange,
     ComponentEntropyChange,
+    ComponentHeatOfVaporization,
+    ComponentHeatOfSublimation,
 )
 
 __all__ = [
@@ -13,5 +15,7 @@ __all__ = [
     'ComponentGibbsEnergyOfFormation',
     'ComponentEnthalpyChange',
     'ComponentEntropyChange',
+    'ComponentHeatOfVaporization',
+    'ComponentHeatOfSublimation',
     'CalcResult',
 ]
