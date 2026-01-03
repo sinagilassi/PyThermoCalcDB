@@ -14,7 +14,6 @@ from pyThermoCalcDB.docs.thermo import (
     calc_gibbs_energy_of_formation_range,
     calc_enthalpy_change,
     calc_entropy_change,
-    calc_mixture_enthalpy
 )
 
 # check version
