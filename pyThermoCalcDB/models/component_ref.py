@@ -266,3 +266,52 @@ class ComponentHeatOfSublimation(BaseModel):
         ...,
         description="The heat of sublimation symbol."
     )
+
+# NOTE: mixture enthalpy result model
+
+
+class MixtureEnthalpyResult(BaseModel):
+    '''
+    Mixture Enthalpy Result Model
+
+    Attributes
+    ----------
+    temperature : Temperature
+        The temperature at which the mixture enthalpy is calculated.
+    pressure : Pressure
+        The pressure at which the mixture enthalpy is calculated.
+    phase : str
+        The phase of the mixture ('IG' for ideal gas, 'LIQ' for liquid).
+    value : float
+        The mixture enthalpy value.
+    unit : str
+        The mixture enthalpy unit.
+    symbol : str
+        The mixture enthalpy symbol.
+    '''
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    temperature: Temperature = Field(
+        ...,
+        description="The temperature at which the mixture enthalpy is calculated."
+    )
+    pressure: Pressure = Field(
+        ...,
+        description="The pressure at which the mixture enthalpy is calculated."
+    )
+    phase: str = Field(
+        ...,
+        description="The phase of the mixture ('IG' for ideal gas, 'LIQ' for liquid)."
+    )
+    value: float = Field(
+        ...,
+        description="The mixture enthalpy value."
+    )
+    unit: str = Field(
+        ...,
+        description="The mixture enthalpy unit."
+    )
+    symbol: str = Field(
+        ...,
+        description="The mixture enthalpy symbol."
+    )
