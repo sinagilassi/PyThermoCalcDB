@@ -38,6 +38,7 @@ dependencies = [
     "pythermolinkdb",
     "pythermodb-settings",
     "pycuc",
+    "pyreactlab-core>=0.1.0",
 ]
 
 [project.urls]
