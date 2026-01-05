@@ -698,7 +698,8 @@ class HSGProperties:
                 return None
 
             # SECTION: calculate Gibbs free energy of formation at temperature
-            # ! Gibbs free energy of formation at T [J/mol]
+            # ! Gibbs free energy of formation at T
+            # ! [J/mol]
             # A
             A = (GiEnFo_IG_val - EnFo_IG_val)/(self.R*self.T_ref)
             # B
@@ -1159,3 +1160,9 @@ class HSGProperties:
             logger.exception(
                 f"Error calculating phase enthalpy of formation: {e}")
             return None
+
+    def calc_phase_gibbs_free_energy(
+            self,
+            temperature: Temperature,
+    ):
+        pass
