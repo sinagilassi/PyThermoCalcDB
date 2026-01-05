@@ -403,7 +403,7 @@ class HSGReaction:
         """
         Calculate the standard Gibbs free energy of reaction at the specified temperature and pressure using HSG properties.
 
-            dG_rxn = Σ(ν_i * G_IG(T))
+            dG_rxn = Σ(ν_i * GiEnFo_IG(T))
 
         Parameters
         ----------
@@ -427,10 +427,10 @@ class HSGReaction:
         For a reaction:
             aA + bB => cC + dD
         - The reaction Gibbs free energy (ΔG_rxn) is calculated as:
-            dG_rxn = Σ(ν_i * G_IG(T))
+            dG_rxn = Σ(ν_i * GiEnFo_IG(T))
 
-        - ideal gas Gibbs free energy (G_IG) is calculated as:
-            G_IG(T) = ΔG_f(T) + ∫(Cp_IG dT) - T * ∫(Cp_IG/T dT) from 298.15 K to T
+        - ideal gas Gibbs free energy (GiEnFo_IG) is calculated as:
+            GiEnFo_IG(T) = EnFo_f(T) + ∫(Cp_IG dT) - T * ∫(Cp_IG/T dT) from 298.15 K to T
         """
         try:
             # NOTE: initialize reaction Gibbs free energy
@@ -468,5 +468,6 @@ class HSGReaction:
             }
         except Exception as e:
             logger.error(
-                f"Error in calculating reaction Gibbs free energy: {e}")
+                f"Error in calculating reaction Gibbs free energy: {e}"
+            )
             return None
