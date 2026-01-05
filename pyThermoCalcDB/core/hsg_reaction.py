@@ -5,7 +5,6 @@ from pythermodb_settings.models import Temperature, Pressure, Component, CustomP
 from pythermodb_settings.utils import set_component_id
 import pycuc
 from pyThermoLinkDB.thermo import Source
-from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core.models.reaction import Reaction
 # locals
 from .hsg_properties import HSGProperties
