@@ -15,7 +15,33 @@ logger = logging.getLogger(__name__)
 
 class HSGMixture:
     """
+    Class to represent a mixture of components and calculate its thermodynamic properties using HSG method.
 
+    This class provides thermodynamic property calculations for multi-component mixtures using the HSG
+    (Heat capacity, entropy, and Gibbs energy) methodology. It aggregates component properties and
+    enables mixture-level calculations with support for custom departure and excess contributions.
+
+    Attributes
+    ----------
+    components : List[Component]
+        A list of Component objects representing the mixture components.
+    source : Source
+        The Source object representing the data source for component properties.
+    component_key : Literal['Name-State', 'Formula-State', 'Name', 'Formula', 'Name-Formula-State', 'Formula-Name-State']
+        The key used to uniquely identify components in the source data (default: 'Name-State').
+    component_ids : List[str]
+        List of unique component identifiers generated from components using the specified component_key.
+    mole_fractions : List[float]
+        Mole fractions of each component in the mixture (normalized).
+    hsg_properties : Dict[str, HSGProperties]
+        Dictionary mapping component IDs to their corresponding HSGProperties instances for thermodynamic calculations.
+
+    Methods
+    -------
+    _components_hsg_properties()
+        Private method to initialize HSGProperties instances for all mixture components.
+    calc_mixture_enthalpy(temperature, phase, departure_enthalpy, excess_enthalpy)
+        Calculate the mixture enthalpy (J/mol) at a given temperature and phase with optional contributions.
     """
 
     def __init__(
