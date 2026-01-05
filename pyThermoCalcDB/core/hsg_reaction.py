@@ -395,3 +395,78 @@ class HSGReaction:
         except Exception as e:
             logger.error(f"Error in calculating reaction enthalpy: {e}")
             return None
+
+    def calc_standard_reaction_gibbs_energy(
+        self,
+        temperature: Temperature,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Calculate the standard Gibbs free energy of reaction at the specified temperature and pressure using HSG properties.
+
+            dG_rxn = Σ(ν_i * G_IG(T))
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the reaction Gibbs free energy.
+
+        Returns
+        -------
+        Optional[Dict[str, Any]]
+            A dictionary containing the reaction Gibbs free energy and related information, or None if calculation fails.
+
+        Notes
+        -----
+        - The reaction Gibbs free energy is calculated using the standard Gibbs free energies of formation of the reactants and products.
+        - The result is provided in J/mol.
+        - R is the universal gas constant (8.3145 J/mol.K).
+        - Global reference is ideal gas state at 298.15 K and 1 atm, and all elements are in their standard states (embedded in dGf).
+
+        Equations
+        ---------
+        For a reaction:
+            aA + bB => cC + dD
+        - The reaction Gibbs free energy (ΔG_rxn) is calculated as:
+            dG_rxn = Σ(ν_i * G_IG(T))
+
+        - ideal gas Gibbs free energy (G_IG) is calculated as:
+            G_IG(T) = ΔG_f(T) + ∫(Cp_IG dT) - T * ∫(Cp_IG/T dT) from 298.15 K to T
+        """
+        try:
+            # NOTE: initialize reaction Gibbs free energy
+            reaction_gibbs_energy = 0.0
+
+            # SECTION: calculate reaction Gibbs free energy
+            for component_id, coeff in self.reaction.reaction_stoichiometry.items():
+                # >> get hsg properties
+                hsg_prop = self.hsg_properties.get(component_id, None)
+                if hsg_prop is None:
+                    logger.error(
+                        f"HSG properties not found for component ID: {component_id}"
+                    )
+                    return None
+
+                # >> calculate component Gibbs free energy
+                # NOTE: calculate phase Gibbs free energy
+                # ! [J/mol]
+                component_gibbs_energy = hsg_prop.calc_gibbs_free_energy_of_formation(
+                    temperature=temperature,
+                )
+                # >> check component Gibbs free energy
+                if component_gibbs_energy is None:
+                    raise ValueError(
+                        f"Failed to calculate Gibbs free energy for component ID: {component_id}"
+                    )
+
+                # >> accumulate reaction Gibbs free energy
+                reaction_gibbs_energy += coeff * component_gibbs_energy.value
+
+            # >> return reaction Gibbs free energy
+            return {
+                'value': reaction_gibbs_energy,  # J/mol
+                'unit': 'J/mol'
+            }
+        except Exception as e:
+            logger.error(
+                f"Error in calculating reaction Gibbs free energy: {e}")
+            return None
