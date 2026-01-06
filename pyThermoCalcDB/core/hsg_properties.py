@@ -1037,7 +1037,8 @@ class HSGProperties:
     ) -> Optional[ComponentEnthalpyOfFormation]:
         """
         Calculate the enthalpy of formation (J/mol) for a specific phase at a given temperature (K). The phases supported are ideal gas (IG), liquid (LIQ), and solid (SOL).
-        The reference phase is ideal gas at 298.15 K and 1 atm.
+
+        The reference phase is `ideal gas` at 298.15 K and 1 atm.
 
         Parameters
         ----------
