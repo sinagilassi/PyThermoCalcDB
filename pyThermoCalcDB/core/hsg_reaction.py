@@ -8,7 +8,11 @@ from pyThermoLinkDB.thermo import Source
 from pyreactlab_core.models.reaction import Reaction
 # locals
 from .hsg_properties import HSGProperties
-from ..utils.component_tools import map_component_state
+from ..utils.component_tools import (
+    map_component_state,
+    set_components_state,
+    alter_component_formula_state
+)
 # locals
 
 # NOTE: logger setup
@@ -60,28 +64,26 @@ class HSGReaction:
     - products_names : List[str]
         List of product component IDs
     """
+    # NOTE: Attributes
+    _component_key: Literal[
+        'Name-State',
+        'Formula-State',
+        'Name',
+        'Formula',
+        'Name-Formula-State',
+        'Formula-Name-State'
+    ] = 'Formula-State'
 
     def __init__(
         self,
-        components: List[Component],
         reaction: Reaction,
         source: Source,
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
     ):
         """
         Initialize the HSGMixture with a list of components and optional custom properties.
 
         Parameters
         ----------
-        components : List[Component]
-            A list of Component objects representing the mixture components.
         reaction : Reaction
             The Reaction object representing the chemical reaction.
         source : Source
@@ -90,18 +92,39 @@ class HSGReaction:
             The key to identify components, by default 'Name-State'.
         """
         # NOTE: set attributes
-        self.components = components
         self.reaction = reaction
         self.source = source
-        self.component_key = component_key
+
+        # SECTION: set components
+        self.components = reaction.available_components
+        # checker
+        if reaction.component_checker is False:
+            raise ValueError(
+                "Some components in the reaction are not available in the provided components list."
+            )
+
+        # NOTE: gas-phase components
+        self.components_g = set_components_state(
+            components=self.components,
+            state='g'
+        )
 
         # SECTION: set component IDs
         self.component_ids = [
             set_component_id(
                 component=component,
-                component_key=self.component_key
+                component_key=self._component_key
             )
             for component in self.components
+        ]
+
+        # gas-phase ids
+        self.component_ids_g = [
+            set_component_id(
+                component=component,
+                component_key=self._component_key
+            )
+            for component in self.components_g
         ]
 
         # NOTE: set component phase states
@@ -116,10 +139,22 @@ class HSGReaction:
 
         # SECTION: hsg properties instances
         self.hsg_properties = self._components_hsg_properties()
+        # gas-phase hsg properties
+        self.hsg_properties_g = self._components_hsg_properties(
+            state='g'
+        )
 
-    def _components_hsg_properties(self) -> Dict[str, HSGProperties]:
+    def _components_hsg_properties(
+            self,
+            state: Optional[Literal['g', 'l', 's', 'aq']] = None
+    ) -> Dict[str, HSGProperties]:
         """
         Get the HSGProperties instances for all components in the mixture.
+
+        Parameters
+        ----------
+        state : Literal['g', 'l', 's', 'aq'], optional
+            The desired phase state for all components, by default 'g'.
 
         Returns
         -------
@@ -127,12 +162,34 @@ class HSGReaction:
             A dictionary mapping component IDs to their corresponding HSGProperties instances.
         """
         try:
+            # SECTION: select components by state
+            # NOTE: initialize components source
+            components_src: List[Component] = []
+            component_ids_src: List[str] = []
+
+            # NOTE: select components
+            if state is not None:
+                # check state
+                if state == 'g':
+                    components_src = self.components_g
+                    component_ids_src = self.component_ids_g
+                else:
+                    pass
+            else:
+                # original components
+                components_src = self.components
+                component_ids_src = self.component_ids
+
+            # SECTION: Retrieve components source
             # NOTE: initialize hsg properties dict
             hsg_properties = {}
 
             # SECTION: build hsg properties for components
-            for component_id, component in zip(self.component_ids, self.components):
+            for component_id, component in zip(component_ids_src, components_src):
+
+                # >> check if component already processed
                 if component_id not in hsg_properties:
+                    # get hsg properties
                     hsg_properties[component_id] = HSGProperties(
                         component=component,
                         source=self.source,
@@ -143,7 +200,7 @@ class HSGReaction:
                             'Formula',
                             'Name-Formula-State',
                             'Formula-Name-State'
-                        ], self.component_key)
+                        ], self._component_key)
                     )
 
             # >> hsg properties
@@ -153,12 +210,12 @@ class HSGReaction:
                 f"Error in getting HSG properties for components: {e}")
             return {}
 
-    def calc_standard_reaction_enthalpy(
+    def calc_standard_rxn_enthalpy(
         self,
         temperature: Temperature,
     ) -> Optional[Dict[str, Any]]:
         """
-        Calculate the standard enthalpy of reaction at the specified temperature and pressure using HSG properties.
+        Calculate the `standard enthalpy of reaction` at the specified temperature and pressure using HSG properties.
 
             dH_rxn = Σ(ν_i * H_IG(T))
 
@@ -178,8 +235,8 @@ class HSGReaction:
 
         Notes
         -----
-        - The reaction enthalpy is calculated using the standard enthalpies of formation of the reactants and products, adjusted for departure and excess enthalpies if provided.
-        - The calculation may involve ideal and non-ideal contributions depending on the phase.
+        - The reaction enthalpy is calculated using the standard enthalpies of formation of the reactants and products.
+        - No departure or excess enthalpy contributions are considered in this standard calculation.
         - The result is provided in J/mol.
         - R is the universal gas constant (8.3145 J/mol.K).
         - Global reference is ideal gas state at 298.15 K and 1 atm, and all elements are in their standard states (embedded in dEnFo).
@@ -194,7 +251,9 @@ class HSGReaction:
         - ideal gas enthalpy (H_IG) is calculated as:
             H_IG(T) = ΔH_f(T) + ∫(Cp_IG dT) from 298.15 K to T
 
-        - liquid enthalpy (H_LIQ) is calculated as:
+        When H_IG is not available, the following approximations are used:
+
+        - liquid enthalpy (H_LIQ) is calculated:
             H_LIQ(T) = H_IG(T) - ΔH_vap(T)
 
         - solid enthalpy (H_SOL) is calculated as (not implemented):
@@ -206,34 +265,32 @@ class HSGReaction:
 
             # SECTION: calculate reaction enthalpy
             for component_id, coeff in self.reaction.reaction_stoichiometry.items():
-                # >> get hsg properties
-                hsg_prop = self.hsg_properties.get(component_id, None)
-                if hsg_prop is None:
-                    logger.error(
-                        f"HSG properties not found for component ID: {component_id}"
-                    )
-                    return None
-
-                # NOTE: get component state
-                component_state = self.reaction.reaction_state.get(
-                    component_id,
-                    None
+                # NOTE: >> get hsg properties
+                # ! gas-phase properties
+                # >> reset component id
+                component_id_ = alter_component_formula_state(
+                    component_id=component_id,
+                    separator='-',
+                    state='g'
                 )
-                if component_state is None:
-                    logger.warning(
-                        f"Component state not found for component ID: {component_id}. Using default state from component."
+
+                # >>> get hsg properties
+                hsg_prop_g = self.hsg_properties_g.get(component_id_, None)
+                if hsg_prop_g is None:
+                    logger.error(
+                        f"Gas-phase HSG properties not found for component ID: {component_id}"
                     )
                     return None
 
-                # Cast phase to Literal['IG', 'LIQ', 'SOL']
-                phase = cast(Literal['IG', 'LIQ', 'SOL'], "IG")
+                # ! Cast phase to ideal-gas
+                # phase = cast(Literal['IG', 'LIQ', 'SOL'], "IG")
 
                 # >> calculate component enthalpy
                 # NOTE: calculate phase enthalpy
                 # ! [J/mol]
-                component_enthalpy = hsg_prop.calc_phase_enthalpy(
+                component_enthalpy = hsg_prop_g.calc_phase_enthalpy(
                     temperature=temperature,
-                    phase=phase,
+                    phase='IG',
                 )
                 # >> check component enthalpy
                 if component_enthalpy is None:
@@ -260,7 +317,7 @@ class HSGReaction:
         rxn_excess_enthalpy: Optional[CustomProp] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Calculate the phase (actual) enthalpy of reaction at the specified temperature and pressure using HSG properties.
+        Calculate the `phase (actual) enthalpy of reaction` at the specified temperature and pressure using HSG properties.
 
             dH_rxn = Σ(ν_i * H_IG(T)) + rxn_departure_enthalpy + rxn_excess_enthalpy
 
@@ -396,12 +453,12 @@ class HSGReaction:
             logger.error(f"Error in calculating reaction enthalpy: {e}")
             return None
 
-    def calc_standard_reaction_gibbs_energy(
+    def calc_standard_rxn_gibbs_energy(
         self,
         temperature: Temperature,
     ) -> Optional[Dict[str, Any]]:
         """
-        Calculate the standard Gibbs free energy of reaction at the specified temperature and pressure using HSG properties.
+        Calculate the `standard Gibbs free energy of reaction` at the specified temperature and pressure using HSG properties.
 
             dG_rxn = Σ(ν_i * GiEnFo_IG(T))
 
@@ -438,9 +495,17 @@ class HSGReaction:
 
             # SECTION: calculate reaction Gibbs free energy
             for component_id, coeff in self.reaction.reaction_stoichiometry.items():
-                # >> get hsg properties
-                hsg_prop = self.hsg_properties.get(component_id, None)
-                if hsg_prop is None:
+                # NOTE: >> get hsg properties
+                # ! >> reset component id
+                component_id_ = alter_component_formula_state(
+                    component_id=component_id,
+                    separator='-',
+                    state='g'
+                )
+
+                # >>> get hsg properties
+                hsg_prop_g = self.hsg_properties_g.get(component_id_, None)
+                if hsg_prop_g is None:
                     logger.error(
                         f"HSG properties not found for component ID: {component_id}"
                     )
@@ -449,7 +514,7 @@ class HSGReaction:
                 # >> calculate component Gibbs free energy
                 # NOTE: calculate phase Gibbs free energy
                 # ! [J/mol]
-                component_gibbs_energy = hsg_prop.calc_gibbs_free_energy_of_formation(
+                component_gibbs_energy = hsg_prop_g.calc_gibbs_free_energy_of_formation(
                     temperature=temperature,
                 )
                 # >> check component Gibbs free energy
