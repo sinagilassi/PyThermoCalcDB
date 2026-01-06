@@ -410,7 +410,7 @@ wheels = [
 
 [[package]]
 name = "pyreactlab-core"
-version = "0.1.2"
+version = "0.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -420,9 +420,9 @@ dependencies = [
     { name = "rich" },
     { name = "scipy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a4/17/8ca5e5fdf4d32390e40ed3603ef16398fd28c4c7224d564962541ade1ff6/pyreactlab_core-0.1.2.tar.gz", hash = "sha256:e57c4fab648b4c399dbed98b56aa585b49fd87e30e2392d973c0d3c810232a4b", size = 26338, upload-time = "2026-01-05T21:56:29.442Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2f/34/dc5654daacc4195cedf820b4fc4ba570659e98b4e1818d2037bedb43adfc/pyreactlab_core-0.1.3.tar.gz", hash = "sha256:ef27d52214ad2a2e76e677f4b64ed64f4418ded11d49061f6c92c7c7ed08d050", size = 26586, upload-time = "2026-01-06T05:43:59.769Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/5a/200fec15a7f41e88ca089cbdbb064a3e3c5711127fc71c0bafb11cd8b31c/pyreactlab_core-0.1.2-py3-none-any.whl", hash = "sha256:c89cced77a78d0228ec2504b70a245a85eed1db7159b0223c0ec8297628b5bc3", size = 26779, upload-time = "2026-01-05T21:56:28.301Z" },
+    { url = "https://files.pythonhosted.org/packages/71/4f/af4b9426bd77768fb6ee0551cb402b7a32a040bed2d3c6a6f1a2dab6adad/pyreactlab_core-0.1.3-py3-none-any.whl", hash = "sha256:fd78f74ecf243ac131c851a9f092dac9b4a4137ed0d386a43bc7c89d8f42570c", size = 27094, upload-time = "2026-01-06T05:43:58.612Z" },
 ]
 
 [[package]]
