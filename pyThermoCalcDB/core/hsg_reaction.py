@@ -1,8 +1,8 @@
 # import libs
 import logging
 from typing import Optional, List, Dict, Literal, cast, Any
-from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp
-from pythermodb_settings.utils import set_component_id
+from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp, ComponentKey
+from pythermodb_settings.utils import set_component_id, set_components_state
 import pycuc
 from pyThermoLinkDB.thermo import Source
 from pyreactlab_core.models.reaction import Reaction
@@ -10,8 +10,6 @@ from pyreactlab_core.models.reaction import Reaction
 from .hsg_properties import HSGProperties
 from ..utils.component_tools import (
     map_component_state,
-    set_components_state,
-    alter_component_formula_state
 )
 # locals
 
@@ -64,15 +62,13 @@ class HSGReaction:
     - products_names : List[str]
         List of product component IDs
     """
-    # NOTE: Attributes
-    _component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Formula-State'
+    # SECTION: Attributes
+    # NOTE: component key
+    # ! used where to consider component state
+    _component_key: ComponentKey = 'Formula-State'
+
+    # ! ignore component state
+    _standard_component_key: ComponentKey = 'Name-Formula'
 
     def __init__(
         self,
@@ -103,8 +99,8 @@ class HSGReaction:
                 "Some components in the reaction are not available in the provided components list."
             )
 
-        # NOTE: gas-phase components
-        self.components_g = set_components_state(
+        # NOTE: standard components
+        self.standard_components = set_components_state(
             components=self.components,
             state='g'
         )
@@ -118,13 +114,12 @@ class HSGReaction:
             for component in self.components
         ]
 
-        # gas-phase ids
-        self.component_ids_g = [
+        self.standard_component_ids = [
             set_component_id(
                 component=component,
-                component_key=self._component_key
+                component_key='Name-Formula'
             )
-            for component in self.components_g
+            for component in self.components
         ]
 
         # NOTE: set component phase states
@@ -139,22 +134,18 @@ class HSGReaction:
 
         # SECTION: hsg properties instances
         self.hsg_properties = self._components_hsg_properties()
-        # gas-phase hsg properties
-        self.hsg_properties_g = self._components_hsg_properties(
-            state='g'
+
+        # SECTION: hsg properties instances for standard states
+        self.standard_hsg_properties = self._components_hsg_properties(
+            search_mode='standard'
         )
 
     def _components_hsg_properties(
             self,
-            state: Optional[Literal['g', 'l', 's', 'aq']] = None
+            search_mode: Literal['standard', 'original'] = 'original'
     ) -> Dict[str, HSGProperties]:
         """
         Get the HSGProperties instances for all components in the mixture.
-
-        Parameters
-        ----------
-        state : Literal['g', 'l', 's', 'aq'], optional
-            The desired phase state for all components, by default 'g'.
 
         Returns
         -------
@@ -168,17 +159,23 @@ class HSGReaction:
             component_ids_src: List[str] = []
 
             # NOTE: select components
-            if state is not None:
-                # check state
-                if state == 'g':
-                    components_src = self.components_g
-                    component_ids_src = self.component_ids_g
-                else:
-                    pass
-            else:
-                # original components
+            # ! components
+            # ! component ids
+            # ! component key
+
+            # >> component ids source
+            if search_mode == 'standard':
+                components_src = self.standard_components
+                component_ids_src = self.standard_component_ids
+                component_key_src = self._standard_component_key
+            elif search_mode == 'original':
                 components_src = self.components
                 component_ids_src = self.component_ids
+                component_key_src = self._component_key
+            else:
+                raise ValueError(
+                    f"Invalid mode '{search_mode}'. Supported modes are 'standard' and 'original'."
+                )
 
             # SECTION: Retrieve components source
             # NOTE: initialize hsg properties dict
@@ -193,14 +190,7 @@ class HSGReaction:
                     hsg_properties[component_id] = HSGProperties(
                         component=component,
                         source=self.source,
-                        component_key=cast(Literal[
-                            'Name-State',
-                            'Formula-State',
-                            'Name',
-                            'Formula',
-                            'Name-Formula-State',
-                            'Formula-Name-State'
-                        ], self._component_key)
+                        component_key=component_key_src
                     )
 
             # >> hsg properties
@@ -268,14 +258,12 @@ class HSGReaction:
                 # NOTE: >> get hsg properties
                 # ! gas-phase properties
                 # >> reset component id
-                component_id_ = alter_component_formula_state(
-                    component_id=component_id,
-                    separator='-',
-                    state='g'
-                )
+                # TODO: review this part
+                component_id_ = ""
 
                 # >>> get hsg properties
-                hsg_prop_g = self.hsg_properties_g.get(component_id_, None)
+                hsg_prop_g = self.standard_hsg_properties.get(
+                    component_id_, None)
                 if hsg_prop_g is None:
                     logger.error(
                         f"Gas-phase HSG properties not found for component ID: {component_id}"
@@ -497,14 +485,12 @@ class HSGReaction:
             for component_id, coeff in self.reaction.reaction_stoichiometry.items():
                 # NOTE: >> get hsg properties
                 # ! >> reset component id
-                component_id_ = alter_component_formula_state(
-                    component_id=component_id,
-                    separator='-',
-                    state='g'
-                )
+                # TODO: review this part
+                component_id_ = ""
 
                 # >>> get hsg properties
-                hsg_prop_g = self.hsg_properties_g.get(component_id_, None)
+                hsg_prop_g = self.standard_hsg_properties.get(
+                    component_id_, None)
                 if hsg_prop_g is None:
                     logger.error(
                         f"HSG properties not found for component ID: {component_id}"
