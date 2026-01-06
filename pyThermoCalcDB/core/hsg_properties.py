@@ -2,7 +2,7 @@
 import logging
 import math
 from typing import Dict, Any, Literal, Optional, List
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp
+from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp, ComponentKey
 from pythermodb_settings.utils import set_component_id
 import pycuc
 from pyThermoLinkDB.thermo import Source
@@ -87,14 +87,7 @@ class HSGProperties:
         self,
         component: Component,
         source: Source,
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        component_key: ComponentKey = 'Name-State',
     ) -> None:
         """
         Initialize HSGProperties with a component and source.
@@ -1161,9 +1154,3 @@ class HSGProperties:
             logger.exception(
                 f"Error calculating phase enthalpy of formation: {e}")
             return None
-
-    def calc_phase_gibbs_free_energy(
-            self,
-            temperature: Temperature,
-    ):
-        pass
