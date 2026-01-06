@@ -57,64 +57,6 @@ def map_component_state(
         raise
 
 
-def set_component_state(
-        component: Component,
-        state: Literal['g', 'l', 's', 'aq'],
-) -> Component:
-    """
-    Set the phase state for a single component.
-
-    Parameters
-    ----------
-    component : Component
-        A Component object.
-    state : Literal['g', 'l', 's', 'aq']
-        The desired phase state ('g' for gas, 'l' for liquid, 's' for solid, 'aq' for aqueous).
-
-    Returns
-    -------
-    Component
-        The Component object with the updated phase state.
-    """
-    try:
-        # SECTION: set component state
-        component.state = state
-        return component
-    except Exception as e:
-        logger.error(f"Error setting component state: {e}")
-        raise
-
-
-def set_components_state(
-        components: List[Component],
-        state: Literal['g', 'l', 's', 'aq'],
-) -> List[Component]:
-    """
-    Set the phase state for a list of components.
-
-    Parameters
-    ----------
-    components : List[Component]
-        A list of Component objects.
-    state : Literal['g', 'l', 's', 'aq']
-        The desired phase state ('g' for gas, 'l' for liquid, 's' for solid, 'aq' for aqueous).
-
-    Returns
-    -------
-    List[Component]
-        A list of Component objects with the updated phase states.
-    """
-    try:
-        # SECTION: set components state
-        updated_components = [
-            set_component_state(component, state) for component in components
-        ]
-        return updated_components
-    except Exception as e:
-        logger.error(f"Error setting components state: {e}")
-        raise
-
-
 def alter_component_formula_state(
         component_id: str,
         separator: str,
