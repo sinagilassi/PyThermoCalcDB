@@ -2,7 +2,13 @@
 import logging
 from typing import Literal, Optional, List
 from pyThermoLinkDB.models import ModelSource
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp
+from pythermodb_settings.models import (
+    Component,
+    Temperature,
+    Pressure,
+    CustomProp,
+    ComponentKey
+)
 from pyThermoLinkDB.thermo import Source
 import pycuc
 # local
@@ -10,8 +16,8 @@ from ..utils.tools import measure_time
 from ..core.hsg_properties import HSGProperties
 from ..core.hsg_mixture import HSGMixture
 from ..models.component_ref import (
-    ComponentGibbsEnergyOfFormation,
-    ComponentEnthalpyOfFormation,
+    ComponentGibbsFreeEnergy,
+    ComponentEnthalpy,
     ComponentEnthalpyChange,
     ComponentEntropyChange,
     MixtureEnthalpyResult
@@ -22,19 +28,12 @@ logger = logging.getLogger(__name__)
 
 
 @measure_time
-def calc_enthalpy_change(
+def calc_dEn(
         component: Component,
         model_source: ModelSource,
         temperature_initial: Temperature,
         temperature_final: Temperature,
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        component_key: ComponentKey = 'Name-Formula',
         **kwargs
 ) -> Optional[ComponentEnthalpyChange]:
     """
@@ -111,22 +110,15 @@ def calc_enthalpy_change(
 
 
 @measure_time
-def calc_enthalpy_of_formation_at_temperature(
+def calc_En(
     component: Component,
     model_source: ModelSource,
     temperature: Temperature,
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-Formula',
     **kwargs
-) -> Optional[ComponentEnthalpyOfFormation]:
+) -> Optional[ComponentEnthalpy]:
     """
-    Calculate the enthalpy of formation (J/mol) at a given temperature (K) for a component.
+    Calculate the enthalpy (J/mol) at a given temperature (K) for a component.
 
     Parameters
     ----------
@@ -145,8 +137,8 @@ def calc_enthalpy_of_formation_at_temperature(
 
     Returns
     -------
-    Optional[ComponentEnthalpyOfFormation]
-        A ComponentEnthalpyOfFormation object containing the enthalpy of formation value, unit, and symbol, or None if calculation fails.
+    Optional[ComponentEnthalpy]
+        A ComponentEnthalpy object containing the enthalpy of formation value, unit, and symbol, or None if calculation fails.
 
     Notes
     -----
@@ -180,7 +172,7 @@ def calc_enthalpy_of_formation_at_temperature(
         )
 
         # NOTE: calculate
-        EnFo_result = hsg_props.calc_enthalpy_of_formation(
+        EnFo_result = hsg_props.calc_enthalpy(
             temperature=temperature
         )
 
@@ -192,22 +184,16 @@ def calc_enthalpy_of_formation_at_temperature(
 
 
 @measure_time
-def calc_gibbs_energy_of_formation_at_temperature(
+def calc_GiFrEn(
         component: Component,
         model_source: ModelSource,
         temperature: Temperature,
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
+        component_key: ComponentKey = 'Name-Formula',
         **kwargs
-) -> Optional[ComponentGibbsEnergyOfFormation]:
+) -> Optional[ComponentGibbsFreeEnergy]:
     """
-    Calculate the Gibbs free energy of formation (J/mol) at a given temperature (K) for a component.
+    Calculate the Gibbs free energy (J/mol) at a given temperature (K) for a component.
 
     Parameters
     ----------
@@ -217,6 +203,8 @@ def calc_gibbs_energy_of_formation_at_temperature(
         The source model containing necessary data.
     temperature : Temperature
         The temperature at which to calculate the Gibbs free energy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase of the component ('IG' for ideal gas, 'LIQ' for liquid, 'SOL' for solid). Default is 'IG'.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
     **kwargs
@@ -226,8 +214,8 @@ def calc_gibbs_energy_of_formation_at_temperature(
 
     Returns
     -------
-    Optional[ComponentGibbsEnergyOfFormation]
-        A ComponentGibbsEnergyOfFormation object containing the Gibbs free energy of formation value, unit, and symbol, or None if calculation fails.
+    Optional[ComponentGibbsFreeEnergy]
+        A ComponentGibbsFreeEnergy object containing the Gibbs free energy of formation value, unit, and symbol, or None if calculation fails.
 
     Notes
     -----
@@ -261,8 +249,9 @@ def calc_gibbs_energy_of_formation_at_temperature(
         )
 
         # NOTE: calculate
-        GiEnFo_result = hsg_props.calc_gibbs_free_energy_of_formation(
-            temperature=temperature
+        GiEnFo_result = hsg_props.calc_gibbs_free_energy(
+            temperature=temperature,
+            phase=phase
         )
 
         return GiEnFo_result
@@ -273,20 +262,13 @@ def calc_gibbs_energy_of_formation_at_temperature(
 
 
 @measure_time
-def calc_enthalpy_of_formation_range(
+def calc_En_range(
         component: Component,
         model_source: ModelSource,
         temperatures: list[Temperature],
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        component_key: ComponentKey = 'Name-Formula',
         **kwargs
-) -> Optional[list[ComponentEnthalpyOfFormation]]:
+) -> Optional[list[ComponentEnthalpy]]:
     """
     Calculate the enthalpy of formation (J/mol) over a range of temperatures (K) for a component.
 
@@ -307,8 +289,8 @@ def calc_enthalpy_of_formation_range(
 
     Returns
     -------
-    Optional[list[ComponentEnthalpyOfFormation]]
-        A list of ComponentEnthalpyOfFormation objects containing the enthalpy of formation values, units, and symbols, or None if calculation fails.
+    Optional[list[ComponentEnthalpy]]
+        A list of ComponentEnthalpy objects containing the enthalpy of formation values, units, and symbols, or None if calculation fails.
 
     Notes
     -----
@@ -342,7 +324,7 @@ def calc_enthalpy_of_formation_range(
         )
 
         # NOTE: calculate
-        EnFo_results = hsg_props.calc_enthalpy_of_formation_range(
+        EnFo_results = hsg_props.calc_enthalpy_range(
             temperatures=temperatures
         )
 
@@ -354,22 +336,15 @@ def calc_enthalpy_of_formation_range(
 
 
 @measure_time
-def calc_gibbs_energy_of_formation_range(
+def calc_GiFrEn_range(
         component: Component,
         model_source: ModelSource,
         temperatures: list[Temperature],
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        component_key: ComponentKey = 'Name-Formula',
         **kwargs
-) -> Optional[list[ComponentGibbsEnergyOfFormation]]:
+) -> Optional[list[ComponentGibbsFreeEnergy]]:
     """
-    Calculate the Gibbs free energy of formation (J/mol) over a range of temperatures (K) for a component.
+    Calculate the Gibbs free energy (J/mol) over a range of temperatures (K) for a component.
 
     Parameters
     ----------
@@ -380,7 +355,7 @@ def calc_gibbs_energy_of_formation_range(
     temperatures : list[Temperature]
         The list of temperatures at which to calculate the Gibbs free energy of formation.
     component_key : Literal[..., optional]
-        The key to identify the component, by default 'Name-State'.
+        The key to identify the component, by default 'Name-Formula'.
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -388,8 +363,8 @@ def calc_gibbs_energy_of_formation_range(
 
     Returns
     -------
-    Optional[list[ComponentGibbsEnergyOfFormation]]
-        A list of ComponentGibbsEnergyOfFormation objects containing the Gibbs free energy of formation values, units, and symbols, or None if calculation fails.
+    Optional[list[ComponentGibbsFreeEnergy]]
+        A list of ComponentGibbsFreeEnergy objects containing the Gibbs free energy of formation values, units, and symbols, or None if calculation fails.
 
     Notes
     -----
@@ -423,7 +398,7 @@ def calc_gibbs_energy_of_formation_range(
         )
 
         # NOTE: calculate
-        GiEnFo_results = hsg_props.calc_gibbs_free_energy_of_formation_range(
+        GiEnFo_results = hsg_props.calc_gibbs_free_energy_range(
             temperatures=temperatures
         )
 
@@ -435,22 +410,15 @@ def calc_gibbs_energy_of_formation_range(
 
 
 @measure_time
-def calc_entropy_change(
+def calc_dEnt(
         component: Component,
         model_source: ModelSource,
         temperature_initial: Temperature,
         temperature_final: Temperature,
         pressure_initial: Pressure,
         pressure_final: Pressure,
-        phase: Literal['IG', 'LIQ'],
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        phase: Literal['IG', 'LIQ', 'SOL'],
+        component_key: ComponentKey = 'Name-Formula',
         **kwargs
 ) -> Optional[ComponentEntropyChange]:
     """
@@ -461,10 +429,12 @@ def calc_entropy_change(
     The calculation considers the following:
     - For ideal gases, the pressure change contribution is included using the relation ΔS = nR ln(P2/P1).
     - For liquids, the pressure change contribution is typically negligible and may be omitted.
+    - For solids, the pressure change contribution is typically negligible and may be omitted.
 
     The expression for entropy change is given by:
         ΔS = ∫(Cp/T) dT + ln(P2/P1) * R  (for ideal gases)
         ΔS = ∫(Cp/T) dT                    (for liquids)
+        ΔS = ∫(Cp/T) dT                    (for solids)
 
     Parameters
     ----------
@@ -480,8 +450,8 @@ def calc_entropy_change(
         The initial pressure.
     pressure_final : Pressure
         The final pressure.
-    phase : Literal['IG', 'LIQ'], optional
-        The phase of the component ('IG' for ideal gas, 'LIQ' for liquid).
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase of the component ('IG' for ideal gas, 'LIQ' for liquid, 'SOL' for solid).
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
     **kwargs
@@ -528,8 +498,9 @@ def calc_entropy_change(
             logger.error("Invalid final pressure provided.")
             return None
 
-        if phase not in ['IG', 'LIQ']:
-            logger.error("Invalid phase provided. Must be 'IG' or 'LIQ'.")
+        if phase not in ['IG', 'LIQ', 'SOL']:
+            logger.error(
+                "Invalid phase provided. Must be 'IG', 'LIQ', or 'SOL'.")
             return None
 
         # SECTION: Prepare source
@@ -559,27 +530,22 @@ def calc_entropy_change(
 
 
 @measure_time
-def calc_mixture_enthalpy(
+def calc_En_mix(
         components: List[Component],
         model_source: ModelSource,
         temperature: Temperature,
         pressure: Pressure,
-        phase: Literal['IG', 'LIQ'],
+        reference: Literal['IG', 'None'] = 'IG',
         departure_enthalpy: Optional[CustomProp] = None,
         excess_enthalpy: Optional[CustomProp] = None,
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        component_key: ComponentKey = 'Name-Formula',
         output_unit: Optional[str] = None,
         **kwargs
 ) -> Optional[MixtureEnthalpyResult]:
     """
-    Calculate the mixture enthalpy at a given temperature (K) for specified phase. The result is provided in J/mol.
+    Calculate the mixture enthalpy at a given temperature (K) and return the result is provided in J/mol.
+
+    The mixture enthalpy is calculated based on the individual component enthalpies and their mole fractions. The function initializes the HSGMixture class and uses it to compute the mixture enthalpy.
 
     Parameters
     ----------
@@ -591,14 +557,14 @@ def calc_mixture_enthalpy(
         The temperature of the mixture.
     pressure : Pressure
         The pressure of the mixture.
-    phase : Literal['IG', 'LIQ']
-        The phase of the mixture ('IG' for ideal gas, 'LIQ' for liquid).
+    reference : Literal['IG', 'None']
+        The reference state for enthalpy calculation.
     departure_enthalpy : Optional[CustomProp], optional
         Custom departure enthalpy property, by default None.
     excess_enthalpy : Optional[CustomProp], optional
         Custom excess enthalpy property, by default None.
     component_key : Literal[..., optional]
-        The key to identify the components, by default 'Name-State'.
+        The key to identify the components, by default 'Name-Formula'.
     output_unit : Optional[str], optional
         The desired output unit for mixture enthalpy, by default None (J/mol).
     **kwargs
@@ -647,7 +613,7 @@ def calc_mixture_enthalpy(
         # NOTE: calculate mixture enthalpy
         mixture_enthalpy = hsg_mixture.calc_mixture_enthalpy(
             temperature=temperature,
-            phase=phase,
+            reference=reference,
             departure_enthalpy=departure_enthalpy,
             excess_enthalpy=excess_enthalpy,
         )
@@ -680,10 +646,10 @@ def calc_mixture_enthalpy(
         res = {
             'temperature': temperature,
             'pressure': pressure,
-            'phase': str(phase),
+            'reference': str(reference),
             'value': mixture_enthalpy_value,
             'unit': mixture_enthalpy_unit,
-            'symbol': 'EnFo_mix'
+            'symbol': 'En_mix'
         }
 
         # set
