@@ -3,7 +3,8 @@ import logging
 from typing import Literal, Optional, List
 from pyreactlab_core.models.reaction import Reaction
 from pyThermoLinkDB.models import ModelSource
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp
+from pythermodb_settings.models import Temperature, CustomProp
+from pythermodb_settings.utils import measure_time
 from pyThermoLinkDB.thermo import Source
 import pycuc
 # locals
@@ -13,10 +14,12 @@ from ..core.hsg_reaction import HSGReaction
 logger = logging.getLogger(__name__)
 
 
-def dH_rxn_STD(
+@measure_time
+def dEn_rxn_STD(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
+    **kwargs
 ) -> Optional[CustomProp]:
     """
     Calculate the standard enthalpy of reaction using HSG properties.
@@ -29,6 +32,10 @@ def dH_rxn_STD(
         The Temperature object representing the temperature at which to calculate the enthalpy of reaction.
     model_source : ModelSource
         The ModelSource object representing the data source for the components.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
 
     Returns
     -------
@@ -56,10 +63,12 @@ def dH_rxn_STD(
         return None
 
 
-def dG_rxn_STD(
+@measure_time
+def dGiFrEn_rxn_STD(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
+    **kwargs
 ) -> Optional[CustomProp]:
     """
     Calculate the standard Gibbs free energy of reaction using HSG properties.
@@ -72,6 +81,10 @@ def dG_rxn_STD(
         The Temperature object representing the temperature at which to calculate the Gibbs free energy of reaction.
     model_source : ModelSource
         The ModelSource object representing the data source for the components.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
 
     Returns
     -------
@@ -89,7 +102,7 @@ def dG_rxn_STD(
         )
 
         # >> calculate standard Gibbs free energy of reaction
-        dG_rxn_std = hsg_reaction.calc_standard_rxn_gibbs_energy(
+        dG_rxn_std = hsg_reaction.calc_standard_rxn_gibbs_free_energy(
             temperature=temperature,
         )
 
