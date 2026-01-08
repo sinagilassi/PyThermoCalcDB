@@ -87,7 +87,10 @@ def calc_dEn(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
 
         # SECTION: Initialize HSGProperties
         hsg_props = HSGProperties(
@@ -162,7 +165,10 @@ def calc_En(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
 
         # SECTION: Initialize HSGProperties
         hsg_props = HSGProperties(
@@ -239,7 +245,10 @@ def calc_GiFrEn(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
 
         # SECTION: Initialize HSGProperties
         hsg_props = HSGProperties(
@@ -314,7 +323,10 @@ def calc_En_range(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
 
         # SECTION: Initialize HSGProperties
         hsg_props = HSGProperties(
@@ -388,7 +400,10 @@ def calc_GiFrEn_range(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
 
         # SECTION: Initialize HSGProperties
         hsg_props = HSGProperties(
@@ -504,7 +519,10 @@ def calc_dEnt(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
 
         # SECTION: Initialize HSGProperties
         hsg_props = HSGProperties(
@@ -601,7 +619,10 @@ def calc_En_mix(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
 
         # SECTION: Initialize HSGMixture
         hsg_mixture = HSGMixture(

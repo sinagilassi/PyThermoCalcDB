@@ -69,7 +69,10 @@ def calc_VaPr(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=cast(ComponentKey, component_key)
+        )
 
         # SECTION: Initialize ComponentVaporPressure
         vapr_props = ComponentVaporPressure(
@@ -142,7 +145,10 @@ def calc_VaPr_range(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=cast(ComponentKey, component_key)
+        )
 
         # SECTION: Initialize ComponentVaporPressure
         vapr_props = ComponentVaporPressure(
@@ -218,7 +224,10 @@ def calc_EnVap(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=cast(ComponentKey, component_key)
+        )
 
         # SECTION: Initialize ComponentVaporPressure
         vapr_props = ComponentVaporPressure(
@@ -291,7 +300,10 @@ def calc_EnVap_range(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=cast(ComponentKey, component_key)
+        )
 
         # SECTION: Initialize ComponentVaporPressure
         vapr_props = ComponentVaporPressure(
@@ -390,7 +402,10 @@ def calc_T_sat(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=cast(ComponentKey, component_key)
+        )
 
         # SECTION: Initialize ComponentVaporPressure
         vapr_props = ComponentVaporPressure(
@@ -473,7 +488,10 @@ def calc_VaPr_sensitivity(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=cast(ComponentKey, component_key)
+        )
 
         # SECTION: Initialize ComponentVaporPressure
         vapr_props = ComponentVaporPressure(
@@ -546,7 +564,10 @@ def calc_VaPr_sensitivity_range(
             return None
 
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        Source_ = Source(
+            model_source=model_source,
+            component_key=cast(ComponentKey, component_key)
+        )
 
         # SECTION: Initialize ComponentVaporPressure
         vapr_props = ComponentVaporPressure(

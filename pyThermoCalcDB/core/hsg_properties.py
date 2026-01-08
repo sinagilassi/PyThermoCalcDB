@@ -131,7 +131,6 @@ class HSGProperties:
         self.component_source = self.source.get_component_data(
             component_id=self.component_id,
             components=[self.component],
-            component_key=self.component_key
         )
 
         # SECTION: retrieve heat capacity equation source

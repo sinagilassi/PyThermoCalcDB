@@ -22,8 +22,6 @@ class HSGMixture:
     (Heat capacity, entropy, and Gibbs energy) methodology. It aggregates component properties and
     enables mixture-level calculations with support for custom departure and excess contributions.
 
-
-
     Methods
     -------
     _components_hsg_properties()
