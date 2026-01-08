@@ -2,8 +2,8 @@ from .ref import CalcResult
 
 
 from .component_ref import (
-    ComponentEnthalpyOfFormation,
-    ComponentGibbsEnergyOfFormation,
+    ComponentEnthalpy,
+    ComponentGibbsFreeEnergy,
     ComponentEnthalpyChange,
     ComponentEntropyChange,
     ComponentHeatOfVaporization,
@@ -12,8 +12,8 @@ from .component_ref import (
 )
 
 __all__ = [
-    'ComponentEnthalpyOfFormation',
-    'ComponentGibbsEnergyOfFormation',
+    'ComponentEnthalpy',
+    'ComponentGibbsFreeEnergy',
     'ComponentEnthalpyChange',
     'ComponentEntropyChange',
     'ComponentHeatOfVaporization',
