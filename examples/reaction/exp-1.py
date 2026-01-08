@@ -1,6 +1,6 @@
 # import libs
 from rich import print
-from pyThermoCalcDB.docs.reactions import dH_rxn_STD, Reaction
+from pyThermoCalcDB.reactions.reactions import Reaction, dEn_rxn_STD
 from pythermodb_settings.models import Component, Temperature
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
@@ -165,7 +165,7 @@ reaction = Reaction(
 T = Temperature(value=298.15, unit="K")
 
 # NOTE: calculate standard enthalpy change of reaction
-dH_rxn = dH_rxn_STD(
+dH_rxn = dEn_rxn_STD(
     reaction=reaction,
     temperature=T,
     model_source=model_source_
