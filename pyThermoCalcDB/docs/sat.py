@@ -1,13 +1,13 @@
 # import libs
 import logging
-from typing import Literal, Optional, Tuple
-from pythermodb_settings.models import Component, Temperature, Pressure
+from typing import Literal, Optional, Tuple, cast
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 # local
 from ..utils.tools import measure_time
 from ..models import CalcResult
-from ..core.component_vapr import ComponentVaporPressure
+from ..core.component_vapor import ComponentVaporPressure
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
@@ -16,18 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 @measure_time
-def calc_vapor_pressure_at_temperature(
+def calc_VaPr(
     component: Component,
     model_source: ModelSource,
     temperature: Temperature,
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-State',
     **kwargs
 ) -> Optional[CalcResult]:
     """
@@ -82,7 +75,7 @@ def calc_vapor_pressure_at_temperature(
         vapr_props = ComponentVaporPressure(
             component=component,
             source=Source_,
-            component_key=component_key
+            component_key=cast(ComponentKey, component_key)
         )
 
         # NOTE: calculate
@@ -98,18 +91,11 @@ def calc_vapor_pressure_at_temperature(
 
 
 @measure_time
-def calc_vapor_pressure_range_at_temperature(
+def calc_VaPr_range(
     component: Component,
     model_source: ModelSource,
     temperatures: list[Temperature],
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-State',
     **kwargs
 ) -> Optional[list[CalcResult]]:
     """
@@ -179,18 +165,11 @@ def calc_vapor_pressure_range_at_temperature(
 
 
 @measure_time
-def calc_enthalpy_of_vaporization_at_temperature(
+def calc_EnVap(
     component: Component,
     model_source: ModelSource,
     temperature: Temperature,
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-State',
     **kwargs
 ) -> Optional[CalcResult]:
     """
@@ -261,18 +240,11 @@ def calc_enthalpy_of_vaporization_at_temperature(
 
 
 @measure_time
-def calc_enthalpy_of_vaporization_range_at_temperature(
+def calc_EnVap_range(
     component: Component,
     model_source: ModelSource,
     temperatures: list[Temperature],
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-State',
     **kwargs
 ) -> Optional[list[CalcResult]]:
     """
@@ -342,7 +314,7 @@ def calc_enthalpy_of_vaporization_range_at_temperature(
 
 
 @measure_time
-def calc_saturated_temperature_at_pressure(
+def calc_T_sat(
     component: Component,
     model_source: ModelSource,
     pressure: Pressure,
@@ -352,14 +324,7 @@ def calc_saturated_temperature_at_pressure(
     tol: float = 0.000001,
     max_iter: int = 50,
     h: float | None = None,
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-State',
     **kwargs
 ) -> Optional[CalcResult]:
     """
@@ -455,18 +420,11 @@ def calc_saturated_temperature_at_pressure(
 
 
 @measure_time
-def calc_vapor_pressure_sensitivity_at_temperature(
+def calc_VaPr_sensitivity(
     component: Component,
     model_source: ModelSource,
     temperature: Temperature,
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-State',
     **kwargs
 ) -> Optional[CalcResult]:
     """
@@ -537,18 +495,11 @@ def calc_vapor_pressure_sensitivity_at_temperature(
 
 
 @measure_time
-def calc_vapor_pressure_sensitivity_range_at_temperature(
+def calc_VaPr_sensitivity_range(
     component: Component,
     model_source: ModelSource,
     temperatures: list[Temperature],
-    component_key: Literal[
-        'Name-State',
-        'Formula-State',
-        'Name',
-        'Formula',
-        'Name-Formula-State',
-        'Formula-Name-State'
-    ] = 'Name-State',
+    component_key: ComponentKey = 'Name-State',
     **kwargs
 ) -> Optional[list[CalcResult]]:
     """
