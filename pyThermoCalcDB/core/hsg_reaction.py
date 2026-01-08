@@ -2,6 +2,7 @@
 import logging
 from typing import Optional, List, Dict, Literal, cast, Any
 from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp, ComponentKey
+from math import exp
 from pythermodb_settings.utils import set_component_id, set_components_state
 import pycuc
 from pyThermoLinkDB.thermo import Source
@@ -11,7 +12,10 @@ from .hsg_properties import HSGProperties
 from ..utils.component_tools import (
     map_component_state, map_state_to_phase
 )
-# locals
+from ..configs.constants import (
+    R_J_molK,
+    T_ref_K,
+)
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -64,6 +68,11 @@ class HSGReaction:
 
     # ! ignore component state
     _standard_component_key: ComponentKey = 'Name-Formula'
+
+    # NOTE: universal gas constant [J/mol.K]
+    __R: float = R_J_molK
+    # NOTE: reference temperature [K]
+    __T_Ref_K: float = T_ref_K
 
     def __init__(
         self,
@@ -569,4 +578,150 @@ class HSGReaction:
             logger.error(
                 f"Error in calculating reaction Gibbs free energy: {e}"
             )
+            return None
+
+    def calc_equilibrium_constant_STD(
+        self,
+        temperature: Temperature,
+        **kwargs
+    ) -> Optional[CustomProp]:
+        '''
+        Calculates the standard equilibrium constant of a reaction at a given temperature which defined as:
+            Keq_std = exp(-ΔG_rxn_std / (R * T))
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the equilibrium constant.
+        kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Optional[CustomProp]
+            A dictionary containing the equilibrium constant at the given temperature [dimensionless].
+        '''
+        try:
+            # NOTE: >> calculate standard Gibbs free energy of reaction
+            # ! [J/mol]
+            dG_rxn_std = self.calc_standard_rxn_gibbs_free_energy(
+                temperature=temperature,
+            )
+            if dG_rxn_std is None:
+                raise ValueError(
+                    "Failed to calculate standard Gibbs free energy of reaction."
+                )
+
+            # NOTE: temperature
+            # ! [K]
+            T_value = temperature.value
+            T_unit = temperature.unit
+            if T_unit != 'K':
+                T_value = pycuc.convert_from_to(
+                    value=T_value,
+                    from_unit=T_unit,
+                    to_unit='K'
+                )
+
+            # SECTION: equilibrium constant at standard conditions
+            Ka = HSGReaction.vh(
+                gibbs_energy_of_reaction_std=dG_rxn_std.value,
+                temperature=T_value,
+            )
+
+            # ? save
+            return Ka
+        except Exception as e:
+            logger.error(
+                f"Error in ReactionAnalyzer.calc_equilibrium_constant_STD(): {str(e)}")
+            return None
+
+    @staticmethod
+    def vh(
+        gibbs_energy_of_reaction_std: float,
+        temperature: float,
+        **kwargs
+    ) -> Optional[CustomProp]:
+        '''
+        Calculates change in Gibbs free energy of a reaction at different temperatures using the Van't Hoff equation as:
+            Keq = exp(-ΔG_rxn_std / (R * T))
+
+        Parameters
+        ----------
+        gibbs_energy_of_reaction_std : float
+            Standard Gibbs free energy of reaction at reference temperature [J/mol].
+        temperature : float
+            The temperature [K] at which to calculate Gibbs energy.
+        kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Optional[CustomProp]
+            A dictionary containing the equilibrium constant at the given temperature [dimensionless].
+        '''
+        try:
+            # SECTION: equilibrium constant at temperature T
+            Ka = exp(
+                -1*gibbs_energy_of_reaction_std /
+                (HSGReaction.__R*temperature)
+            )
+            # ? save
+            res = {
+                'value': float(Ka),
+                'unit': 'dimensionless',
+            }
+            res = CustomProp(**res)
+            return res
+        except Exception as e:
+            logger.error(
+                f"Error in ReactionAnalyzer.vh(): {str(e)}")
+            return None
+
+    @staticmethod
+    def vh_shortcut(
+        enthalpy_of_reaction_std: float,
+        equilibrium_constant_std: float,
+        temperature: float,
+        **kwargs
+    ) -> Optional[CustomProp]:
+        """
+        Shortcut for Van't Hoff equation to calculate equilibrium constant at different temperatures as:
+            Keq = Keq_std * exp( (-ΔH_rxn_std / R) * (1/T - 1/T_ref) )
+
+        where, Keq_std is the equilibrium constant at standard conditions (T_ref), and ΔH_rxn_std is the enthalpy of reaction at standard conditions.
+        Tref is set to 298.15 K.
+
+        Parameters
+        ----------
+        enthalpy_of_reaction_std : float
+            Enthalpy of reaction at standard conditions [J/mol].
+        equilibrium_constant_std : float
+            Equilibrium constant at standard conditions [dimensionless].
+        temperature : float
+            The temperature [K] at which to calculate Gibbs energy.
+        kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Optional[CustomProp]
+            A dictionary containing the equilibrium constant at the given temperature [dimensionless].
+        """
+        try:
+            # NOTE: calculate equilibrium constant at temperature T
+            A = (-1*enthalpy_of_reaction_std/HSGReaction.__R) * \
+                (1/temperature - 1/HSGReaction.__T_Ref_K)
+            Ka = equilibrium_constant_std*exp(A)
+
+            # res
+            res = {
+                'value': float(Ka),
+                'unit': 'dimensionless',
+            }
+            res = CustomProp(**res)
+            return res
+        except Exception as e:
+            logger.error(
+                f"Error in ReactionAnalyzer.vh_shortcut(): {str(e)}")
             return None
