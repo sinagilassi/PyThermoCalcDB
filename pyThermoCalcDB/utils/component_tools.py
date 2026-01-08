@@ -95,3 +95,43 @@ def alter_component_formula_state(
     except Exception as e:
         logger.error(f"Error altering component state in ID: {e}")
         raise
+
+
+def map_state_to_phase(
+    state: str,
+    options: Dict[str, str] = {
+        "g": "IG",
+        "l": "LIQ",
+        "s": "SOL",
+        "aq": "AQU",
+    }
+) -> str:
+    """
+    Map a component state to its corresponding phase.
+
+    Parameters
+    ----------
+    state : str
+        The state of the component (e.g., 'g', 'l', 's', 'aq').
+    options : Dict[str, str], optional
+        A dictionary mapping component states to phase states, by default { "g": "IG", "l": "LIQ", "s": "SOL", "aq": "AQU" }.
+
+    Returns
+    -------
+    str
+        The corresponding phase of the component.
+    """
+    try:
+        # SECTION: map state to phase
+        phase = options.get(state.lower(), None)
+
+        # >> check phase
+        if phase is None:
+            raise ValueError(
+                f"Phase not found for component state: {state}"
+            )
+
+        return phase
+    except Exception as e:
+        logger.error(f"Error mapping state to phase: {e}")
+        raise
