@@ -1,13 +1,14 @@
 # import libs
 import logging
 from typing import Optional, List, Dict, Literal, cast, Any
-from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp
+from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp, ComponentKey
 from pythermodb_settings.utils import set_component_id
 import pycuc
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
 from .hsg_properties import HSGProperties
+from ..utils.component_tools import map_state_to_phase
 
 # NOTE: set up logger
 logger = logging.getLogger(__name__)
@@ -21,20 +22,7 @@ class HSGMixture:
     (Heat capacity, entropy, and Gibbs energy) methodology. It aggregates component properties and
     enables mixture-level calculations with support for custom departure and excess contributions.
 
-    Attributes
-    ----------
-    components : List[Component]
-        A list of Component objects representing the mixture components.
-    source : Source
-        The Source object representing the data source for component properties.
-    component_key : Literal['Name-State', 'Formula-State', 'Name', 'Formula', 'Name-Formula-State', 'Formula-Name-State']
-        The key used to uniquely identify components in the source data (default: 'Name-State').
-    component_ids : List[str]
-        List of unique component identifiers generated from components using the specified component_key.
-    mole_fractions : List[float]
-        Mole fractions of each component in the mixture (normalized).
-    hsg_properties : Dict[str, HSGProperties]
-        Dictionary mapping component IDs to their corresponding HSGProperties instances for thermodynamic calculations.
+
 
     Methods
     -------
@@ -48,14 +36,7 @@ class HSGMixture:
         self,
         components: List[Component],
         source: Source,
-        component_key: Literal[
-            'Name-State',
-            'Formula-State',
-            'Name',
-            'Formula',
-            'Name-Formula-State',
-            'Formula-Name-State'
-        ] = 'Name-State',
+        component_key: ComponentKey,
     ):
         """
         Initialize the HSGMixture with a list of components and optional custom properties.
@@ -78,7 +59,7 @@ class HSGMixture:
         self.component_ids = [
             set_component_id(
                 component=component,
-                component_key=self.component_key
+                component_key=cast(ComponentKey, self.component_key)
             )
             for component in self.components
         ]
@@ -86,6 +67,11 @@ class HSGMixture:
         # NOTE: mole fraction components
         self.mole_fractions = [
             c.mole_fraction for c in self.components
+        ]
+
+        # NOTE: state components
+        self.states = [
+            c.state for c in self.components
         ]
 
         # SECTION: hsg properties instances
@@ -110,14 +96,7 @@ class HSGMixture:
                     hsg_properties[component_id] = HSGProperties(
                         component=component,
                         source=self.source,
-                        component_key=cast(Literal[
-                            'Name-State',
-                            'Formula-State',
-                            'Name',
-                            'Formula',
-                            'Name-Formula-State',
-                            'Formula-Name-State'
-                        ], self.component_key)
+                        component_key=cast(ComponentKey, self.component_key)
                     )
 
             # >> hsg properties
@@ -130,19 +109,24 @@ class HSGMixture:
     def calc_mixture_enthalpy(
             self,
             temperature: Temperature,
-            phase: Literal['IG', 'LIQ'] = 'IG',
+            reference: Literal['IG', 'None'] = 'IG',
             departure_enthalpy: Optional[CustomProp] = None,
             excess_enthalpy: Optional[CustomProp] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Calculate the mixture enthalpy (J/mol) at a given temperature (K) and pressure for specified phase.
 
+        The mixture enthalpy is calculated by summing the contributions from each component based on their mole fractions
+        and phase-specific enthalpy values. Optional departure and excess enthalpy contributions can be included in the calculation.
+
+        The reference state can be specified as 'IG' (ideal gas) or 'None' (no reference). The 'IG' reference state is commonly used to calculate enthalpy while the ideal-gas state at 298.15 K and 1 atm is used as the baseline. The 'None' reference state calculates absolute enthalpy values without referencing to a specific state. This means that the enthalpy values are calculated directly based on the defined enthalpy of formation and heat capacity equations for each phase.
+
         Parameters
         ----------
         temperature : Temperature
             The temperature of the mixture.
-        phase : Literal['IG', 'LIQ', 'SOL'], optional
-            The phase of the mixture ('IG' for ideal gas, 'LIQ' for liquid), by default 'IG'.
+        reference : Literal['IG', 'None'], optional
+            The reference state for enthalpy calculation, by default 'IG'.
         departure_enthalpy : Optional[CustomProp], optional
             The departure enthalpy contribution, by default None.
         excess_enthalpy : Optional[CustomProp], optional
@@ -159,12 +143,16 @@ class HSGMixture:
         - The calculation may involve ideal and non-ideal contributions depending on the phase.
         - The result is provided in J/mol.
         - R is the universal gas constant (8.3145 J/mol.K).
-        - Global reference is ideal gas state at 298.15 K and 1 atm, and all elements are in their standard states (embedded in dEnFo).
+        - Global reference is ideal gas state at 298.15 K and 1 atm, and all elements are in their standard states (embedded in EnFo).
 
         Equations
         ---------
         - The mixture enthalpy is calculated using the formula:
             H_mix = Σ(x_i * H_i) + H_departure + H_excess
+
+        where H_departure and H_excess are optional contributions, and scalar values.
+
+        H_i for each component is calculated based on the phase, in case of unavailability of the H_LIQ and H_SOL are requested, the following relations are used:
 
         - ideal gas enthalpy (H_IG) is calculated as:
             H_IG(T) = ΔH_f(T) + ∫(Cp_IG dT) from 298.15 K to T
@@ -180,10 +168,19 @@ class HSGMixture:
             mixture_enthalpy_value = 0.0
 
             # NOTE: loop through components
-            for component_id, mole_fraction in zip(
+            for component_id, mole_fraction, state in zip(
                 self.component_ids,
-                self.mole_fractions
+                self.mole_fractions,
+                self.states
             ):
+                # ! determine phase based on component state
+                phase = map_state_to_phase(
+                    state=state
+                )
+
+                # Explicitly cast phase to Literal['IG', 'LIQ', 'SOL']
+                phase_literal = cast(Literal['IG', 'LIQ', 'SOL'], phase)
+
                 # ! get component hsg properties
                 hsg_prop = self.hsg_properties.get(component_id)
                 if hsg_prop is None:
@@ -193,10 +190,23 @@ class HSGMixture:
 
                 # NOTE: calculate phase enthalpy for component
                 # ! [J/mol]
-                component_enthalpy = hsg_prop.calc_phase_enthalpy(
-                    temperature=temperature,
-                    phase=phase
-                )
+                # >> check reference
+                # ! reference 'IG' uses phase enthalpy calculation
+                # ! reference 'None' uses absolute enthalpy calculation
+                if reference == 'IG':
+                    component_enthalpy = hsg_prop.calc_reference_enthalpy(
+                        temperature=temperature,
+                        phase=phase_literal
+                    )
+                elif reference == 'None':
+                    component_enthalpy = hsg_prop.calc_enthalpy(
+                        temperature=temperature,
+                        phase=phase_literal
+                    )
+                else:
+                    logger.error(
+                        f"Invalid reference state: {reference} for component ID: {component_id}")
+                    return None
 
                 # >> check if calculation was successful
                 if component_enthalpy is None:
