@@ -9,7 +9,7 @@ from pyreactlab_core.models.reaction import Reaction
 # locals
 from .hsg_properties import HSGProperties
 from ..utils.component_tools import (
-    map_component_state,
+    map_component_state, map_state_to_phase
 )
 # locals
 
@@ -205,6 +205,8 @@ class HSGReaction:
 
             dH_rxn = Σ(ν_i * H_IG(T))
 
+        The reference state is ideal gas at 298.15 K and 1 atm. The enthalpy of each component is calculated with respect to this reference state. However, no departure or excess enthalpy contributions are considered in this standard calculation. This method does not use the second approach of calculating standard enthalpy of reaction based on component states (liquid, solid).
+
         Parameters
         ----------
         temperature : Temperature
@@ -285,14 +287,17 @@ class HSGReaction:
                     return None
 
                 # ! Cast phase to ideal-gas
-                # phase = cast(Literal['IG', 'LIQ', 'SOL'], "IG")
+                phase = map_state_to_phase(
+                    state=component_.state
+                )
 
                 # >> calculate component enthalpy
                 # NOTE: calculate phase enthalpy
                 # ! [J/mol]
-                component_enthalpy = hsg_prop.calc_phase_enthalpy(
+                # ! ideal-gas reference
+                component_enthalpy = hsg_prop.calc_reference_enthalpy(
                     temperature=temperature,
-                    phase='IG',
+                    phase=cast(Literal['IG', 'LIQ', 'SOL'], phase),
                 )
                 # >> check component enthalpy
                 if component_enthalpy is None:
@@ -315,7 +320,7 @@ class HSGReaction:
             logger.error(f"Error in calculating reaction enthalpy: {e}")
             return None
 
-    def calc_phase_reaction_enthalpy(
+    def calc_actual_rxn_enthalpy(
         self,
         temperature: Temperature,
         rxn_departure_enthalpy: Optional[CustomProp] = None,
@@ -401,7 +406,7 @@ class HSGReaction:
                 # >> calculate component enthalpy
                 # NOTE: calculate phase enthalpy
                 # ! [J/mol]
-                component_enthalpy = hsg_prop.calc_phase_enthalpy(
+                component_enthalpy = hsg_prop.calc_reference_enthalpy(
                     temperature=temperature,
                     phase=phase,
                 )
@@ -461,7 +466,7 @@ class HSGReaction:
             logger.error(f"Error in calculating reaction enthalpy: {e}")
             return None
 
-    def calc_standard_rxn_gibbs_energy(
+    def calc_standard_rxn_gibbs_free_energy(
         self,
         temperature: Temperature,
     ) -> Optional[CustomProp]:
@@ -538,8 +543,9 @@ class HSGReaction:
                 # >> calculate component Gibbs free energy
                 # NOTE: calculate phase Gibbs free energy
                 # ! [J/mol]
-                component_gibbs_energy = hsg_prop.calc_gibbs_free_energy_of_formation(
+                component_gibbs_energy = hsg_prop.calc_gibbs_free_energy(
                     temperature=temperature,
+                    phase='IG',
                 )
                 # >> check component Gibbs free energy
                 if component_gibbs_energy is None:
