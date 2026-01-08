@@ -8,13 +8,13 @@ from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
 from pyThermoCalcDB.docs.thermo import (
-    calc_enthalpy_of_formation_at_temperature,
-    calc_gibbs_energy_of_formation_at_temperature,
-    calc_enthalpy_of_formation_range,
-    calc_gibbs_energy_of_formation_range,
-    calc_enthalpy_change,
-    calc_entropy_change,
-    calc_mixture_enthalpy
+    calc_dEn,
+    calc_En,
+    calc_En_range,
+    calc_GiFrEn,
+    calc_GiFrEn_range,
+    calc_dEnt,
+    calc_En_mix,
 )
 
 # check version
@@ -29,7 +29,7 @@ parent_dir = os.path.dirname(os.path.abspath(__file__))
 print(parent_dir)
 
 # NOTE: thermodb directory
-thermodb_dir = os.path.join(parent_dir, 'thermodb')
+thermodb_dir = os.path.join(parent_dir, '.', 'thermodb')
 print(thermodb_dir)
 
 # ! CO2
@@ -77,26 +77,8 @@ _component_thermodb: list = [
 # =======================================
 # SECTION: BUILD THERMODB MODEL SOURCE
 # =======================================
-# update thermodb rule
-thermodb_rules: Dict[str, Dict[str, ComponentRule]] = {
-    'ALL_HIDDEN': {
-        'DATA': {
-            'critical-pressure': 'Pc',
-            'critical-temperature': 'Tc',
-            'acentric-factor': 'AcFa',
-            'Enthalpy-of-Formation': 'EnFo_IG',
-            'Gibbs-Energy-of-Formation': 'GiEnFo_IG',
-        },
-        'EQUATIONS': {
-            'CUSTOM-REF-1::vapor-pressure': 'VaPr',
-            'CUSTOM-REF-1::ideal-gas-heat-capacity': 'Cp_IG'
-        }
-    },
-}
-
 model_source_: ModelSource = ptdblink.load_and_build_model_source(
     thermodb_sources=_component_thermodb,
-    rules=thermodb_rules,
     original_equation_label=False
 )
 print(model_source_)
@@ -125,15 +107,16 @@ mixture_temperature = Temperature(value=320.0, unit='K')
 mixture_pressure = Pressure(value=5.0, unit='atm')
 
 # ! calculate mixture enthalpy
-mixture_enthalpy_res = calc_mixture_enthalpy(
+mixture_enthalpy_res = calc_En_mix(
     components=mixture_components,
     model_source=model_source_,
     temperature=mixture_temperature,
     pressure=mixture_pressure,
-    phase='IG',
+    reference='IG',
     departure_enthalpy=None,
     excess_enthalpy=None,
-    output_unit='kJ/mol',
+    component_key='Name-Formula',
+    output_unit='J/mol',
     mode='log'
 )
 # log
