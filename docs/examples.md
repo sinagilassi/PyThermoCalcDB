@@ -1,15 +1,15 @@
-# Examples
+# Examples 🎬
 
 The repository ships runnable scripts under `examples/` that load ThermoDB pickle files, build a `ModelSource`, and call the helper functions. Make sure the `examples/thermodb` directory is available or point the scripts at your own ThermoDB pickles.
 
-Run any script from the project root:
+Run any script from the project root 🚀:
 
 ```bash
 cd examples
 python exp-3.py
 ```
 
-All scripts share the same setup pattern:
+All scripts share the same setup pattern 🧭:
 
 ```python
 import os
@@ -39,7 +39,7 @@ model_source: ModelSource = ptdblink.load_and_build_model_source(
 )
 ```
 
-## Script tour
+## Script tour 🎯
 
 | Script | Focus | Key helpers |
 | --- | --- | --- |
@@ -51,6 +51,6 @@ model_source: ModelSource = ptdblink.load_and_build_model_source(
 | `examples/calc-sat.py` | Saturation properties for ethanol across a temperature sweep; also inspects vapor-pressure equation ranges. | `sat.calc_VaPr`, `sat.calc_EnVap`, `sat.calc_T_sat`, `sat.calc_VaPr_sensitivity` |
 | `examples/reaction/exp-1.py` | Standard enthalpy of reaction for methane combustion at 298.15 K. | `reactions.dEn_rxn_STD` |
 
-Notes:
+Notes 📝:
 - Scripts import verbose names like `calc_vapor_pressure_at_temperature`; the underlying implementations live in `pyThermoCalcDB.docs.sat` and `pyThermoCalcDB.docs.thermo` as listed in the method reference.
 - Temperatures are specified in Kelvin and pressures in Pascal unless noted; conversions are handled internally.

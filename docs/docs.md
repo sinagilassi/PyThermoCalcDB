@@ -1,8 +1,8 @@
-# Method Reference
+# Method Reference 🧱
 
 All helpers take typed values from `pythermodb_settings` and expect a `ModelSource` built with PyThermoLinkDB. The optional `mode` kwarg supports `silent`, `log`, or `attach` timing/logging behavior.
 
-## Thermodynamic properties (`pyThermoCalcDB.docs.thermo`)
+## Thermodynamic properties (`pyThermoCalcDB.docs.thermo`) 🔥
 
 | Function | What it does | Key inputs | Output (units) |
 | --- | --- | --- | --- |
@@ -14,12 +14,12 @@ All helpers take typed values from `pythermodb_settings` and expect a `ModelSour
 | `calc_dEnt` | Entropy change (Delta S) between two T/P states | `component`, `model_source`, `temperature_initial`, `temperature_final`, `pressure_initial`, `pressure_final`, `phase` | `ComponentEntropyChange` in J/(mol*K) |
 | `calc_En_mix` | Mixture enthalpy with optional departure/excess and unit conversion | `components` (with `mole_fraction`), `model_source`, `temperature`, `pressure`, `reference` (`IG` or `None`), optional `departure_enthalpy` / `excess_enthalpy`, `component_key`, `output_unit` | `MixtureEnthalpyResult` |
 
-Notes:
+Notes 🧠:
 - `component_key` defaults to "Name-Formula" for thermo helpers; pass a different key if your ThermoDB uses another identifier.
 - Reference temperature is 298.15 K inside the HSG formulations.
 - Use `output_unit` in `calc_En_mix` to get convenient units such as `kJ/mol`.
 
-Example:
+Example 🎯:
 
 ```python
 from pyThermoCalcDB.docs import thermo
@@ -55,7 +55,7 @@ mix_H = thermo.calc_En_mix(
 )
 ```
 
-## Saturation and phase-change (`pyThermoCalcDB.docs.sat`)
+## Saturation and phase-change (`pyThermoCalcDB.docs.sat`) 💧
 
 | Function | What it does | Key inputs | Output (units) |
 | --- | --- | --- | --- |
@@ -67,12 +67,12 @@ mix_H = thermo.calc_En_mix(
 | `calc_VaPr_sensitivity` | dPsat/dT at temperature | `component`, `model_source`, `temperature`, `component_key` | `CalcResult` |
 | `calc_VaPr_sensitivity_range` | dPsat/dT across temperatures | `component`, `model_source`, `temperatures`, `component_key` | `list[CalcResult]` |
 
-Notes:
+Notes 💡:
 - Temperatures should be provided in Kelvin and pressures in Pascal; conversion is handled internally by `pycuc`.
 - The model source must contain a vapor-pressure equation (`VaPr`) for the component.
 - `calc_T_sat` accepts either a temperature guess or a bracket; `least_squares` is helpful when a bracket is not obvious.
 
-Example:
+Example 🧪:
 
 ```python
 from pyThermoCalcDB.docs import sat
@@ -90,14 +90,14 @@ Tsat = sat.calc_T_sat(
 )
 ```
 
-## Reaction energetics (`pyThermoCalcDB.reactions.reactions`)
+## Reaction energetics (`pyThermoCalcDB.reactions.reactions`) 🔁
 
 | Function | What it does | Key inputs | Output (units) |
 | --- | --- | --- | --- |
 | `dEn_rxn_STD` | Standard enthalpy of reaction at a temperature | `reaction` (`pyreactlab_core.models.reaction.Reaction`), `temperature`, `model_source` | `CustomProp` in J/mol |
 | `dGiFrEn_rxn_STD` | Standard Gibbs free energy of reaction at a temperature | `reaction`, `temperature`, `model_source` | `CustomProp` in J/mol |
 
-Example:
+Example 🔥:
 
 ```python
 from pyThermoCalcDB.reactions.reactions import dEn_rxn_STD

@@ -1,23 +1,23 @@
-# PyThermoCalcDB
+# PyThermoCalcDB 🚀
 
 PyThermoCalcDB is a thermodynamic calculation layer built on PyThermoDB and PyThermoLinkDB. It wraps curated equations and data into quick helpers for enthalpy, Gibbs energy, entropy, vapor pressure, and reaction energetics.
 
-## What you get
-- Uses ThermoDB pickle sources through PyThermoLinkDB `ModelSource`.
-- Typed inputs from `pythermodb_settings` (`Component`, `Temperature`, `Pressure`, `CustomProp`).
-- Helper modules for pure components, mixtures, saturation/phase-change, and reactions.
+## What you get 🧭
+- 🔌 Uses ThermoDB pickle sources through PyThermoLinkDB `ModelSource`.
+- 🧱 Typed inputs from `pythermodb_settings` (`Component`, `Temperature`, `Pressure`, `CustomProp`).
+- 💧 Helper modules for pure components, mixtures, saturation/phase-change, and reactions.
 
-## Install
+## Install 🛠
 
 ```bash
 pip install pyThermoCalcDB
 ```
 
-## Quickstart
+## Quickstart ⚡
 
-1. Collect ThermoDB pickle paths for the components you care about.
-2. Build a `ModelSource` with `pyThermoLinkDB.load_and_build_model_source`.
-3. Call helpers from `pyThermoCalcDB.docs.thermo` or `pyThermoCalcDB.docs.sat`.
+1. 🗂 Collect ThermoDB pickle paths for the components you care about.
+2. 🧭 Build a `ModelSource` with `pyThermoLinkDB.load_and_build_model_source`.
+3. 🎯 Call helpers from `pyThermoCalcDB.docs.thermo` or `pyThermoCalcDB.docs.sat`.
 
 ```python
 import os
@@ -62,7 +62,7 @@ print(Pvap)
 print(Tsat)
 ```
 
-## Helper modules
+## Helper modules 🛠
 
 | Area | Module | Highlights |
 | --- | --- | --- |
@@ -70,6 +70,6 @@ print(Tsat)
 | Saturation & phase change | `pyThermoCalcDB.docs.sat` | vapor pressure, enthalpy of vaporization, saturated temperature solving, vapor-pressure sensitivity |
 | Reactions | `pyThermoCalcDB.reactions.reactions` | standard reaction enthalpy and Gibbs free energy from stoichiometry |
 
-## Next steps
+## Next steps 👉
 - See `docs.md` for the full method reference and signatures.
 - Skim `examples.md` to pick the script that matches your use case.
