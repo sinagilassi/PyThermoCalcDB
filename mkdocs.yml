@@ -1,4 +1,8 @@
 site_name: PyThermoCalcDB
+nav:
+  - Overview: index.md
+  - Methods & API: docs.md
+  - Examples: examples.md
 theme:
   name: material
   features:
@@ -57,4 +61,4 @@ markdown_extensions:
 
 
 copyright: |
-  &copy; 2026 <a href="https://github.com/sinagilassi"  target="_blank" rel="noopener">Sina Gilassi</a>
+  (c) 2026 <a href="https://github.com/sinagilassi"  target="_blank" rel="noopener">Sina Gilassi</a>
