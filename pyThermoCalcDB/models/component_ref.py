@@ -51,7 +51,7 @@ class ComponentEnthalpyChange(BaseModel):
 # NOTE: enthalpy of formation result model
 
 
-class ComponentEnthalpyOfFormation(BaseModel):
+class ComponentEnthalpy(BaseModel):
     '''
     Component Enthalpy of Formation Result Model
 
@@ -87,10 +87,10 @@ class ComponentEnthalpyOfFormation(BaseModel):
     )
 
 
-# NOTE: gibbs energy of formation result model
+# NOTE: gibbs free energy of formation result model
 
 
-class ComponentGibbsEnergyOfFormation(BaseModel):
+class ComponentGibbsFreeEnergy(BaseModel):
     '''
     Component Gibbs Energy of Formation Result Model
 
@@ -299,9 +299,9 @@ class MixtureEnthalpyResult(BaseModel):
         ...,
         description="The pressure at which the mixture enthalpy is calculated."
     )
-    phase: str = Field(
+    reference: str = Field(
         ...,
-        description="The phase of the mixture ('IG' for ideal gas, 'LIQ' for liquid)."
+        description="The reference of the mixture ('IG' for ideal gas, 'LIQ' for liquid)."
     )
     value: float = Field(
         ...,
