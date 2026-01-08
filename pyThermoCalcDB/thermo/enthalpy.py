@@ -875,7 +875,7 @@ def _require_coeffs(coeffs: Dict[str, Any], required: Tuple[str, ...]) -> Option
     return {k: coeffs[k] for k in required}
 
 
-def En_IG(
+def calc_En_IG(
     method: En_IG_Method,
     *,
     temperature: Temperature,
