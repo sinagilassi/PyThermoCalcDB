@@ -763,7 +763,7 @@ def _require_coeffs(coeffs: Dict[str, Any], required: Tuple[str, ...]) -> Option
     return {k: coeffs[k] for k in required}
 
 
-def S_IG(
+def calc_Ent_IG(
     method: S_IG_Method,
     *,
     temperature: Temperature,
