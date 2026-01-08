@@ -489,7 +489,7 @@ wheels = [
 
 [[package]]
 name = "pythermolinkdb"
-version = "1.4.7"
+version = "1.4.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -498,9 +498,9 @@ dependencies = [
     { name = "pythermodb-settings" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3a/51/4fa0f69e794014e952dd4c09ba92fbb172ffec72773d074e05fe0ae75551/pythermolinkdb-1.4.7.tar.gz", hash = "sha256:f55126441ea74689cf089df2336576483fdd14378fa13bf34791af33fcd54e6f", size = 34656, upload-time = "2026-01-06T03:47:22.384Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/e9/54d9b93a4039752462c9113def5470399b43bc4e128547053fd8acd56bba/pythermolinkdb-1.4.8.tar.gz", hash = "sha256:474c3a801e99d0e53397b2c0d2a0b7ebc03e4494062df97dd751f87b4d36d466", size = 34701, upload-time = "2026-01-08T03:16:34.875Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/56/6578a8bbc7ff9a9d8d2e469d4e946dbe2974f0c5b6e63bc4f124f8958d80/pythermolinkdb-1.4.7-py3-none-any.whl", hash = "sha256:caa4f41c6647c0e451cd6ce4532b4e1e6300770d9dd04ab7802f342f86f4849f", size = 42744, upload-time = "2026-01-06T03:47:21.473Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/f8/c27f3434b117489aa34a3d74aef4786b5177aec3b59836917fe11b8bdd70/pythermolinkdb-1.4.8-py3-none-any.whl", hash = "sha256:1af7303e1d9e902e18fbc9ba73a7ed8e33d3288d04dda2747ddec2ae66162ef9", size = 42777, upload-time = "2026-01-08T03:16:33.609Z" },
 ]
 
 [[package]]
