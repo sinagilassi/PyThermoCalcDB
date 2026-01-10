@@ -1,6 +1,6 @@
 # import libs
 from rich import print
-from pyThermoCalcDB.reactions.reactions import Reaction, dEn_rxn_STD
+from pyThermoCalcDB.reactions.reactions import Reaction, dH_rxn_STD, dG_rxn_STD
 from pythermodb_settings.models import Component, Temperature
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
@@ -167,9 +167,18 @@ reaction = Reaction(
 T = Temperature(value=298.15, unit="K")
 
 # NOTE: calculate standard enthalpy change of reaction
-dH_rxn = dEn_rxn_STD(
+dH_rxn = dH_rxn_STD(
     reaction=reaction,
     temperature=T,
     model_source=model_source_
 )
 print(dH_rxn)
+
+# SECTION: Calculate standard Gibbs free energy change of reaction at 298.15 K
+# NOTE: calculate standard Gibbs free energy change of reaction
+dG_rxn = dG_rxn_STD(
+    reaction=reaction,
+    temperature=T,
+    model_source=model_source_
+)
+print(dG_rxn)
