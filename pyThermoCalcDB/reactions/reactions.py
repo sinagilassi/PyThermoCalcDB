@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @measure_time
-def dEn_rxn_STD(
+def dH_rxn_STD(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
@@ -64,7 +64,7 @@ def dEn_rxn_STD(
 
 
 @measure_time
-def dGiFrEn_rxn_STD(
+def dG_rxn_STD(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
@@ -171,8 +171,72 @@ def Keq_STD(
 
 
 @measure_time
+def Keq_VH(
+    reaction: Reaction,
+    temperature: Temperature,
+    model_source: ModelSource,
+    component_key: ComponentKey = 'Name-Formula',
+    **kwargs
+) -> Optional[CustomProp]:
+    """
+    Calculates the equilibrium constant of a reaction at a given temperature using Van't Hoff equation as:
+
+            ln(K_T) = ln(K_ref) + (1/R) ∫(ΔH°(T) / T²) dT from T_ref to T
+
+        where:
+        - K_T is the equilibrium constant at temperature T
+        - K_ref is the equilibrium constant at reference temperature T_ref
+        - ΔH°(T) is the standard enthalpy change of the reaction at temperature T
+        - R is the universal gas constant
+
+    Parameters
+    ----------
+    reaction : Reaction
+        The Reaction object representing the chemical reaction.
+    temperature : Temperature
+        The Temperature object representing the temperature at which to calculate the equilibrium constant of reaction.
+    model_source : ModelSource
+        The ModelSource object representing the data source for the components.
+    component_key : ComponentKey, optional
+        The ComponentKey to identify components, by default 'Name-Formula'.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        The equilibrium constant of reaction at the given temperature, or None if calculation fails.
+    """
+    try:
+        # SECTION: Prepare source
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
+
+        # NOTE: initialize HSGReaction
+        hsg_reaction = HSGReaction(
+            reaction=reaction,
+            source=Source_,
+        )
+
+        # >> calculate equilibrium constant of reaction using Van't Hoff equation
+        Keq_T = hsg_reaction.calc_equilibrium_constant_vh(
+            temperature=temperature,
+        )
+
+        return Keq_T
+    except Exception as e:
+        logger.error(
+            f"Error calculating equilibrium constant of reaction using Van't Hoff equation: {e}")
+        return None
+
+
+@measure_time
 def Keq(
-    dGiFrEn_std: CustomProp,
+    dG_rxn_STD: CustomProp,
     temperature: Temperature,
     **kwargs
 ) -> Optional[CustomProp]:
@@ -182,7 +246,7 @@ def Keq(
 
     Parameters
     ----------
-    dGiFrEn_std : CustomProp
+    dG_rxn_STD : CustomProp
         The standard Gibbs free energy of reaction.
     temperature : Temperature
         The Temperature object representing the temperature at which to calculate the equilibrium constant of reaction.
@@ -200,14 +264,14 @@ def Keq(
         # SECTION: input validation
         # NOTE: dGiFrEn_std
         # ! [J/mol]
-        if dGiFrEn_std.unit != 'J/mol':
+        if dG_rxn_STD.unit != 'J/mol':
             dGiFrEn_std_value = pycuc.convert_from_to(
-                value=dGiFrEn_std.value,
-                from_unit=dGiFrEn_std.unit,
+                value=dG_rxn_STD.value,
+                from_unit=dG_rxn_STD.unit,
                 to_unit='J/mol'
             )
         else:
-            dGiFrEn_std_value = dGiFrEn_std.value
+            dGiFrEn_std_value = dG_rxn_STD.value
 
         # NOTE: temperature
         # ! [K]
