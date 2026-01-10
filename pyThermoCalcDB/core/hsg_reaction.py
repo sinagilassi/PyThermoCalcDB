@@ -60,6 +60,14 @@ class HSGReaction:
         List of reactant component IDs
     - products_names : List[str]
         List of product component IDs
+    - all_components : List[str]
+        List of all component IDs involved in the reaction
+    - available_components : List[Component]
+        List of available Component objects for the reaction
+    - component_checker: bool
+        Flag indicating if all components are available
+    - map_components: Dict[str, Component]
+        Mapping of component IDs to Component objects
     """
     # SECTION: Attributes
     # NOTE: component key
@@ -589,6 +597,8 @@ class HSGReaction:
         Calculates the standard equilibrium constant of a reaction at a given temperature which defined as:
             Keq_std = exp(-ΔG_rxn_std / (R * T))
 
+        ΔG_rxn_std is the standard Gibbs free energy of reaction at the specified temperature [J/mol] and R is the universal gas constant [J/mol.K].
+
         Parameters
         ----------
         temperature : Temperature
@@ -624,7 +634,7 @@ class HSGReaction:
                 )
 
             # SECTION: equilibrium constant at standard conditions
-            Ka = HSGReaction.vh(
+            Ka = HSGReaction.Keq(
                 gibbs_energy_of_reaction_std=dG_rxn_std.value,
                 temperature=T_value,
             )
@@ -636,14 +646,26 @@ class HSGReaction:
                 f"Error in ReactionAnalyzer.calc_equilibrium_constant_STD(): {str(e)}")
             return None
 
+    def calc_equilibrium_constant_vh(
+        self,
+        temperature: Temperature,
+        equilibrium_constant_std: CustomProp,
+        **kwargs
+    ) -> Optional[CustomProp]:
+        """
+        Calculates the equilibrium constant of a reaction at a given temperature using Van't Hoff equation as:
+
+            ln(K_T) = ln(K_ref) - (1/R) × ∫_{T_ref}^{T} (ΔH°(T) / T²) dT
+        """
+
     @staticmethod
-    def vh(
+    def Keq(
         gibbs_energy_of_reaction_std: float,
         temperature: float,
         **kwargs
     ) -> Optional[CustomProp]:
         '''
-        Calculates change in Gibbs free energy of a reaction at different temperatures using the Van't Hoff equation as:
+        Calculates change in Gibbs free energy of a reaction at different temperatures as:
             Keq = exp(-ΔG_rxn_std / (R * T))
 
         Parameters

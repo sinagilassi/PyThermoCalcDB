@@ -171,13 +171,13 @@ def Keq_STD(
 
 
 @measure_time
-def Keq_VH(
+def Keq(
     dGiFrEn_std: CustomProp,
     temperature: Temperature,
     **kwargs
 ) -> Optional[CustomProp]:
     """
-    Calculate the equilibrium constant of reaction at a given temperature using Van't Hoff equation as:
+    Calculate the equilibrium constant of reaction at a given temperature as:
         Keq = exp(-ΔG_rxn_std / (R * T))
 
     Parameters
@@ -220,19 +220,17 @@ def Keq_VH(
         else:
             temperature_value = temperature.value
 
-        # SECTION: vh equation
-        vh = HSGReaction.vh
+        # SECTION: set equation
+        Keq_eq = HSGReaction.Keq
 
         # >> calculate equilibrium constant of reaction using Van't Hoff equation
-        Keq_vh = vh(
+        return Keq_eq(
             gibbs_energy_of_reaction_std=dGiFrEn_std_value,
             temperature=temperature_value,
         )
-
-        return Keq_vh
     except Exception as e:
         logger.error(
-            f"Error calculating equilibrium constant of reaction using Van't Hoff equation: {e}")
+            f"Error calculating equilibrium constant of reaction: {e}")
         return None
 
 
@@ -305,13 +303,11 @@ def Keq_VH_Shortcut(
         vh_shortcut = HSGReaction.vh_shortcut
 
         # >> calculate equilibrium constant of reaction using Van't Hoff shortcut equation
-        Keq_vh_shortcut = vh_shortcut(
+        return vh_shortcut(
             enthalpy_of_reaction_std=dEn_rxn_std_value,
             equilibrium_constant_std=Keq_std_value,
             temperature=temperature_value,
         )
-
-        return Keq_vh_shortcut
     except Exception as e:
         logger.error(
             f"Error calculating equilibrium constant of reaction using Van't Hoff shortcut equation: {e}")
