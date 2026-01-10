@@ -2,11 +2,13 @@
 import logging
 from typing import Optional, List, Dict, Literal, cast, Any
 from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp, ComponentKey
-from math import exp
 from pythermodb_settings.utils import set_component_id, set_components_state
 import pycuc
 from pyThermoLinkDB.thermo import Source
 from pyreactlab_core.models.reaction import Reaction
+from math import exp, log
+# scipy integral
+from scipy.integrate import quad
 # locals
 from .hsg_properties import HSGProperties
 from ..utils.component_tools import (
@@ -81,6 +83,7 @@ class HSGReaction:
     __R: float = R_J_molK
     # NOTE: reference temperature [K]
     __T_Ref_K: float = T_ref_K
+    __T_Ref_K_: Temperature = Temperature(value=T_ref_K, unit='K')
 
     def __init__(
         self,
@@ -649,14 +652,164 @@ class HSGReaction:
     def calc_equilibrium_constant_vh(
         self,
         temperature: Temperature,
-        equilibrium_constant_std: CustomProp,
         **kwargs
     ) -> Optional[CustomProp]:
         """
         Calculates the equilibrium constant of a reaction at a given temperature using Van't Hoff equation as:
 
-            ln(K_T) = ln(K_ref) - (1/R) × ∫_{T_ref}^{T} (ΔH°(T) / T²) dT
+            ln(K_T) = ln(K_ref) + (1/R) ∫(ΔH°(T) / T²) dT from T_ref to T
+
+        where:
+        - K_T is the equilibrium constant at temperature T
+        - K_ref is the equilibrium constant at reference temperature T_ref
+        - ΔH°(T) is the standard enthalpy change of the reaction at temperature T
+        - R is the universal gas constant
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the equilibrium constant.
+        kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Optional[CustomProp]
+            A dictionary containing the equilibrium constant at the given temperature [dimensionless].
         """
+        try:
+            # NOTE: temperature
+            # ! [K]
+            T_value = temperature.value
+            T_unit = temperature.unit
+            if T_unit != 'K':
+                T_value = pycuc.convert_from_to(
+                    value=T_value,
+                    from_unit=T_unit,
+                    to_unit='K'
+                )
+
+            # SECTION: get standard equilibrium constant at reference temperature
+            Keq_ref = self.calc_equilibrium_constant_STD(
+                temperature=self.__T_Ref_K_
+            )
+
+            if Keq_ref is None:
+                logger.error(
+                    "Failed to calculate standard equilibrium constant at reference temperature."
+                )
+                return None
+
+            # SECTION: Van't Hoff equation
+            def integrand(T):
+                # >> calculate standard enthalpy of reaction at temperature T
+                dH_rxn_std = self.calc_standard_rxn_enthalpy(
+                    temperature=Temperature(value=T, unit='K')
+                )
+                if dH_rxn_std is None:
+                    raise ValueError(
+                        f"Failed to calculate standard enthalpy of reaction at T={T} K."
+                    )
+                return dH_rxn_std.value / (T**2)
+
+            # >> perform integration from T_ref to T_value
+            integral_result, _ = quad(
+                integrand,
+                HSGReaction.__T_Ref_K,
+                T_value
+            )
+
+            # >> calculate ln(K_T)
+            ln_K_T = (
+                log(Keq_ref.value) +
+                (1 / HSGReaction.__R) * integral_result
+            )
+
+            # >> calculate K_T
+            K_T = exp(ln_K_T)
+
+            # res
+            res = {
+                'value': float(K_T),
+                'unit': 'dimensionless',
+            }
+            res = CustomProp(**res)
+
+            return res
+        except Exception as e:
+            logger.error(
+                f"Error in ReactionAnalyzer.calc_equilibrium_constant_vh(): {str(e)}")
+            return None
+
+    def calc_equilibrium_constant_vh_shortcut(
+        self,
+        temperature: Temperature,
+        **kwargs
+    ) -> Optional[CustomProp]:
+        """
+        Calculates the equilibrium constant of a reaction at a given temperature using the Van't Hoff shortcut equation as:
+
+            Keq = Keq_std * exp( (-ΔH_rxn_std / R) * (1/T - 1/T_ref) )
+
+        where, Keq_std is the equilibrium constant at standard conditions (T_ref), and ΔH_rxn_std is the enthalpy of reaction at standard conditions.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the equilibrium constant.
+        kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Optional[CustomProp]
+            A dictionary containing the equilibrium constant at the given temperature [dimensionless].
+        """
+        try:
+            # NOTE: temperature
+            # ! [K]
+            T_value = temperature.value
+            T_unit = temperature.unit
+            if T_unit != 'K':
+                T_value = pycuc.convert_from_to(
+                    value=T_value,
+                    from_unit=T_unit,
+                    to_unit='K'
+                )
+
+            # SECTION: get standard equilibrium constant at reference temperature
+            Keq_std = self.calc_equilibrium_constant_STD(
+                temperature=self.__T_Ref_K_
+            )
+
+            if Keq_std is None:
+                logger.error(
+                    "Failed to calculate standard equilibrium constant at reference temperature."
+                )
+                return None
+
+            # >> get standard enthalpy of reaction at reference temperature
+            dH_rxn_std = self.calc_standard_rxn_enthalpy(
+                temperature=self.__T_Ref_K_
+            )
+            if dH_rxn_std is None:
+                raise ValueError(
+                    "Failed to calculate standard enthalpy of reaction at reference temperature."
+                )
+
+            # SECTION: Van't Hoff shortcut equation
+            Ka = HSGReaction.vh_shortcut(
+                enthalpy_of_reaction_std=dH_rxn_std.value,
+                equilibrium_constant_std=Keq_std.value,
+                temperature=T_value,
+            )
+
+            # ? save
+            return Ka
+        except Exception as e:
+            logger.error(
+                f"Error in ReactionAnalyzer.calc_equilibrium_constant_vh_shortcut(): {str(e)}")
+            return None
 
     @staticmethod
     def Keq(
