@@ -1,10 +1,12 @@
 # import libs
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable
 from pyreactlab_core.models.reaction import Reaction
 from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
-from math import exp
+from math import exp, log
+# scipy integral
+from scipy.integrate import quad
 # locals
 from ..configs.constants import (
     R_J_molK,
@@ -63,6 +65,7 @@ class RXN:
     __R: float = R_J_molK
     # NOTE: reference temperature [K]
     __T_Ref_K: float = T_ref_K
+    __T_Ref_K_: Temperature = Temperature(value=T_ref_K, unit='K')
 
     def __init__(
             self,
@@ -88,7 +91,6 @@ class RXN:
     def dH_rxn_STD(
         self,
         H_i_IG: Dict[str, CustomProp],
-        **kwargs
     ) -> Optional[CustomProp]:
         """
         Calculate the standard enthalpy change of the reaction as:
@@ -140,7 +142,6 @@ class RXN:
     def dG_rxn_STD(
         self,
         G_i_IG: Dict[str, CustomProp],
-        **kwargs
     ) -> Optional[CustomProp]:
         """
         Calculate the standard Gibbs free energy change of the reaction as:
@@ -192,7 +193,6 @@ class RXN:
     def dS_rxn_STD(
         self,
         S_i_IG: Dict[str, CustomProp],
-        **kwargs
     ) -> Optional[CustomProp]:
         """
         Calculate the standard entropy change of the reaction as:
@@ -246,7 +246,6 @@ class RXN:
         self,
         dG_rxn_STD: CustomProp,
         temperature: Temperature,
-        **kwargs
     ) -> Optional[CustomProp]:
         """
         Calculate the equilibrium constant of the reaction as:
@@ -275,7 +274,7 @@ class RXN:
         try:
             # Calculate Keq
             return Keq(
-                dGiFrEn_std=dG_rxn_STD,
+                dG_rxn_STD=dG_rxn_STD,
                 temperature=temperature
             )
         except Exception as e:
@@ -285,15 +284,89 @@ class RXN:
     def Keq_vh(
         self,
         Keq_STD: CustomProp,
-        dH_rxn_STD: CustomProp,
+        dH_rxn_STD_func: Callable[[Temperature], Optional[CustomProp]],
         temperature: Temperature,
-        **kwargs
     ):
-        pass
+        """
+        Calculates the equilibrium constant of a reaction at a given temperature using Van't Hoff equation as:
+
+            ln(K_T) = ln(K_ref) + (1/R) ∫(ΔH°(T) / T²) dT from T_ref to T
+
+        where:
+        - K_T is the equilibrium constant at temperature T
+        - K_ref is the equilibrium constant at reference temperature T_ref
+        - ΔH°(T) is the standard enthalpy change of the reaction at temperature T
+        - R is the universal gas constant [J/mol.K]
+
+        Parameters
+        ----------
+        Keq_STD : CustomProp
+            The standard equilibrium constant of the reaction.
+        dH_rxn_STD_func : Callable[[Temperature], Optional[CustomProp]]
+            A function that returns the standard enthalpy change of the reaction at a given temperature.
+        temperature : Temperature
+            The temperature at which to calculate the equilibrium constant.
+
+        Returns
+        -------
+        Optional[CustomProp]
+            The equilibrium constant of the reaction at the given temperature.
+        """
+        try:
+            # SECTION: input validation
+            if temperature.unit != 'K':
+                T_value_K = pycuc.convert_from_to(
+                    value=temperature.value,
+                    from_unit=temperature.unit,
+                    to_unit='K'
+                )
+            else:
+                T_value_K = temperature.value
+
+            # NOTE: define integrand function
+            def integrand(T: Temperature) -> float:
+                dH_rxn_STD_T = dH_rxn_STD_func(T)
+                if dH_rxn_STD_T is None:
+                    raise ValueError(
+                        f"Failed to get dH_rxn_STD at T={T.value} {T.unit}")
+                dH_value = dH_rxn_STD_T.value
+
+                # convert to J/mol if necessary
+                if dH_rxn_STD_T.unit != 'J/mol':
+                    dH_value = pycuc.convert_from_to(
+                        value=dH_rxn_STD_T.value,
+                        from_unit=dH_rxn_STD_T.unit,
+                        to_unit='J/mol'
+                    )
+
+                # res
+                return dH_value / (T.value ** 2)
+
+            # NOTE: perform integration from T_ref to T
+            integral_result, _ = quad(
+                integrand,
+                self.__T_Ref_K,
+                T_value_K
+            )
+
+            # NOTE: calculate ln(Keq_T)
+            ln_Keq_T = (1 / self.__R) * integral_result + log(Keq_STD.value)
+
+            # NOTE: calculate Keq_T
+            Keq_T_value = exp(ln_Keq_T)
+
+            return CustomProp(
+                value=Keq_T_value,
+                unit="dimensionless",
+            )
+
+        except Exception as e:
+            LOGGER.error(f"Error in Keq_T calculation: {e}")
+            return None
 
     def Keq_vh_shortcut(
         self,
-        Keq_std: CustomProp,
+        Keq_STD: CustomProp,
         dH_rxn_STD: CustomProp,
         temperature: Temperature,
     ):
@@ -306,7 +379,7 @@ class RXN:
 
         Parameters
         ----------
-        Keq_std : CustomProp
+        Keq_STD : CustomProp
             The standard equilibrium constant of reaction.
         dH_rxn_STD : CustomProp
             The standard enthalpy of reaction.
@@ -325,7 +398,7 @@ class RXN:
         try:
             # >> calculate equilibrium constant of reaction using Van't Hoff shortcut equation
             return Keq_VH_Shortcut(
-                Keq_std=Keq_std,
+                Keq_std=Keq_STD,
                 dEn_rxn_std=dH_rxn_STD,
                 temperature=temperature,
             )
