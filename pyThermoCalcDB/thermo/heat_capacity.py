@@ -114,6 +114,8 @@ def Cp_IG_NASA9_polynomial(
         a5: float,
         a6: float,
         a7: float,
+        b1: float,
+        b2: float,
         temperature: Temperature,
         temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
         output_unit: Optional[str] = None,
@@ -143,6 +145,10 @@ def Cp_IG_NASA9_polynomial(
         NASA polynomial coefficient a6
     a7 : float
         NASA polynomial coefficient a7
+    b1 : float
+        NASA polynomial coefficient b1 (not used in Cp calculation)
+    b2 : float
+        NASA polynomial coefficient b2 (not used in Cp calculation)
     temperature : Temperature
         Temperature at which to calculate heat capacity defined in pythermodb_settings.models.Temperature, should be in Kelvin
     temperature_range : Optional[Tuple[Temperature, Temperature]], optional
@@ -552,6 +558,8 @@ def Cp_IG(
             a5=float(coeffs["a5"]),
             a6=float(coeffs["a6"]),
             a7=float(coeffs["a7"]),
+            b1=float(coeffs.get("b1", 0.0)),  # not used
+            b2=float(coeffs.get("b2", 0.0)),  # not
             temperature=temperature,
             temperature_range=temperature_range,
             output_unit=output_unit,
