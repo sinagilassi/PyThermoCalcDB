@@ -1,6 +1,11 @@
 # import libs
 from pythermodb_settings.models import Temperature
-from pyThermoCalcDB.thermo.enthalpy import En_IG_NASA9_polynomial, En_IG_shomate
+from pyThermoCalcDB.thermo.enthalpy import (
+    En_IG_NASA9_polynomial,
+    En_IG_shomate,
+    En_IG_NASA9_polynomial_ranges,
+    En_IG_NASA7_polynomial_ranges
+)
 from rich import print
 
 # NOTE: Example NASA polynomial coefficients for a hypothetical substance
@@ -66,3 +71,27 @@ result_shomate = En_IG_shomate(
 )
 # Print the result
 print(result_shomate)
+
+# SECTION: calculate enthalpy at different temperature ranges
+# NOTE: Define temperature ranges for NASA 9-coefficient polynomial
+temperatures = [
+    Temperature(value=250.0, unit="K"),
+    Temperature(value=500.0, unit="K"),
+    Temperature(value=800.0, unit="K"),
+    Temperature(value=1000.0, unit="K"),
+]
+
+result = En_IG_NASA9_polynomial_ranges(
+    a1=a1,
+    a2=a2,
+    a3=a3,
+    a4=a4,
+    a5=a5,
+    a6=a6,
+    a7=a7,
+    b1=b1,
+    b2=b2,
+    temperatures=temperatures,
+)
+# Print the results
+print(result)
