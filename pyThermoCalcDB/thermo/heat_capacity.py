@@ -180,7 +180,7 @@ def Cp_IG_NASA9_polynomial(
             T_unit = "K"
 
         # NOTE: check coefficients
-        coeffs = [a1, a2, a3, a4, a5, a6, a7]
+        coeffs = [a1, a2, a3, a4, a5, a6, a7, b1, b2]
 
         # iterate and check each coefficient
         for i, coeff in enumerate(coeffs):
@@ -363,6 +363,8 @@ def Cp_IG_NASA7_polynomial(
         a3: float,
         a4: float,
         a5: float,
+        a6: float,
+        a7: float,
         temperature: Temperature,
         temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
         output_unit: Optional[str] = None,
@@ -380,8 +382,15 @@ def Cp_IG_NASA7_polynomial(
 
     Parameters
     ----------
-    a1..a5 : float
+    a1..a7 : float
         NASA-7 heat capacity coefficients (dimensionless in Cp/R form).
+        - a1
+        - a2
+        - a3
+        - a4
+        - a5
+        - a6 (not used in Cp calculation)
+        - a7 (not used in Cp calculation)
     temperature : Temperature
         Temperature at which to calculate heat capacity (will be converted to K if needed).
     temperature_range : Optional[Tuple[Temperature, Temperature]]
@@ -413,7 +422,7 @@ def Cp_IG_NASA7_polynomial(
             T_unit = "K"
 
         # NOTE: check coefficients
-        coeffs = [a1, a2, a3, a4, a5]
+        coeffs = [a1, a2, a3, a4, a5, a6, a7]
         for i, coeff in enumerate(coeffs):
             if not isinstance(coeff, (int, float)):
                 logger.error(f"Coefficient {i} is not a valid number: {coeff}")
@@ -534,6 +543,8 @@ def Cp_IG(
             a3=float(coeffs["a3"]),
             a4=float(coeffs["a4"]),
             a5=float(coeffs["a5"]),
+            a6=float(coeffs.get("a6", 0.0)),  # not used
+            a7=float(coeffs.get("a7", 0.0)),  # not used
             temperature=temperature,
             temperature_range=temperature_range,
             output_unit=output_unit,
