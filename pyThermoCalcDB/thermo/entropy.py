@@ -21,6 +21,7 @@ def S_IG_NASA9_polynomial(
     a5: float,
     a6: float,
     a7: float,
+    b1: float,
     b2: float,
     temperature: Temperature,
     temperature_range: Optional[tuple[Temperature, Temperature]] = None,
@@ -51,6 +52,8 @@ def S_IG_NASA9_polynomial(
         NASA polynomial coefficient a6
     a7 : float
         NASA polynomial coefficient a7
+    b1 : float
+        NASA polynomial coefficient b1
     b2 : float
         NASA polynomial coefficient b2
     temperature : Temperature
@@ -104,7 +107,7 @@ def S_IG_NASA9_polynomial(
                 return None
 
         # NOTE: check coefficients
-        coeffs = [a1, a2, a3, a4, a5, a6, a7, b2]
+        coeffs = [a1, a2, a3, a4, a5, a6, a7, b1, b2]
         for i, coeff in enumerate(coeffs):
             if not isinstance(coeff, (int, float)):
                 logger.error(
@@ -164,6 +167,7 @@ def S_IG_NASA9_polynomial_range(
     a5: float,
     a6: float,
     a7: float,
+    b1: float,
     b2: float,
     T_low: Temperature,
     T_high: Temperature,
@@ -192,6 +196,8 @@ def S_IG_NASA9_polynomial_range(
         NASA polynomial coefficient a6
     a7 : float
         NASA polynomial coefficient a7
+    b1 : float
+        NASA polynomial coefficient b1
     b2 : float
         NASA polynomial coefficient b2
     T_low : Temperature
@@ -238,7 +244,7 @@ def S_IG_NASA9_polynomial_range(
         for T in temperatures:
             temp_obj = Temperature(value=T, unit="K")
             res = S_IG_NASA9_polynomial(
-                a1, a2, a3, a4, a5, a6, a7, b2,
+                a1, a2, a3, a4, a5, a6, a7, b1, b2,
                 temperature=temp_obj,
                 temperature_range=temperature_range,
                 output_unit=output_unit,
@@ -283,6 +289,7 @@ def dS_IG_NASA9_polynomial(
     a5: float,
     a6: float,
     a7: float,
+    b1: float,
     b2: float,
     T_initial: Temperature,
     T_final: Temperature,
@@ -297,7 +304,7 @@ def dS_IG_NASA9_polynomial(
     try:
         # SECTION: calculate S at initial temperature
         res_initial = S_IG_NASA9_polynomial(
-            a1, a2, a3, a4, a5, a6, a7, b2,
+            a1, a2, a3, a4, a5, a6, a7, b1, b2,
             temperature=T_initial,
             temperature_range=temperature_range,
             output_unit=output_unit,
@@ -311,7 +318,7 @@ def dS_IG_NASA9_polynomial(
 
         # SECTION: calculate S at final temperature
         res_final = S_IG_NASA9_polynomial(
-            a1, a2, a3, a4, a5, a6, a7, b2,
+            a1, a2, a3, a4, a5, a6, a7, b1, b2,
             temperature=T_final,
             temperature_range=temperature_range,
             output_unit=output_unit,
@@ -796,12 +803,12 @@ def calc_Ent_IG(
             )
 
         if method == "NASA9":
-            req = ("a1", "a2", "a3", "a4", "a5", "a6", "a7", "b2")
+            req = ("a1", "a2", "a3", "a4", "a5", "a6", "a7", "b1", "b2")
             pack = _require_coeffs(coeffs, req)
             if pack is None:
                 return None
             return S_IG_NASA9_polynomial(
-                pack["a1"], pack["a2"], pack["a3"], pack["a4"], pack["a5"], pack["a6"], pack["a7"], pack["b2"],
+                pack["a1"], pack["a2"], pack["a3"], pack["a4"], pack["a5"], pack["a6"], pack["a7"], pack["b1"], pack["b2"],
                 temperature=temperature,
                 temperature_range=temperature_range,
                 output_unit=output_unit,
