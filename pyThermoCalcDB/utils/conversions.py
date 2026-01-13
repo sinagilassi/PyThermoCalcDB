@@ -1,6 +1,7 @@
 # import libs
 import logging
 from typing import List, Optional, Dict, Any
+from pythermodb_settings.models import Temperature
 import pycuc
 
 # NOTE: logger setup
@@ -37,3 +38,13 @@ def _to_J__mol(
     except Exception as e:
         logger.error(f"Error converting energy to J/mol: {e}")
         raise
+
+
+def _to_kelvin(temperature: Temperature) -> float:
+    """Return temperature value in K."""
+    T_value = temperature.value
+    T_unit = temperature.unit.strip()
+    if T_unit != "K":
+        T_value = pycuc.convert_from_to(
+            value=T_value, from_unit=T_unit, to_unit="K")
+    return float(T_value)
