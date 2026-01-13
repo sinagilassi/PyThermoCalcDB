@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import Optional, Dict, Any, Tuple, Literal
+from typing import Optional, Dict, Any, Tuple, Literal, List
 from pythermodb_settings.models import Temperature
 import pycuc
 # locals
@@ -106,7 +106,7 @@ def En_IG_NASA9_polynomial(
                 return None
 
         # NOTE: check coefficients
-        coeffs = [a1, a2, a3, a4, a5, a6, a7, b1]
+        coeffs = [a1, a2, a3, a4, a5, a6, a7, b1, b2]
         for i, coeff in enumerate(coeffs):
             if not isinstance(coeff, (int, float)):
                 logger.error(
@@ -279,6 +279,108 @@ def En_IG_NASA9_polynomial_range(
     except Exception as e:
         logger.error(
             f"Error in integral ideal gas enthalpy range calculation: {e}")
+        return None
+
+
+def En_IG_NASA9_polynomial_ranges(
+    a1: float,
+    a2: float,
+    a3: float,
+    a4: float,
+    a5: float,
+    a6: float,
+    a7: float,
+    b1: float,
+    b2: float,
+    temperatures: List[Temperature],
+    temperature_range: Optional[tuple[Temperature, Temperature]] = None,
+    output_unit: Optional[str] = None,
+    universal_gas_constant: float = 8.31446261815324,  #
+    message: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Calculate the ideal gas enthalpy (En_IG) at multiple temperatures using NASA 9-coefficient polynomial coefficients.
+
+    Parameters
+    ----------
+    a1 : float
+        NASA polynomial coefficient a1
+    a2 : float
+        NASA polynomial coefficient a2
+    a3 : float
+        NASA polynomial coefficient a3
+    a4 : float
+        NASA polynomial coefficient a4
+    a5 : float
+        NASA polynomial coefficient a5
+    a6 : float
+        NASA polynomial coefficient a6
+    a7 : float
+        NASA polynomial coefficient a7
+    b1 : float
+        NASA polynomial coefficient b1
+    b2 : float
+        NASA polynomial coefficient b2 (not used in enthalpy calculation)
+    temperatures : List[Temperature]
+        List of temperatures at which to calculate enthalpy defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    output_unit : Optional[str], optional
+        Desired output unit for enthalpy (default is None, which returns J/mol)
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K (default is 8.31446261815324 J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+
+    Returns
+    -------
+    Optional[Dict[str, Any]]
+        A dictionary containing the calculated ideal gas enthalpy values at the specified temperatures, or None if an error occurs.
+
+    Notes
+    -----
+    - The NASA polynomial is commonly used to represent thermodynamic properties of substances.
+    - The calculated enthalpy values are in J/mol by default, but can be converted to other units if specified.
+    - In case of errors during calculation, enthalpy values are set to zero for the respective temperature points.
+    """
+    try:
+        enthalpy_results = []
+
+        # loop over temperatures
+        for temp in temperatures:
+            res = En_IG_NASA9_polynomial(
+                a1, a2, a3, a4, a5, a6, a7, b1, b2,
+                temperature=temp,
+                temperature_range=temperature_range,
+                output_unit=output_unit,
+                universal_gas_constant=universal_gas_constant,
+                message=None
+            )
+
+            # check result
+            if res is None:
+                enthalpy_results.append(0.0)  # append zero if error
+                continue
+
+            # set
+            enthalpy_results.append(res["result"]['value'])
+
+        temperature_values = [temp.value for temp in temperatures]
+
+        # return result model
+        res = {
+            "result": {
+                "values": {
+                    "x": temperature_values,
+                    "y": enthalpy_results,
+                },
+                "unit": output_unit if output_unit is not None else "J/mol",
+                "symbol": "En_IG"
+            },
+            "message": message if message is not None else "Ideal gas enthalpy calculation at multiple temperatures using NASA-9 successful"
+        }
+        return res
+    except Exception as e:
+        logger.error(
+            f"Error in ideal gas enthalpy calculation at multiple temperatures: {e}")
         return None
 
 
@@ -885,6 +987,104 @@ def En_IG_NASA7_polynomial_range(
         logger.error(f"Error in NASA7 enthalpy range calculation: {e}")
         return None
 
+
+def En_IG_NASA7_polynomial_ranges(
+    a1: float,
+    a2: float,
+    a3: float,
+    a4: float,
+    a5: float,
+    a6: float,
+    a7: float,  # kept for API consistency
+    temperatures: List[Temperature],
+    temperature_range: Optional[tuple[Temperature, Temperature]] = None,
+    output_unit: Optional[str] = None,
+    universal_gas_constant: float = 8.31446261815324,
+    message: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Calculate the ideal gas enthalpy (En_IG) at multiple temperatures using NASA 7-coefficient polynomial coefficients.
+
+    Parameters
+    ----------
+    a1 : float
+        NASA polynomial coefficient a1
+    a2 : float
+        NASA polynomial coefficient a2
+    a3 : float
+        NASA polynomial coefficient a3
+    a4 : float
+        NASA polynomial coefficient a4
+    a5 : float
+        NASA polynomial coefficient a5
+    a6 : float
+        NASA polynomial coefficient a6
+    a7 : float
+        NASA polynomial coefficient a7 (not used for enthalpy)
+    temperatures : List[Temperature]
+        List of temperatures at which to calculate enthalpy defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    output_unit : Optional[str], optional
+        Desired output unit for enthalpy (default is None, which returns J/mol)
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K (default is 8.31446261815324 J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+
+    Returns
+    -------
+    Optional[Dict[str, Any]]
+        A dictionary containing the calculated ideal gas enthalpy values at the specified temperatures, or None if an error occurs.
+
+    Notes
+    -----
+    - The NASA polynomial is commonly used to represent thermodynamic properties of substances.
+    - The calculated enthalpy values are in J/mol by default, but can be converted to other units if specified.
+    - In case of errors during calculation, enthalpy values are set to zero for the respective temperature points.
+    """
+    try:
+        enthalpy_results = []
+
+        # loop over temperatures
+        for temp in temperatures:
+            res = En_IG_NASA7_polynomial(
+                a1, a2, a3, a4, a5, a6, a7,
+                temperature=temp,
+                temperature_range=temperature_range,
+                output_unit=output_unit,
+                universal_gas_constant=universal_gas_constant,
+                message=None,
+            )
+
+            # check result
+            if res is None:
+                enthalpy_results.append(0.0)  # append zero if error
+                continue
+
+            # set
+            enthalpy_results.append(res["result"]['value'])
+
+        temperature_values = [temp.value for temp in temperatures]
+
+        # return result model
+        res = {
+            "result": {
+                "values": {
+                    "x": temperature_values,
+                    "y": enthalpy_results,
+                },
+                "unit": output_unit if output_unit is not None else "J/mol",
+                "symbol": "En_IG"
+            },
+            "message": message if message is not None else "Ideal gas enthalpy calculation at multiple temperatures using NASA-7 successful"
+        }
+        return res
+    except Exception as e:
+        logger.error(
+            f"Error in ideal gas enthalpy calculation at multiple temperatures (NASA7): {e}")
+        return None
+
+
+# NOTE: delta En using NASA 7-coefficient polynomial between two temperatures
 
 def dEn_IG_NASA7_polynomial(
     a1: float,
