@@ -46,6 +46,8 @@ a4 = -2.534480
 a5 = 0.082139
 a6 = -250.8810
 a7 = 223.3967
+b1 = -242.7400
+b2 = 0.0  # not used in heat capacity calculation
 
 
 # NOTE: Calculate the ideal gas heat capacity using the NASA polynomial equation
@@ -57,6 +59,8 @@ nasa_result = Cp_IG_NASA9_polynomial(
     a5=a5,
     a6=a6,
     a7=a7,
+    b1=b1,
+    b2=b2,
     temperature=temperature,
     temperature_range=temperature_range,
     output_unit="J/mol.K",

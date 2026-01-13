@@ -12,6 +12,7 @@ a5 = 0.082139
 a6 = -250.8810
 a7 = 223.3967
 b1 = -242.7400
+b2 = 0.0  # not used in enthalpy calculation
 
 # NOTE: Define the temperature at which to calculate enthalpy
 temperature = Temperature(value=300.0, unit="K")
@@ -30,6 +31,7 @@ result = En_IG_NASA9_polynomial(
     a6=a6,
     a7=a7,
     b1=b1,
+    b2=b2,
     temperature=temperature,
     temperature_range=temperature_range,
     output_unit="J/mol",

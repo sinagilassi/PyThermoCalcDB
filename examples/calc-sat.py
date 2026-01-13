@@ -9,10 +9,10 @@ from pythermodb_settings.models import Component, ComponentRule, ComponentThermo
 from pyThermoDB.core import TableEquation
 # local
 from pyThermoCalcDB.docs.sat import (
-    calc_vapor_pressure_at_temperature,
-    calc_enthalpy_of_vaporization_at_temperature,
-    calc_saturated_temperature_at_pressure,
-    calc_vapor_pressure_sensitivity_at_temperature
+    calc_VaPr,
+    calc_EnVap,
+    calc_T_sat,
+    calc_VaPr_sensitivity
 )
 
 # check version
@@ -180,7 +180,7 @@ temperature_range_ = [
 
 # ! calculate vapor pressure at temperatures
 for T in temperature_range_:
-    Pvap = calc_vapor_pressure_at_temperature(
+    Pvap = calc_VaPr(
         component=ethanol_comp,
         temperature=T,
         model_source=model_source_,
@@ -191,7 +191,7 @@ for T in temperature_range_:
 
 # ! calculate enthalpy of vaporization at temperatures
 for T in temperature_range_:
-    Hvap = calc_enthalpy_of_vaporization_at_temperature(
+    Hvap = calc_EnVap(
         component=ethanol_comp,
         temperature=T,
         model_source=model_source_,
@@ -210,7 +210,7 @@ pressure_range_ = [
 # {'T': {'min': {'value': 216.58, 'unit': 'K', 'symbol': 'Tmin'}, 'max': {'value': 304.21, 'unit': 'K', 'symbol': 'Tmax'}}}
 
 for P in pressure_range_:
-    Tsat = calc_saturated_temperature_at_pressure(
+    Tsat = calc_T_sat(
         component=ethanol_comp,
         pressure=P,
         model_source=model_source_,
@@ -227,7 +227,7 @@ for P in pressure_range_:
 
 # ! calculate vapor pressure sensitivity at temperatures
 for T in temperature_range_:
-    dPvap_dT = calc_vapor_pressure_sensitivity_at_temperature(
+    dPvap_dT = calc_VaPr_sensitivity(
         component=ethanol_comp,
         temperature=T,
         model_source=model_source_,

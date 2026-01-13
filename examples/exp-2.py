@@ -8,10 +8,10 @@ from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
 from pyThermoCalcDB.docs.thermo import (
-    calc_enthalpy_of_formation_at_temperature,
-    calc_gibbs_energy_of_formation_at_temperature,
-    calc_enthalpy_of_formation_range,
-    calc_gibbs_energy_of_formation_range
+    calc_En,
+    calc_GiFrEn,
+    calc_En_range,
+    calc_GiFrEn_range
 )
 
 # check version
@@ -233,7 +233,7 @@ CO2 = Component(
 temperature_ = Temperature(value=300.0, unit='K')
 
 # ! calculate enthalpy of formation at temperature
-EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
+EnFo_IG_T_res = calc_En(
     component=CO2,
     model_source=model_source_,
     temperature=temperature_,
@@ -241,7 +241,7 @@ EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
 )
 print(EnFo_IG_T_res)
 
-EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
+EnFo_IG_T_res = calc_En(
     component=CO2,
     model_source=model_source_,
     temperature=temperature_,
@@ -250,7 +250,7 @@ EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
 print(EnFo_IG_T_res)
 
 # ! calculate gibbs free energy of formation at temperature
-GiEnFo_IG_T_res = calc_gibbs_energy_of_formation_at_temperature(
+GiEnFo_IG_T_res = calc_GiFrEn(
     component=CO2,
     model_source=model_source_,
     temperature=temperature_,
@@ -266,7 +266,7 @@ temperature_range_ = [
     Temperature(value=370.0, unit='K'),
 ]
 
-EnFo_IG_range_res = calc_enthalpy_of_formation_range(
+EnFo_IG_range_res = calc_En_range(
     component=CO2,
     model_source=model_source_,
     temperatures=temperature_range_,
@@ -275,7 +275,7 @@ EnFo_IG_range_res = calc_enthalpy_of_formation_range(
 print(EnFo_IG_range_res)
 
 # ! calculate gibbs free energy of formation range
-GiEnFo_IG_range_res = calc_gibbs_energy_of_formation_range(
+GiEnFo_IG_range_res = calc_GiFrEn_range(
     component=CO2,
     model_source=model_source_,
     temperatures=temperature_range_,
