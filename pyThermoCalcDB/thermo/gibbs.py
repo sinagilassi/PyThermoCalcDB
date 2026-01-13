@@ -4,11 +4,9 @@ from typing import Optional, Dict, Any, Tuple, Literal, List
 from pythermodb_settings.models import Temperature
 import pycuc
 # local
-from pyThermoCalcDB.utils.conversions import _to_kelvin
-
-# local imports (same folder)
-from enthalpy import calc_En_IG
-from entropy import calc_Ent_IG
+from ..utils.conversions import _to_kelvin
+from .enthalpy import calc_En_IG
+from .entropy import calc_Ent_IG
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
