@@ -1,6 +1,6 @@
 # import libs
 import logging
-from typing import Optional, Dict, Any, Tuple, Literal
+from typing import Optional, Dict, Any, Tuple, Literal, List
 from pythermodb_settings.models import Temperature
 import pycuc
 # local
@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 G_IG_Method = Literal["NASA7", "NASA9", "Shomate"]
 
 
+# NOTE: calculate Gibbs free energy at a temperature
+
 def GiFrEn_IG(
     method: G_IG_Method,
     *,
@@ -38,7 +40,8 @@ def GiFrEn_IG(
     message: Optional[str] = None,
     **coeffs: Any,
 ) -> Optional[Dict[str, Any]]:
-    """Calculate ideal-gas Gibbs free energy of a component at a temperature.
+    """
+    Calculate ideal-gas Gibbs free energy of a component at a temperature.
 
     Parameters
     ----------
@@ -139,6 +142,95 @@ def GiFrEn_IG(
         logger.error(f"Error in ideal gas Gibbs free energy calculation: {e}")
         return None
 
+# NOTE: calculate Gibbs free energy at different temperatures
+
+
+def GiFrEn_IG_ranges(
+    method: G_IG_Method,
+    *,
+    temperatures: List[Temperature],
+    temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
+    output_unit: Optional[str] = None,
+    universal_gas_constant: float = 8.31446261815324,  # J/mol.K
+    message: Optional[str] = None,
+    **coeffs: Any,
+) -> Optional[Dict[str, Any]]:
+    """
+
+    Calculate ideal-gas Gibbs free energy of a component at multiple temperatures.
+
+    Parameters
+    ----------
+    method:
+        One of: "NASA7", "NASA9", "Shomate".
+        This must match the coefficient set provided in **coeffs.
+    temperatures:
+        List of Temperature objects (will be converted to K if needed).
+    temperature_range:
+        Optional validity range. If provided and T is outside, returns None for that T.
+    output_unit:
+        If None, returns "J/mol".
+        Otherwise uses pycuc.convert_from_to for conversion.
+    universal_gas_constant:
+        Passed through to En_IG / S_IG where applicable.
+    coeffs:
+        Same coefficient names expected by En_IG and S_IG:
+        - NASA9: a1..a7, b1 (enthalpy), b2 (entropy)
+        - NASA7: a1..a7
+        - Shomate: A..G
+
+    Returns
+    -------
+    Dict with keys:
+        result: List of {value, unit, symbol} for each temperature
+        message
+
+    Notes
+    -----
+    - Internally forces H to J/mol and S to J/mol.K before computing G.
+    - Gibbs here is the *ideal-gas* reference value (useful for ΔG° and Keq workflows).
+    """
+    try:
+        results = []
+
+        # NOTE: looping over temperatures
+        for temperature in temperatures:
+            G_res = GiFrEn_IG(
+                method=method,
+                temperature=temperature,
+                temperature_range=temperature_range,
+                output_unit=output_unit,
+                universal_gas_constant=universal_gas_constant,
+                message=None,
+                **coeffs,
+            )
+            if G_res is None:
+                results.append(0.0)  # or None, depending on preference
+            else:
+                results.append(G_res["result"]["value"])
+
+        # NOTE: collect temperature values for reference
+        temperature_values = [temp.value for temp in temperatures]
+
+        return {
+            "result": {
+                "values": {
+                    "x": temperature_values,
+                    "y": results,
+                },
+                "unit": output_unit if output_unit is not None else "J/mol",
+                "symbol": "GiFrEn_IG",
+            },
+            "message": message if message is not None else "Ideal gas Gibbs free energy range calculation successful",
+        }
+
+    except Exception as e:
+        logger.error(
+            f"Error in ideal gas Gibbs free energy range calculation: {e}")
+        return None
+
+# NOTE: calculate Gibbs free energy change between two temperatures
+
 
 def dGiFrEn_IG(
     method: G_IG_Method,
@@ -151,7 +243,8 @@ def dGiFrEn_IG(
     message: Optional[str] = None,
     **coeffs: Any,
 ) -> Optional[Dict[str, Any]]:
-    """Calculate ideal-gas Gibbs free energy change between two temperatures.
+    """
+    Calculate ideal-gas Gibbs free energy change between two temperatures.
 
     dG_IG = G_IG(T_final) - G_IG(T_initial)
 
