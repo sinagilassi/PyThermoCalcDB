@@ -1,9 +1,10 @@
 # import libs
 import logging
 from typing import Optional, Dict, Any, Tuple, Literal
-
 from pythermodb_settings.models import Temperature
 import pycuc
+# local
+from pyThermoCalcDB.utils.conversions import _to_kelvin
 
 # local imports (same folder)
 from enthalpy import calc_En_IG
@@ -25,16 +26,6 @@ logger = logging.getLogger(__name__)
 
 
 G_IG_Method = Literal["NASA7", "NASA9", "Shomate"]
-
-
-def _to_kelvin(temperature: Temperature) -> float:
-    """Return temperature value in K."""
-    T_value = temperature.value
-    T_unit = temperature.unit.strip()
-    if T_unit != "K":
-        T_value = pycuc.convert_from_to(
-            value=T_value, from_unit=T_unit, to_unit="K")
-    return float(T_value)
 
 
 def GiFrEn_IG(
