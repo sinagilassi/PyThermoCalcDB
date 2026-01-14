@@ -4,20 +4,24 @@ from pyThermoCalcDB.thermo.enthalpy import (
     En_IG_NASA9_polynomial,
     En_IG_shomate,
     En_IG_NASA9_polynomial_ranges,
-    En_IG_NASA7_polynomial_ranges
+    En_IG_NASA7_polynomial_ranges,
+    En_IG_NASA9_polynomial_range,
+    En_IG_NASA7_polynomial_range,
 )
 from rich import print
 
-# NOTE: Example NASA polynomial coefficients for a hypothetical substance
-a1 = 30.09200
-a2 = 6.832514
-a3 = 6.793435
-a4 = -2.534480
-a5 = 0.082139
-a6 = -250.8810
-a7 = 223.3967
-b1 = -242.7400
-b2 = 0.0  # not used in enthalpy calculation
+# NOTE: Example NASA polynomial coefficients for a substance
+# ! CO2 coefficients (NASA9)
+#  49437.8364, -626.429208, 5.30181336, 0.002503601, -2.12e-07, -7.69e-10, 2.85e-13, -45281.8986, -7.0487901,
+a1 = 49437.8364
+a2 = -626.429208
+a3 = 5.30181336
+a4 = 0.002503601
+a5 = -2.12e-07
+a6 = -7.69e-10
+a7 = 2.85e-13
+b1 = -45281.8986
+b2 = -7.0487901
 
 # NOTE: Define the temperature at which to calculate enthalpy
 temperature = Temperature(value=300.0, unit="K")
@@ -94,4 +98,21 @@ result = En_IG_NASA9_polynomial_ranges(
     temperatures=temperatures,
 )
 # Print the results
+print(result)
+
+
+result = En_IG_NASA9_polynomial_range(
+    a1=a1,
+    a2=a2,
+    a3=a3,
+    a4=a4,
+    a5=a5,
+    a6=a6,
+    a7=a7,
+    b1=b1,
+    b2=b2,
+    T_low=Temperature(value=300.0, unit="K"),
+    T_high=Temperature(value=800.0, unit="K"),
+)
+# Print the result
 print(result)

@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 from typing import Optional, Dict, Any, Tuple, Literal, List
-from pythermodb_settings.models import Temperature
+from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # locals
 
@@ -27,7 +27,7 @@ def En_IG_NASA9_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas enthalpy (En_IG) using NASA 9-coefficient polynomial coefficients. The NASA polynomial equation is defined as:
 
@@ -66,7 +66,7 @@ def En_IG_NASA9_polynomial(
 
     Returns
     -------
-    Optional[NASA9PolynomialIdealGasEnthalpyResult]
+    Optional[CustomProp]
         Result model containing the calculated ideal gas enthalpy and related information, or None if an error occurs.
     """
     try:
@@ -140,17 +140,18 @@ def En_IG_NASA9_polynomial(
                 to_unit=En_unit
             )
 
-        # return result model
-        res = {
-            "result": {
-                "value": En_value,
-                "unit": En_unit,
-                "symbol": "En_IG"
-            },
-            "message": message if message is not None else "Ideal gas enthalpy calculation using NASA-9 successful"
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=En_value,
+            unit=En_unit
+        )
 
-        return res
+        # return result model
+        if message is not None:
+            message = "Ideal gas enthalpy calculation using NASA-9 successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in ideal gas enthalpy calculation: {e}")
         return None
@@ -261,19 +262,20 @@ def En_IG_NASA9_polynomial_range(
                 continue
 
             # set
-            enthalpy_results.append(res["result"]['value'])
+            enthalpy_results.append(res.value)
+
+        # NOTE: message
+        if message is not None:
+            message = "Integral ideal gas enthalpy calculation over range using NASA-9 successful"
+            print(message)
 
         # return result model
         res = {
-            "result": {
-                "values": {
-                    "x": temperatures.tolist(),
-                    "y": enthalpy_results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol",
-                "symbol": "En_IG"
+            "values": {
+                "x": temperatures.tolist(),
+                "y": enthalpy_results,
             },
-            "message": message if message is not None else "Integral ideal gas enthalpy calculation over range using NASA-9 successful"
+            "unit": output_unit if output_unit is not None else "J/mol",
         }
         return res
     except Exception as e:
@@ -361,21 +363,22 @@ def En_IG_NASA9_polynomial_ranges(
                 continue
 
             # set
-            enthalpy_results.append(res["result"]['value'])
+            enthalpy_results.append(res.value)
 
         temperature_values = [temp.value for temp in temperatures]
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas enthalpy calculation at multiple temperatures using NASA-9 successful"
+            print(message)
+
         # return result model
         res = {
-            "result": {
-                "values": {
-                    "x": temperature_values,
-                    "y": enthalpy_results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol",
-                "symbol": "En_IG"
+            "values": {
+                "x": temperature_values,
+                "y": enthalpy_results,
             },
-            "message": message if message is not None else "Ideal gas enthalpy calculation at multiple temperatures using NASA-9 successful"
+            "unit": output_unit if output_unit is not None else "J/mol",
         }
         return res
     except Exception as e:
@@ -401,7 +404,7 @@ def dEn_IG_NASA9_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,  #
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate enthalpy change (dEn_IG) between two temperatures using NASA 9-coefficient polynomial coefficients. If initial temperature is set to 298.15 K, the result corresponds to sensible enthalpy change.
 
@@ -438,7 +441,7 @@ def dEn_IG_NASA9_polynomial(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    Optional[CustomProp]
         A dictionary containing the calculated sensible heat effect and related information, or None if an error occurs.
     """
     try:
@@ -454,7 +457,7 @@ def dEn_IG_NASA9_polynomial(
         if res_initial is None:
             return None
 
-        En_initial = res_initial["result"]["value"]
+        En_initial = res_initial.value
 
         # SECTION: calculate En at final temperature
         res_final = En_IG_NASA9_polynomial(
@@ -468,7 +471,7 @@ def dEn_IG_NASA9_polynomial(
         if res_final is None:
             return None
 
-        En_final = res_final["result"]["value"]
+        En_final = res_final.value
 
         # SECTION: calculate sensible heat effect
         delta_En = En_final - En_initial
@@ -480,17 +483,18 @@ def dEn_IG_NASA9_polynomial(
         else:
             delta_En_unit = output_unit
 
-        # return result model
-        res = {
-            "result": {
-                "value": delta_En,
-                "unit": delta_En_unit,
-                "symbol": "dEn_IG"
-            },
-            "message": message if message is not None else "Sensible heat effect calculation using NASA-9 successful"
-        }
-        return res
+        # NOTE: prepare result
+        result = CustomProp(
+            value=delta_En,
+            unit=delta_En_unit
+        )
 
+        # message
+        if message is not None:
+            message = "Sensible heat effect calculation using NASA-9 successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in sensible heat effect calculation: {e}")
         return None
@@ -511,7 +515,7 @@ def En_IG_shomate(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas enthalpy (En_IG) using Shomate equation coefficients. The Shomate equation is defined as:
 
@@ -546,7 +550,7 @@ def En_IG_shomate(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    Optional[CustomProp]
         A dictionary containing the calculated ideal gas enthalpy and related information, or None if an error occurs.
     """
     try:
@@ -621,17 +625,18 @@ def En_IG_shomate(
                 to_unit=En_unit
             )
 
-        # return result model
-        res = {
-            "result": {
-                "value": En_value,
-                "unit": En_unit,
-                "symbol": "En_IG"
-            },
-            "message": message if message is not None else "Ideal gas enthalpy calculation using Shomate equation successful"
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=En_value,
+            unit=En_unit
+        )
 
-        return res
+        # message
+        if message is not None:
+            message = "Ideal gas enthalpy calculation using Shomate equation successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in ideal gas enthalpy calculation: {e}")
         return None
@@ -738,19 +743,20 @@ def En_IG_shomate_range(
                 continue
 
             # set
-            enthalpy_results.append(res["result"]['value'])
+            enthalpy_results.append(res.value)
+
+        # NOTE: message
+        if message is not None:
+            message = "Integral ideal gas enthalpy calculation over range using Shomate equation successful"
+            print(message)
 
         # return result model
         res = {
-            "result": {
-                "values": {
-                    "x": temperatures.tolist(),
-                    "y": enthalpy_results,
-                },
-                "unit": output_unit if output_unit is not None else "kJ/mol",
-                "symbol": "En_IG"
+            "values": {
+                "x": temperatures.tolist(),
+                "y": enthalpy_results,
             },
-            "message": message if message is not None else "Integral ideal gas enthalpy calculation over range using Shomate equation successful"
+            "unit": output_unit if output_unit is not None else "kJ/mol",
         }
 
         return res
@@ -776,7 +782,7 @@ def En_IG_NASA7_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate ideal-gas enthalpy using NASA 7-coefficient polynomial.
 
@@ -811,7 +817,7 @@ def En_IG_NASA7_polynomial(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    Optional[CustomProp]
         A dictionary containing the calculated ideal gas enthalpy and related information, or None if an error occurs.
 
     Notes
@@ -873,13 +879,23 @@ def En_IG_NASA7_polynomial(
         else:
             En_unit = output_unit
             En_value = pycuc.convert_from_to(
-                value=En_value, from_unit="J/mol", to_unit=En_unit)
+                value=En_value,
+                from_unit="J/mol",
+                to_unit=En_unit
+            )
 
-        return {
-            "result": {"value": En_value, "unit": En_unit, "symbol": "En_IG"},
-            "message": message if message is not None else "Ideal gas enthalpy calculation using NASA-7 successful",
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=En_value,
+            unit=En_unit
+        )
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas enthalpy calculation using NASA-7 successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in ideal gas enthalpy calculation (NASA7): {e}")
         return None
@@ -972,15 +988,19 @@ def En_IG_NASA7_polynomial_range(
                 message=None,
             )
             enthalpy_results.append(
-                0.0 if res is None else res["result"]["value"])
+                0.0 if res is None else res.value)
+
+        # NOTE: message
+        if message is not None:
+            message = "Integral ideal gas enthalpy calculation over range using NASA-7 successful"
+            print(message)
 
         return {
-            "result": {
-                "values": {"x": temperatures.tolist(), "y": enthalpy_results},
-                "unit": output_unit if output_unit is not None else "J/mol",
-                "symbol": "En_IG",
+            "values": {
+                "x": temperatures.tolist(),
+                "y": enthalpy_results
             },
-            "message": message if message is not None else "Integral ideal gas enthalpy over range using NASA-7 successful",
+            "unit": output_unit if output_unit is not None else "J/mol",
         }
 
     except Exception as e:
@@ -1061,21 +1081,22 @@ def En_IG_NASA7_polynomial_ranges(
                 continue
 
             # set
-            enthalpy_results.append(res["result"]['value'])
+            enthalpy_results.append(res.value)
 
         temperature_values = [temp.value for temp in temperatures]
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas enthalpy calculation at multiple temperatures using NASA-7 successful"
+            print(message)
+
         # return result model
         res = {
-            "result": {
-                "values": {
-                    "x": temperature_values,
-                    "y": enthalpy_results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol",
-                "symbol": "En_IG"
+            "values": {
+                "x": temperature_values,
+                "y": enthalpy_results,
             },
-            "message": message if message is not None else "Ideal gas enthalpy calculation at multiple temperatures using NASA-7 successful"
+            "unit": output_unit if output_unit is not None else "J/mol",
         }
         return res
     except Exception as e:
@@ -1100,7 +1121,7 @@ def dEn_IG_NASA7_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate enthalpy change (dEn_IG) between two temperatures using NASA 7-coefficient polynomial coefficients. If initial temperature is set to 298.15 K, the result corresponds to sensible enthalpy change.
 
@@ -1133,7 +1154,7 @@ def dEn_IG_NASA7_polynomial(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    Optional[CustomProp]
         A dictionary containing the calculated sensible heat effect and related information, or None if an error occurs.
     """
     try:
@@ -1147,7 +1168,7 @@ def dEn_IG_NASA7_polynomial(
         )
         if res_initial is None:
             return None
-        En_initial = res_initial["result"]["value"]
+        En_initial = res_initial.value
 
         res_final = En_IG_NASA7_polynomial(
             a1, a2, a3, a4, a5, a6, a7,
@@ -1159,19 +1180,22 @@ def dEn_IG_NASA7_polynomial(
         )
         if res_final is None:
             return None
-        En_final = res_final["result"]["value"]
+        En_final = res_final.value
 
         delta_En = float(En_final - En_initial)
 
-        return {
-            "result": {
-                "value": delta_En,
-                "unit": output_unit if output_unit is not None else "J/mol",
-                "symbol": "dEn_IG"
-            },
-            "message": message if message is not None else "Sensible heat effect calculation using NASA-7 successful",
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=delta_En,
+            unit=output_unit if output_unit is not None else "J/mol"
+        )
 
+        # NOTE: message
+        if message is not None:
+            message = "Sensible heat effect calculation using NASA-7 successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in sensible heat effect calculation (NASA7): {e}")
         return None
@@ -1199,13 +1223,35 @@ def calc_En_IG(
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
     **coeffs: Any,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Dispatcher for ideal-gas enthalpy.
     Routes to:
     - En_IG_NASA7_polynomial(a1..a7, temperature=..., ...)
-    - En_IG_NASA9_polynomial(a1..a7, b1, temperature=..., ...)
+    - En_IG_NASA9_polynomial(a1..a7, b1, b2, temperature=..., ...)
     - En_IG_shomate(A..G, temperature=..., ...)
+
+    Parameters
+    ----------
+    method : En_IG_Method
+        Method to use for enthalpy calculation ("NASA7", "NASA9", or "Shomate")
+    temperature : Temperature
+        Temperature at which to calculate enthalpy defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    temperature_range : Optional[Tuple[Temperature, Temperature]], optional
+        Optional temperature range for validity check
+    output_unit : Optional[str], optional
+        Desired output unit for enthalpy (default is None, which returns J/mol)
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K (default is 8.31446261815324 J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+    **coeffs : Any
+        Coefficients required for the selected method
+
+    Returns
+    -------
+    Optional[CustomProp]
+        A dictionary containing the calculated ideal gas enthalpy and related information, or None if an error occurs.
 
     Notes
     -----

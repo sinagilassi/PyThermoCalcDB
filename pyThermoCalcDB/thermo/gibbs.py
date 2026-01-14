@@ -1,7 +1,7 @@
 # import libs
 import logging
 from typing import Optional, Dict, Any, Tuple, Literal, List
-from pythermodb_settings.models import Temperature
+from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # local
 from ..utils.conversions import _to_kelvin
@@ -37,7 +37,7 @@ def GiFrEn_IG(
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
     **coeffs: Any,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate ideal-gas Gibbs free energy of a component at a temperature.
 
@@ -68,9 +68,8 @@ def GiFrEn_IG(
 
     Returns
     -------
-    Dict with keys:
-        result: {value, unit, symbol}
-        message
+    CustomProp
+        Object containing the calculated Gibbs free energy value and unit, or None if an error occurs.
 
     Notes
     -----
@@ -103,7 +102,7 @@ def GiFrEn_IG(
         )
         if H_res is None:
             return None
-        H = float(H_res["result"]["value"])  # J/mol
+        H = float(H_res.value)  # J/mol
 
         # S in J/mol.K (force for unit consistency)
         S_res = calc_Ent_IG(
@@ -131,10 +130,18 @@ def GiFrEn_IG(
             G_value = pycuc.convert_from_to(
                 value=G_value, from_unit="J/mol", to_unit=G_unit)
 
-        return {
-            "result": {"value": G_value, "unit": G_unit, "symbol": "GiFrEn_IG"},
-            "message": message if message is not None else "Ideal gas Gibbs free energy calculation successful",
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=G_value,
+            unit=G_unit,
+        )
+
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas Gibbs free energy calculation successful"
+            print(message)
+
+        return result
 
     except Exception as e:
         logger.error(f"Error in ideal gas Gibbs free energy calculation: {e}")
@@ -205,21 +212,22 @@ def GiFrEn_IG_ranges(
             if G_res is None:
                 results.append(0.0)  # or None, depending on preference
             else:
-                results.append(G_res["result"]["value"])
+                results.append(G_res.value)
 
         # NOTE: collect temperature values for reference
         temperature_values = [temp.value for temp in temperatures]
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas Gibbs free energy range calculation successful"
+            print(message)
+
         return {
-            "result": {
-                "values": {
-                    "x": temperature_values,
-                    "y": results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol",
-                "symbol": "GiFrEn_IG",
+            "values": {
+                "x": temperature_values,
+                "y": results,
             },
-            "message": message if message is not None else "Ideal gas Gibbs free energy range calculation successful",
+            "unit": output_unit if output_unit is not None else "J/mol",
         }
 
     except Exception as e:
@@ -240,7 +248,7 @@ def dGiFrEn_IG(
     universal_gas_constant: float = 8.31446261815324,
     message: Optional[str] = None,
     **coeffs: Any,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate ideal-gas Gibbs free energy change between two temperatures.
 
@@ -273,14 +281,21 @@ def dGiFrEn_IG(
         if G_f is None:
             return None
 
-        dG_value = float(G_f["result"]["value"] - G_i["result"]["value"])
+        dG_value = float(G_f.value - G_i.value)
         dG_unit = output_unit if output_unit is not None else "J/mol"
 
-        return {
-            "result": {"value": dG_value, "unit": dG_unit, "symbol": "dGiFrEn_IG"},
-            "message": message if message is not None else "Ideal gas Gibbs free energy change calculation successful",
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=dG_value,
+            unit=dG_unit,
+        )
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas Gibbs free energy change calculation successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(
             f"Error in ideal gas Gibbs free energy change calculation: {e}")
