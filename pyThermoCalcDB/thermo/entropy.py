@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 from typing import Optional, Dict, Any, Tuple, Literal
-from pythermodb_settings.models import Temperature
+from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # locals
 
@@ -28,7 +28,7 @@ def S_IG_NASA9_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas entropy (S_IG) using NASA 9-coefficient polynomial coefficients. The NASA polynomial equation is defined as:
 
@@ -67,8 +67,8 @@ def S_IG_NASA9_polynomial(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
-        Result dictionary containing the calculated ideal gas entropy and related information, or None if an error occurs.
+    Optional[CustomProp]
+        Result containing the calculated ideal gas entropy and related information, or None if an error occurs.
     """
     try:
         # SECTION: Input Validation
@@ -141,17 +141,18 @@ def S_IG_NASA9_polynomial(
                 to_unit=S_unit
             )
 
-        # return result model
-        res = {
-            "result": {
-                "value": S_value,
-                "unit": S_unit,
-                "symbol": "Ent_IG"
-            },
-            "message": message if message is not None else "Ideal gas entropy calculation using NASA-9 successful"
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=S_value,
+            unit=S_unit
+        )
 
-        return res
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas entropy calculation using NASA-9 successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in ideal gas entropy calculation: {e}")
         return None
@@ -258,21 +259,20 @@ def S_IG_NASA9_polynomial_range(
                 continue
 
             # set
-            entropy_results.append(res["result"]['value'])
+            entropy_results.append(res.value)
 
         # return result model
-        res = {
-            "result": {
-                "values": {
-                    "x": temperatures.tolist(),
-                    "y": entropy_results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol.K",
-                "symbol": "Ent_IG"
+        if message is not None:
+            message = "Integral ideal gas entropy calculation over range using NASA-9 successful"
+            print(message)
+
+        return {
+            "values": {
+                "x": temperatures.tolist(),
+                "y": entropy_results,
             },
-            "message": message if message is not None else "Integral ideal gas entropy calculation over range using NASA-9 successful"
+            "unit": output_unit if output_unit is not None else "J/mol.K",
         }
-        return res
     except Exception as e:
         logger.error(
             f"Error in integral ideal gas entropy range calculation: {e}")
@@ -365,22 +365,21 @@ def S_IG_NASA9_polynomial_ranges(
                 continue
 
             # set
-            entropy_results.append(res["result"]['value'])
+            entropy_results.append(res.value)
             temperature_values.append(T_value)
 
         # return result model
-        res = {
-            "result": {
-                "values": {
-                    "x": temperature_values,
-                    "y": entropy_results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol.K",
-                "symbol": "Ent_IG"
+        if message is not None:
+            message = "Ideal gas entropy calculation over range using NASA-9 successful"
+            print(message)
+
+        return {
+            "values": {
+                "x": temperature_values,
+                "y": entropy_results,
             },
-            "message": message if message is not None else "Ideal gas entropy calculation over range using NASA-9 successful"
+            "unit": output_unit if output_unit is not None else "J/mol.K",
         }
-        return res
     except Exception as e:
         logger.error(
             f"Error in ideal gas entropy range calculation: {e}")
@@ -405,7 +404,7 @@ def dS_IG_NASA9_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,  #
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate entropy change (dS_IG) between two temperatures using NASA 9-coefficient polynomial coefficients.
     """
@@ -422,7 +421,7 @@ def dS_IG_NASA9_polynomial(
         if res_initial is None:
             return None
 
-        S_initial = res_initial["result"]["value"]
+        S_initial = res_initial.value
 
         # SECTION: calculate S at final temperature
         res_final = S_IG_NASA9_polynomial(
@@ -436,7 +435,7 @@ def dS_IG_NASA9_polynomial(
         if res_final is None:
             return None
 
-        S_final = res_final["result"]["value"]
+        S_final = res_final.value
 
         # SECTION: calculate entropy change
         delta_S = S_final - S_initial
@@ -449,16 +448,18 @@ def dS_IG_NASA9_polynomial(
             delta_S_unit = output_unit
 
         # return result model
-        res = {
-            "result": {
-                "value": delta_S,
-                "unit": delta_S_unit,
-                "symbol": "dEnt_IG"
-            },
-            "message": message if message is not None else "Entropy change calculation using NASA-9 successful"
-        }
-        return res
+        # NOTE: prepare result
+        result = CustomProp(
+            value=delta_S,
+            unit=delta_S_unit
+        )
 
+        # NOTE: message
+        if message is not None:
+            message = "Entropy change calculation using NASA-9 successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in entropy change calculation: {e}")
         return None
@@ -478,13 +479,41 @@ def S_IG_shomate(
     temperature_range: Optional[tuple[Temperature, Temperature]] = None,
     output_unit: Optional[str] = None,
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas entropy (S_IG) using Shomate equation coefficients. The Shomate equation is defined as:
 
     S_IG(T) = A*ln(t) + B*t + C*t^2/2 + D*t^3/3 - E/(2*t^2) + G, where t = T/1000
 
     where S is the entropy [J/mol.K] at temperature T [K].
+
+    Parameters
+    ----------
+    A : float
+        Shomate equation coefficient A
+    B : float
+        Shomate equation coefficient B
+    C : float
+        Shomate equation coefficient C
+    D : float
+        Shomate equation coefficient D
+    E : float
+        Shomate equation coefficient E
+    F : float
+        Shomate equation coefficient F
+    G : float
+        Shomate equation coefficient G
+    temperature : Temperature
+        Temperature at which to calculate entropy defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    output_unit : Optional[str], optional
+        Desired output unit for entropy (default is None, which returns J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Result containing the calculated ideal gas entropy and related information, or None if an error occurs.
     """
     try:
         # SECTION: Input Validation
@@ -559,16 +588,18 @@ def S_IG_shomate(
             )
 
         # return result model
-        res = {
-            "result": {
-                "value": S_value,
-                "unit": S_unit,
-                "symbol": "Ent_IG"
-            },
-            "message": message if message is not None else "Ideal gas entropy calculation using Shomate equation successful"
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=S_value,
+            unit=S_unit
+        )
 
-        return res
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas entropy calculation using Shomate equation successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in ideal gas entropy calculation: {e}")
         return None
@@ -593,6 +624,38 @@ def S_IG_shomate_range(
 ) -> Optional[Dict[str, Any]]:
     """
     Calculate the integral ideal gas entropy (S_IG) over a temperature range using Shomate equation coefficients.
+
+    Parameters
+    ----------
+    A : float
+        Shomate equation coefficient A
+    B : float
+        Shomate equation coefficient B
+    C : float
+        Shomate equation coefficient C
+    D : float
+        Shomate equation coefficient D
+    E : float
+        Shomate equation coefficient E
+    F : float
+        Shomate equation coefficient F
+    G : float
+        Shomate equation coefficient G
+    T_low : Temperature
+        Lower temperature bound defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    T_high : Temperature
+        Upper temperature bound defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    T_points : int, optional
+        Number of temperature points to calculate within the range (default is 10)
+    output_unit : Optional[str], optional
+        Desired output unit for entropy (default is None, which returns J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+
+    Returns
+    -------
+    Optional[Dict[str, Any]]
+        A dictionary containing the calculated ideal gas entropy values over the temperature range, or None if an error occurs.
     """
     try:
         # SECTION: generate temperature points between T_low and T_high
@@ -634,22 +697,20 @@ def S_IG_shomate_range(
                 continue
 
             # set
-            entropy_results.append(res["result"]['value'])
+            entropy_results.append(res.value)
 
         # return result model
-        res = {
-            "result": {
-                "values": {
-                    "x": temperatures.tolist(),
-                    "y": entropy_results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol.K",
-                "symbol": "Ent_IG"
-            },
-            "message": message if message is not None else "Integral ideal gas entropy calculation over range using Shomate equation successful"
-        }
+        if message is not None:
+            message = "Integral ideal gas entropy calculation over range using Shomate equation successful"
+            print(message)
 
-        return res
+        return {
+            "values": {
+                "x": temperatures.tolist(),
+                "y": entropy_results,
+            },
+            "unit": output_unit if output_unit is not None else "J/mol.K",
+        }
     except Exception as e:
         logger.error(
             f"Error in integral ideal gas entropy range calculation: {e}")
@@ -671,12 +732,42 @@ def S_IG_NASA7_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate ideal-gas entropy using NASA 7-coefficient polynomial.
 
     NASA7 relations (T in K):
         S/R = a1 ln T + a2*T + a3*T^2/2 + a4*T^3/3 + a5*T^4/4 + a7
+
+    Parameters
+    ----------
+    a1 : float
+        NASA polynomial coefficient a1
+    a2 : float
+        NASA polynomial coefficient a2
+    a3 : float
+        NASA polynomial coefficient a3
+    a4 : float
+        NASA polynomial coefficient a4
+    a5 : float
+        NASA polynomial coefficient a5
+    a6 : float
+        NASA polynomial coefficient a6 (not used in entropy calculation)
+    a7 : float
+        NASA polynomial coefficient a7
+    temperature : Temperature
+        Temperature at which to calculate entropy defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    output_unit : Optional[str], optional
+        Desired output unit for entropy (default is None, which returns J/mol.K)
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K (default is 8.31446261815324 J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Result containing the calculated ideal gas entropy and related information, or None if an error occurs.
 
     Notes
     -----
@@ -739,10 +830,18 @@ def S_IG_NASA7_polynomial(
             S_value = pycuc.convert_from_to(
                 value=S_value, from_unit="J/mol.K", to_unit=S_unit)
 
-        return {
-            "result": {"value": S_value, "unit": S_unit, "symbol": "Ent_IG"},
-            "message": message if message is not None else "Ideal gas entropy calculation using NASA-7 successful",
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=S_value,
+            unit=S_unit
+        )
+
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas entropy calculation using NASA-7 successful"
+            print(message)
+
+        return result
 
     except Exception as e:
         logger.error(f"Error in ideal gas entropy calculation (NASA7): {e}")
@@ -765,6 +864,44 @@ def S_IG_NASA7_polynomial_range(
     universal_gas_constant: float = 8.31446261815324,
     message: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
+    """
+    Calculate the integral ideal gas entropy (S_IG) over a temperature range using NASA
+
+    7-coefficient polynomial coefficients.
+    Parameters
+    ----------
+    a1 : float
+        NASA polynomial coefficient a1
+    a2 : float
+        NASA polynomial coefficient a2
+    a3 : float
+        NASA polynomial coefficient a3
+    a4 : float
+        NASA polynomial coefficient a4
+    a5 : float
+        NASA polynomial coefficient a5
+    a6 : float
+        NASA polynomial coefficient a6
+    a7 : float
+        NASA polynomial coefficient a7
+    T_low : Temperature
+        Lower temperature bound defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    T_high : Temperature
+        Upper temperature bound defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    T_points : int, optional
+        Number of temperature points to calculate within the range (default is 10)
+    output_unit : Optional[str], optional
+        Desired output unit for entropy (default is None, which returns J/mol.K)
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K (default is 8.31446261815324 J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+
+    Returns
+    -------
+    Optional[Dict[str, Any]]
+        A dictionary containing the calculated ideal gas entropy values over the temperature range, or None if an error occurs.
+    """
     try:
         # SECTION: generate temperature points
         T_low_value = T_low.value
@@ -793,15 +930,18 @@ def S_IG_NASA7_polynomial_range(
                 message=None,
             )
             entropy_results.append(
-                0.0 if res is None else res["result"]["value"])
+                0.0 if res is None else res.value)
+
+        if message is not None:
+            message = "Integral ideal gas entropy over range using NASA-7 successful"
+            print(message)
 
         return {
-            "result": {
-                "values": {"x": temperatures.tolist(), "y": entropy_results},
-                "unit": output_unit if output_unit is not None else "J/mol.K",
-                "symbol": "Ent_IG",
+            "values": {
+                "x": temperatures.tolist(),
+                "y": entropy_results
             },
-            "message": message if message is not None else "Integral ideal gas entropy over range using NASA-7 successful",
+            "unit": output_unit if output_unit is not None else "J/mol.K",
         }
 
     except Exception as e:
@@ -884,19 +1024,19 @@ def S_IG_NASA7_polynomial_ranges(
                 temperature_values.append(T_value)
                 continue
 
-            entropy_results.append(res["result"]['value'])
+            entropy_results.append(res.value)
             temperature_values.append(T_value)
 
+        if message is not None:
+            message = "Ideal gas entropy calculation over range using NASA-7 successful"
+            print(message)
+
         return {
-            "result": {
-                "values": {
-                    "x": temperature_values,
-                    "y": entropy_results,
-                },
-                "unit": output_unit if output_unit is not None else "J/mol.K",
-                "symbol": "Ent_IG"
+            "values": {
+                "x": temperature_values,
+                "y": entropy_results,
             },
-            "message": message if message is not None else "Ideal gas entropy calculation over range using NASA-7 successful"
+            "unit": output_unit if output_unit is not None else "J/mol.K",
         }
 
     except Exception as e:
@@ -919,7 +1059,44 @@ def dS_IG_NASA7_polynomial(
     output_unit: Optional[str] = None,
     universal_gas_constant: float = 8.31446261815324,
     message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
+    """
+    Calculate entropy change (dS_IG) between two temperatures using NASA 7-coefficient polynomial coefficients.
+
+    Parameters
+    ----------
+    a1 : float
+        NASA polynomial coefficient a1
+    a2 : float
+        NASA polynomial coefficient a2
+    a3 : float
+        NASA polynomial coefficient a3
+    a4 : float
+        NASA polynomial coefficient a4
+    a5 : float
+        NASA polynomial coefficient a5
+    a6 : float
+        NASA polynomial coefficient a6
+    a7 : float
+        NASA polynomial coefficient a7
+    T_initial : Temperature
+        Initial temperature defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    T_final : Temperature
+        Final temperature defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    temperature_range : Optional[tuple[Temperature, Temperature]], optional
+        Valid temperature range for the coefficients (default is None)
+    output_unit : Optional[str], optional
+        Desired output unit for entropy change (default is None, which returns J/mol.K)
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K (default is 8.31446261815324 J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Result containing the calculated entropy change and related information, or None if an error occurs.
+    """
     try:
         res_initial = S_IG_NASA7_polynomial(
             a1, a2, a3, a4, a5, a6, a7,
@@ -931,7 +1108,7 @@ def dS_IG_NASA7_polynomial(
         )
         if res_initial is None:
             return None
-        S_initial = res_initial["result"]["value"]
+        S_initial = res_initial.value
 
         res_final = S_IG_NASA7_polynomial(
             a1, a2, a3, a4, a5, a6, a7,
@@ -943,19 +1120,22 @@ def dS_IG_NASA7_polynomial(
         )
         if res_final is None:
             return None
-        S_final = res_final["result"]["value"]
+        S_final = res_final.value
 
         delta_S = float(S_final - S_initial)
 
-        return {
-            "result": {
-                "value": delta_S,
-                "unit": output_unit if output_unit is not None else "J/mol.K",
-                "symbol": "dEnt_IG"
-            },
-            "message": message if message is not None else "Entropy change calculation using NASA-7 successful",
-        }
+        # NOTE: prepare result
+        result = CustomProp(
+            value=delta_S,
+            unit=output_unit if output_unit is not None else "J/mol.K"
+        )
 
+        # NOTE: message
+        if message is not None:
+            message = "Entropy change calculation using NASA-7 successful"
+            print(message)
+
+        return result
     except Exception as e:
         logger.error(f"Error in entropy change calculation (NASA7): {e}")
         return None
@@ -983,13 +1163,35 @@ def calc_Ent_IG(
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
     **coeffs: Any,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Dispatcher for ideal-gas entropy.
     Routes to:
     - S_IG_NASA7_polynomial(a1..a7, temperature=..., ...)
     - S_IG_NASA9_polynomial(a1..a7, b2, temperature=..., ...)
     - S_IG_shomate(A..G, temperature=..., ...)
+
+    Parameters
+    ----------
+    method : S_IG_Method
+        Method to use for entropy calculation ("NASA7", "NASA9", or "Shomate")
+    temperature : Temperature
+        Temperature at which to calculate entropy defined in pythermodb_settings.models.Temperature, should be in Kelvin
+    temperature_range : Optional[Tuple[Temperature, Temperature]], optional
+        Valid temperature range for the coefficients (default is None)
+    output_unit : Optional[str], optional
+        Desired output unit for entropy (default is None, which returns J/mol.K)
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K (default is 8.31446261815324 J/mol.K)
+    message : Optional[str], optional
+        Optional message regarding the calculation
+    **coeffs : Any
+        Coefficients required for the selected method
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Result containing the calculated ideal gas entropy and related information, or None if an error occurs.
     """
     try:
         if method == "NASA7":
