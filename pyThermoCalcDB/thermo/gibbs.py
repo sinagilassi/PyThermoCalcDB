@@ -116,7 +116,7 @@ def GiFrEn_IG(
         )
         if S_res is None:
             return None
-        S = float(S_res["result"]["value"])  # J/mol.K
+        S = float(S_res.value)  # J/mol.K
 
         # Gibbs in J/mol
         G_value = H - T_k * S
