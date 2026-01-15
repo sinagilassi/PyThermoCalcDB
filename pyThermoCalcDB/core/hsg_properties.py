@@ -1132,6 +1132,11 @@ class HSGProperties:
 
         - solid enthalpy (H_SOL) is calculated as (not implemented):
             H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fusion(T)
+
+        Which assume that the solid is converted to liquid via sublimation and then to gas via vaporization or directly to gas via sublimation as:
+            H_SOL(T) = H_IG(T) - ΔH_sub(T)
+
+        Where the sublimation enthalpy is the sum of fusion and vaporization enthalpies.
         """
         try:
             # SECTION: calculate ideal gas enthalpy
@@ -1202,7 +1207,7 @@ class HSGProperties:
 
                 # NOTE: calculate solid enthalpy of formation
                 # ! [J/mol]
-                EnFo_SOL_value = EnFo_IG.value - EnVap.value - EnSub.value
+                EnFo_SOL_value = EnFo_IG.value - EnSub.value
 
                 # prepare result
                 result_ = {

@@ -265,7 +265,7 @@ class HSGReaction:
             H_LIQ(T) = H_IG(T) - ΔH_vap(T)
 
         - solid enthalpy (H_SOL) is calculated as (not implemented):
-            H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fusion(T)
+            H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fusion(T) or H_IG(T) - ΔH_sub(T)
         """
         try:
             # NOTE: initialize reaction enthalpy
