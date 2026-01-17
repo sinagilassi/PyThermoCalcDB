@@ -148,7 +148,7 @@ def En_IG_NASA9_polynomial(
 
         # return result model
         if message is not None:
-            message = "Ideal gas enthalpy calculation using NASA-9 successful"
+            message = "Ideal gas enthalpy calculation using NASA-9 successful," + message
             print(message)
 
         return result
@@ -266,7 +266,7 @@ def En_IG_NASA9_polynomial_range(
 
         # NOTE: message
         if message is not None:
-            message = "Integral ideal gas enthalpy calculation over range using NASA-9 successful"
+            message = "Integral ideal gas enthalpy calculation over range using NASA-9 successful" + message
             print(message)
 
         # return result model
@@ -369,7 +369,7 @@ def En_IG_NASA9_polynomial_ranges(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas enthalpy calculation at multiple temperatures using NASA-9 successful"
+            message = "Ideal gas enthalpy calculation at multiple temperatures using NASA-9 successful" + message
             print(message)
 
         # return result model
@@ -491,7 +491,7 @@ def dEn_IG_NASA9_polynomial(
 
         # message
         if message is not None:
-            message = "Sensible heat effect calculation using NASA-9 successful"
+            message = "Sensible heat effect calculation using NASA-9 successful" + message
             print(message)
 
         return result
@@ -633,7 +633,7 @@ def En_IG_shomate(
 
         # message
         if message is not None:
-            message = "Ideal gas enthalpy calculation using Shomate equation successful"
+            message = "Ideal gas enthalpy calculation using Shomate equation successful" + message
             print(message)
 
         return result
@@ -747,7 +747,7 @@ def En_IG_shomate_range(
 
         # NOTE: message
         if message is not None:
-            message = "Integral ideal gas enthalpy calculation over range using Shomate equation successful"
+            message = "Integral ideal gas enthalpy calculation over range using Shomate equation successful" + message
             print(message)
 
         # return result model
@@ -892,7 +892,7 @@ def En_IG_NASA7_polynomial(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas enthalpy calculation using NASA-7 successful"
+            message = "Ideal gas enthalpy calculation using NASA-7 successful" + message
             print(message)
 
         return result
@@ -992,7 +992,7 @@ def En_IG_NASA7_polynomial_range(
 
         # NOTE: message
         if message is not None:
-            message = "Integral ideal gas enthalpy calculation over range using NASA-7 successful"
+            message = "Integral ideal gas enthalpy calculation over range using NASA-7 successful" + message
             print(message)
 
         return {
@@ -1087,7 +1087,7 @@ def En_IG_NASA7_polynomial_ranges(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas enthalpy calculation at multiple temperatures using NASA-7 successful"
+            message = "Ideal gas enthalpy calculation at multiple temperatures using NASA-7 successful" + message
             print(message)
 
         # return result model
@@ -1192,7 +1192,7 @@ def dEn_IG_NASA7_polynomial(
 
         # NOTE: message
         if message is not None:
-            message = "Sensible heat effect calculation using NASA-7 successful"
+            message = "Sensible heat effect calculation using NASA-7 successful" + message
             print(message)
 
         return result
