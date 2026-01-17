@@ -138,7 +138,7 @@ def GiFrEn_IG(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas Gibbs free energy calculation successful"
+            message = "Ideal gas Gibbs free energy calculation successful" + message
             print(message)
 
         return result
@@ -219,7 +219,7 @@ def GiFrEn_IG_ranges(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas Gibbs free energy range calculation successful"
+            message = "Ideal gas Gibbs free energy range calculation successful" + message
             print(message)
 
         return {
@@ -292,7 +292,7 @@ def dGiFrEn_IG(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas Gibbs free energy change calculation successful"
+            message = "Ideal gas Gibbs free energy change calculation successful" + message
             print(message)
 
         return result
