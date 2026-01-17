@@ -149,7 +149,7 @@ def S_IG_NASA9_polynomial(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas entropy calculation using NASA-9 successful"
+            message = "Ideal gas entropy calculation using NASA-9 successful" + message
             print(message)
 
         return result
@@ -263,7 +263,7 @@ def S_IG_NASA9_polynomial_range(
 
         # return result model
         if message is not None:
-            message = "Integral ideal gas entropy calculation over range using NASA-9 successful"
+            message = "Integral ideal gas entropy calculation over range using NASA-9 successful" + message
             print(message)
 
         return {
@@ -370,7 +370,7 @@ def S_IG_NASA9_polynomial_ranges(
 
         # return result model
         if message is not None:
-            message = "Ideal gas entropy calculation over range using NASA-9 successful"
+            message = "Ideal gas entropy calculation over range using NASA-9 successful" + message
             print(message)
 
         return {
@@ -596,7 +596,7 @@ def S_IG_shomate(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas entropy calculation using Shomate equation successful"
+            message = "Ideal gas entropy calculation using Shomate equation successful" + message
             print(message)
 
         return result
@@ -701,7 +701,7 @@ def S_IG_shomate_range(
 
         # return result model
         if message is not None:
-            message = "Integral ideal gas entropy calculation over range using Shomate equation successful"
+            message = "Integral ideal gas entropy calculation over range using Shomate equation successful" + message
             print(message)
 
         return {
@@ -838,7 +838,7 @@ def S_IG_NASA7_polynomial(
 
         # NOTE: message
         if message is not None:
-            message = "Ideal gas entropy calculation using NASA-7 successful"
+            message = "Ideal gas entropy calculation using NASA-7 successful" + message
             print(message)
 
         return result
@@ -933,7 +933,7 @@ def S_IG_NASA7_polynomial_range(
                 0.0 if res is None else res.value)
 
         if message is not None:
-            message = "Integral ideal gas entropy over range using NASA-7 successful"
+            message = "Integral ideal gas entropy over range using NASA-7 successful" + message
             print(message)
 
         return {
@@ -1028,7 +1028,7 @@ def S_IG_NASA7_polynomial_ranges(
             temperature_values.append(T_value)
 
         if message is not None:
-            message = "Ideal gas entropy calculation over range using NASA-7 successful"
+            message = "Ideal gas entropy calculation over range using NASA-7 successful" + message
             print(message)
 
         return {
@@ -1132,7 +1132,7 @@ def dS_IG_NASA7_polynomial(
 
         # NOTE: message
         if message is not None:
-            message = "Entropy change calculation using NASA-7 successful"
+            message = "Entropy change calculation using NASA-7 successful" + message
             print(message)
 
         return result
