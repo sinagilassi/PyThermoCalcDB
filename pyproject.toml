@@ -29,15 +29,15 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-    "scipy>=1.16.3",
-    "numpy>=2.3.5",
+    "scipy>=1.17.0",
+    "numpy>=2.4.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     "rich>=14.2.0",
-    "pycuc>=2.1.1",
-    "pythermodb>=1.11.63",
-    "pythermolinkdb>=1.4.8",
-    "pythermodb-settings>=0.1.13",
+    "pycuc>=2.4.0",
+    "pythermodb>=1.12.1",
+    "pythermolinkdb>=1.4.9",
+    "pythermodb-settings>=0.2.1",
     "pyreactlab-core>=0.1.3",
 ]
 
