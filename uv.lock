@@ -427,7 +427,7 @@ wheels = [
 
 [[package]]
 name = "pythermocalcdb"
-version = "0.6.0"
+version = "0.7.5"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
@@ -445,20 +445,20 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=2.3.5" },
-    { name = "pycuc" },
+    { name = "pycuc", specifier = ">=2.1.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
-    { name = "pyreactlab-core" },
-    { name = "pythermodb" },
-    { name = "pythermodb-settings" },
-    { name = "pythermolinkdb" },
+    { name = "pyreactlab-core", specifier = ">=0.1.3" },
+    { name = "pythermodb", specifier = ">=1.11.63" },
+    { name = "pythermodb-settings", specifier = ">=0.1.13" },
+    { name = "pythermolinkdb", specifier = ">=1.4.8" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
 
 [[package]]
 name = "pythermodb"
-version = "1.11.63"
+version = "1.12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -469,9 +469,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/63/96/82729fc2c7bef1078d78dc227f7ab9760d11bd7c08434226fc3c5884cc22/pythermodb-1.11.63.tar.gz", hash = "sha256:43b2879af3a7391eec1f5f8b8e9743d740288e37bd87c1ea7d16cd9e9944c992", size = 158428, upload-time = "2025-12-14T19:37:41.232Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/f1/480ce9d26f42b67f410862120730c10587c06079e1c9cb7661ceed803238/pythermodb-1.12.1.tar.gz", hash = "sha256:267a952cead5536ad88e1cab309a5877863a961647644f64ef9b6e75463b4452", size = 162857, upload-time = "2026-01-13T01:17:06.731Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/51/95/e220ed749dd0adcebae5655b02497a9fe876bac673d3555a7871312c64cb/pythermodb-1.11.63-py3-none-any.whl", hash = "sha256:c4a41e2fb8760e19e36b954cd82fcc09cd23b4c4568a38dac4419bd93d2594e0", size = 183212, upload-time = "2025-12-14T19:37:39.927Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/09/c5add19c4e6550233e291e17aba426338a58e9506389badd5f95a44ff622/pythermodb-1.12.1-py3-none-any.whl", hash = "sha256:7d58a8151977750fcd089bc2ecdcbc2dd35b52a62d4e3f4ccc67ccd6bc4714b7", size = 190149, upload-time = "2026-01-13T01:17:04.807Z" },
 ]
 
 [[package]]
