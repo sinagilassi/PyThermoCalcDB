@@ -1,7 +1,7 @@
 # import libs
 import logging
 from typing import Optional, Tuple, Dict, Any, Literal
-from pythermodb_settings.models import Temperature
+from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # locals
 
@@ -22,7 +22,7 @@ def Cp_IG_polynomial(
     temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
     output_unit: Optional[str] = None,
     message: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas heat capacity (Cp_IG) using a polynomial equation. The polynomial equation is defined as:
 
@@ -53,7 +53,7 @@ def Cp_IG_polynomial(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    Optional[CustomProp]
         Dictionary containing the calculated ideal gas heat capacity at constant pressure and related information. If an error occurs, returns None.
     """
     try:
@@ -88,15 +88,18 @@ def Cp_IG_polynomial(
         # set unit
         Cp_unit = output_unit if output_unit else "N/A"
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas heat capacity calculation successful," + message
+            print(message)
+
         # SECTION: Result preparation
         res = {
-            "result": {
-                "value": Cp_value,
-                "unit": Cp_unit,
-                "symbol": 'Cp_IG'
-            },
-            "message": message
+            "value": Cp_value,
+            "unit": Cp_unit,
         }
+        # wrap in CustomProp
+        res = CustomProp(**res)
 
         return res
     except Exception as e:
@@ -121,7 +124,7 @@ def Cp_IG_NASA9_polynomial(
         output_unit: Optional[str] = None,
         universal_gas_constant: float = 8.31446261815324,  # J/mol.K
         message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas heat capacity (Cp_IG) using NASA polynomial coefficients (NASA-9). The NASA polynomial equation is defined as:
 
@@ -162,7 +165,7 @@ def Cp_IG_NASA9_polynomial(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    Optional[CustomProp]
         Dictionary containing the calculated ideal gas heat capacity at constant pressure and related information. If an error occurs, returns None.
     """
     try:
@@ -233,15 +236,18 @@ def Cp_IG_NASA9_polynomial(
         # set unit
         Cp_unit = output_unit if output_unit else "J/mol.K"
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas heat capacity calculation successful," + message
+            print(message)
+
         # SECTION: Result preparation
         res = {
-            "result": {
-                "value": Cp_value,
-                "unit": Cp_unit,
-                "symbol": 'Cp_IG'
-            },
-            "message": message
+            "value": Cp_value,
+            "unit": Cp_unit,
         }
+        # wrap in CustomProp
+        res = CustomProp(**res)
 
         return res
     except Exception as e:
@@ -261,7 +267,7 @@ def Cp_IG_shomate(
     temperature_range: Optional[Tuple[Temperature, Temperature]] = None,
     output_unit: Optional[str] = None,
     message: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas heat capacity (Cp_IG) using the Shomate equation. The Shomate equation is defined as:
 
@@ -292,7 +298,7 @@ def Cp_IG_shomate(
 
     Returns
     -------
-    Optional[PolynomialCpIGResult]
+    Optional[CustomProp]
         Pydantic model containing the calculated ideal gas heat capacity at constant pressure and related information. If an error occurs, returns None.
     """
     try:
@@ -339,15 +345,18 @@ def Cp_IG_shomate(
         # set unit
         Cp_unit = output_unit if output_unit else "J/mol.K"
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas heat capacity calculation successful," + message
+            print(message)
+
         # SECTION: Result preparation
         res = {
-            "result": {
-                "value": Cp_value,
-                "unit": Cp_unit,
-                "symbol": 'Cp_IG'
-            },
-            "message": message
+            "value": Cp_value,
+            "unit": Cp_unit,
         }
+        # wrap in CustomProp
+        res = CustomProp(**res)
 
         return res
     except Exception as e:
@@ -370,7 +379,7 @@ def Cp_IG_NASA7_polynomial(
         output_unit: Optional[str] = None,
         universal_gas_constant: float = 8.31446261815324,  # J/mol.K
         message: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Calculate the ideal gas heat capacity (Cp_IG) using NASA polynomial coefficients (NASA-7).
 
@@ -404,7 +413,7 @@ def Cp_IG_NASA7_polynomial(
 
     Returns
     -------
-    Optional[Dict[str, Any]]
+    Optional[CustomProp]
         {"result": {"value": Cp_value, "unit": Cp_unit, "symbol": "Cp_IG"}, "message": message}
     """
     try:
@@ -469,17 +478,20 @@ def Cp_IG_NASA7_polynomial(
         # set unit
         Cp_unit = output_unit if output_unit else "J/mol.K"
 
+        # NOTE: message
+        if message is not None:
+            message = "Ideal gas heat capacity calculation successful," + message
+            print(message)
+
         # SECTION: Result preparation
         res = {
-            "result": {
-                "value": Cp_value,
-                "unit": Cp_unit,
-                "symbol": "Cp_IG"
-            },
-            "message": message
+            "value": Cp_value,
+            "unit": Cp_unit,
         }
-        return res
+        # wrap in CustomProp
+        res = CustomProp(**res)
 
+        return res
     except Exception as e:
         logger.error(f"Error in heat capacity calculation: {e}")
         return None
@@ -498,7 +510,7 @@ def Cp_IG(
     universal_gas_constant: float = 8.31446261815324,  # J/mol.K
     message: Optional[str] = None,
     **coeffs: Any,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[CustomProp]:
     """
     Unified Cp_IG dispatcher.
 
@@ -526,6 +538,28 @@ def Cp_IG(
             A=..., B=..., C=..., D=..., E=...,
             temperature_range=(Tmin, Tmax),
         )
+
+    Parameters
+    ----------
+    method : Cp_IG_Method
+        Method to use: "NASA7", "NASA9", or "SHOMATE".
+    temperature : Temperature
+        Temperature at which to calculate heat capacity.
+    temperature_range : Optional[Tuple[Temperature, Temperature]], optional
+        Optional temperature range for validity check, default is None.
+    output_unit : str, optional
+        Desired output unit for heat capacity, default is None.
+    universal_gas_constant : float, optional
+        Universal gas constant in J/mol.K, default is 8.31446261815324
+    message : str, optional
+        Optional message to include in the result, default is None.
+    **coeffs : dict
+        Coefficients required by the selected method.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Dictionary containing the calculated ideal gas heat capacity at constant pressure and related information. If an error occurs, returns None.
     """
     method_u = method.upper()
 
