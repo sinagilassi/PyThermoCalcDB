@@ -4,10 +4,13 @@
 ![PyPI](https://img.shields.io/pypi/v/PyThermoCalcDB)
 ![Python Version](https://img.shields.io/pypi/pyversions/PyThermoCalcDB.svg)
 ![License](https://img.shields.io/pypi/l/PyThermoCalcDB)
+[![Download on the App Store](https://img.shields.io/badge/Download_on_the_App_Store-0D0D0D?logo=apple&logoColor=white)](https://apps.apple.com/ca/app/mozithermocalc/id6759209992)
 
 **PyThermoCalcDB** — Python Thermodynamic Calculation Engine powered by PyThermoDB
 
 PyThermoCalcDB is a companion package to PyThermoDB, designed to provide a robust set of thermodynamic calculations, utilities, and workflows — using thermodynamic properties, constants, and equations built with PyThermoDB.
+
+Calculations can also be done on your mobile with the MoziThermoCalc iOS app: [Download on the App Store](https://apps.apple.com/ca/app/mozithermocalc/id6759209992).
 
 ## 🚀 Why PyThermoCalcDB?
 
