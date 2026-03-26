@@ -2,7 +2,7 @@
 import logging
 from typing import Optional, List, Dict, Literal, cast, Any
 from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp, ComponentKey
-from pythermodb_settings.utils import set_component_id, set_components_state
+from pythermodb_settings.utils import set_component_id, set_components_state, build_component_mapper
 import pycuc
 from pyThermoLinkDB.thermo import Source
 from pyreactlab_core.models.reaction import Reaction
@@ -158,10 +158,22 @@ class HSGReaction:
 
     def _components_hsg_properties(
             self,
-            search_mode: Literal['standard', 'original'] = 'original'
+            search_mode: Literal['standard', 'original'] = 'original',
+            component_keys: list[ComponentKey] = [
+                'Name-State',
+                'Formula-State',
+                'Name-Formula'
+            ]
     ) -> Dict[str, HSGProperties]:
         """
         Get the HSGProperties instances for all components in the mixture.
+
+        Parameters
+        ----------
+        search_mode : Literal['standard', 'original'], optional
+            The mode to search for components and their properties. 'standard' will use the standard components (e.g., gas-phase), while 'original' will use the original components as defined in the reaction. Default is 'original'.
+        component_keys : list[ComponentKey], optional
+            A list of component keys to use for matching the component in the source data. Defaults to ['Name-State', 'Formula-State', 'Name-Formula'].
 
         Returns
         -------
@@ -203,11 +215,26 @@ class HSGReaction:
                 # >> check if component already processed
                 if component_id not in hsg_properties:
                     # get hsg properties
-                    hsg_properties[component_id] = HSGProperties(
+                    hsg_res_ = HSGProperties(
                         component=component,
                         source=self.source,
                         component_key=component_key_src
                     )
+
+                    # set
+                    hsg_properties[component_id] = hsg_res_
+
+                    # ! create other keys for the same component
+                    comp_mapper_ = build_component_mapper(
+                        component=component
+                    )
+                    # keys
+                    comp_keys_ = comp_mapper_.values()
+
+                    # iterate over other keys
+                    for comp_key_ in comp_keys_:
+                        if comp_key_ != component_id:
+                            hsg_properties[comp_key_] = hsg_res_
 
             # >> hsg properties
             return hsg_properties

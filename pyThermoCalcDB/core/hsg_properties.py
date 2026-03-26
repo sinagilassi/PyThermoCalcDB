@@ -1,9 +1,9 @@
 # import libs
 import logging
 import math
-from typing import Dict, Any, Literal, Optional, List
+from typing import Dict, Any, Literal, Optional, List, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp, ComponentKey
-from pythermodb_settings.utils import set_component_id
+from pythermodb_settings.utils import set_component_id, build_component_mapper
 import pycuc
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -191,7 +191,8 @@ class HSGProperties:
 
     def _get_Cp_equation_source(
             self,
-            phase: Literal['IG', 'LIQ', 'SOL']
+            phase: Literal['IG', 'LIQ', 'SOL'],
+            component_keys: Optional[list[ComponentKey]] = None
     ) -> Optional[ComponentEquationSource]:
         '''
         Retrieve the heat capacity equation source for the component.
@@ -200,6 +201,8 @@ class HSGProperties:
         ----------
         phase : Literal['IG', 'LIQ', 'SOL']
             The phase of the component ('IG' for ideal gas, 'LIQ' for liquid).
+        component_keys : list[ComponentKey]
+            A list of component keys to use for matching the component in the source data. Defaults to ['Name-State', 'Formula-State', 'Name-Formula'].
 
         Returns
         -------
@@ -207,6 +210,17 @@ class HSGProperties:
             The heat capacity equation source if available, otherwise None.
         '''
         try:
+            # NOTE: check component keys
+            component_key_map: list[ComponentKey] = []
+            if component_keys is None:
+                map_res: Dict[ComponentKey, str] = build_component_mapper(
+                    component=self.component
+                )
+                # values
+                component_key_map = list(map_res.keys())
+            else:
+                component_key_map = component_keys
+
             # NOTE: select symbol based on phase
             if phase == 'IG':
                 Cp_symbol = Cp_IG_SYMBOL
@@ -219,11 +233,11 @@ class HSGProperties:
                     f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
 
             # NOTE: build equation
+            # ! specify possible component keys for matching
             Cp_eq_src = self.source.eq_builder(
                 components=[self.component],
                 prop_name=Cp_symbol,
-                # ! specify possible component keys for matching
-                component_keys=['Name-State', 'Formula-State', 'Name-Formula']
+                component_keys=component_key_map
             )
 
             # >> check Cp equation
