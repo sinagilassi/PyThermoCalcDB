@@ -1,4 +1,5 @@
 # import packages/modules
+import logging
 import os
 from typing import Dict
 from rich import print
@@ -8,14 +9,15 @@ from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
 from pyThermoCalcDB.docs.thermo import (
-    calc_dEn,
-    calc_En,
-    calc_En_range,
-    calc_GiFrEn,
-    calc_GiFrEn_range,
-    calc_dEnt,
     calc_En_mix,
 )
+
+# NOTE: set logging level
+logging.basicConfig(
+    level=logging.ERROR,
+    force=True  # override any previous logging config
+)
+
 
 # check version
 print(ptdb.__version__)

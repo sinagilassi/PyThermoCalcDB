@@ -222,7 +222,8 @@ class HSGProperties:
             Cp_eq_src = self.source.eq_builder(
                 components=[self.component],
                 prop_name=Cp_symbol,
-                component_key=self.component_key  # type: ignore
+                # ! specify possible component keys for matching
+                component_keys=['Name-State', 'Formula-State', 'Name-Formula']
             )
 
             # >> check Cp equation

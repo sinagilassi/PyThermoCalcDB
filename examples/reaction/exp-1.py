@@ -1,4 +1,5 @@
 # import libs
+import logging
 from rich import print
 from pyThermoCalcDB.reactions.reactions import Reaction, dH_rxn_STD, dG_rxn_STD
 from pythermodb_settings.models import Component, Temperature
@@ -9,6 +10,11 @@ from pythermodb_settings.models import Component, ComponentRule, ComponentThermo
 from typing import Dict
 import os
 
+# NOTE: set logging level
+logging.basicConfig(
+    level=logging.ERROR,
+    force=True  # override any previous logging config
+)
 
 # check version
 print(ptdb.__version__)

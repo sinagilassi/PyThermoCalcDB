@@ -8,12 +8,13 @@ from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
 from pyThermoCalcDB.docs.thermo import (
-    calc_enthalpy_of_formation_at_temperature,
-    calc_gibbs_energy_of_formation_at_temperature,
-    calc_enthalpy_of_formation_range,
-    calc_gibbs_energy_of_formation_range,
-    calc_enthalpy_change,
-    calc_entropy_change,
+    calc_En,
+    calc_dEn,
+    calc_dEnt,
+    calc_En_range,
+    calc_GiFrEn,
+    calc_GiFrEn_range,
+    calc_En_mix
 )
 
 # check version
@@ -125,7 +126,7 @@ pressure_ref = Pressure(value=1.0, unit='atm')
 pressure_ = Pressure(value=1.0, unit='atm')
 
 # ! calculate enthalpy change from reference temperature to temperature
-dEn_IG_res = calc_enthalpy_change(
+dEn_IG_res = calc_dEn(
     component=CO2_comp,
     model_source=model_source_,
     temperature_initial=temperature_ref,
@@ -135,7 +136,7 @@ dEn_IG_res = calc_enthalpy_change(
 print(dEn_IG_res)
 
 # ! calculate entropy change from reference temperature to temperature
-dS_IG_res = calc_entropy_change(
+dS_IG_res = calc_dEnt(
     component=CO2_comp,
     model_source=model_source_,
     temperature_initial=temperature_ref,
@@ -148,7 +149,7 @@ dS_IG_res = calc_entropy_change(
 print(dS_IG_res)
 
 # ! calculate enthalpy of formation at temperature
-EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
+EnFo_IG_T_res = calc_En(
     component=CO2_comp,
     model_source=model_source_,
     temperature=temperature_,
@@ -156,7 +157,7 @@ EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
 )
 print(EnFo_IG_T_res)
 
-EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
+EnFo_IG_T_res = calc_En(
     component=CO2_comp,
     model_source=model_source_,
     temperature=temperature_,
@@ -165,7 +166,7 @@ EnFo_IG_T_res = calc_enthalpy_of_formation_at_temperature(
 print(EnFo_IG_T_res)
 
 # ! calculate gibbs free energy of formation at temperature
-GiEnFo_IG_T_res = calc_gibbs_energy_of_formation_at_temperature(
+GiEnFo_IG_T_res = calc_GiFrEn(
     component=CO2_comp,
     model_source=model_source_,
     temperature=temperature_,
@@ -181,7 +182,7 @@ temperature_range_ = [
     Temperature(value=370.0, unit='K'),
 ]
 
-EnFo_IG_range_res = calc_enthalpy_of_formation_range(
+EnFo_IG_range_res = calc_En_range(
     component=CO2_comp,
     model_source=model_source_,
     temperatures=temperature_range_,
@@ -190,7 +191,7 @@ EnFo_IG_range_res = calc_enthalpy_of_formation_range(
 print(EnFo_IG_range_res)
 
 # ! calculate gibbs free energy of formation range
-GiEnFo_IG_range_res = calc_gibbs_energy_of_formation_range(
+GiEnFo_IG_range_res = calc_GiFrEn_range(
     component=CO2_comp,
     model_source=model_source_,
     temperatures=temperature_range_,
