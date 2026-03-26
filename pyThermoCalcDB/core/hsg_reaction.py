@@ -225,11 +225,11 @@ class HSGReaction:
                     hsg_properties[component_id] = hsg_res_
 
                     # ! create other keys for the same component
-                    comp_mapper_ = build_component_mapper(
+                    comp_mapper_: Dict[ComponentKey, str] = build_component_mapper(
                         component=component
                     )
                     # keys
-                    comp_keys_ = comp_mapper_.values()
+                    comp_keys_ = list(comp_mapper_.values())
 
                     # iterate over other keys
                     for comp_key_ in comp_keys_:

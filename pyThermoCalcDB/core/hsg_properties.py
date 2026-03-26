@@ -127,6 +127,12 @@ class HSGProperties:
             component_key=self.component_key
         )
 
+        # NOTE: build component key map for the component
+        map_res: Dict[ComponentKey, str] = build_component_mapper(
+            component=self.component
+        )
+        self.component_key_map = list(map_res.keys())
+
         # SECTION: extract component source
         self.component_source = self.source.get_component_data(
             component_id=self.component_id,
@@ -213,11 +219,7 @@ class HSGProperties:
             # NOTE: check component keys
             component_key_map: list[ComponentKey] = []
             if component_keys is None:
-                map_res: Dict[ComponentKey, str] = build_component_mapper(
-                    component=self.component
-                )
-                # values
-                component_key_map = list(map_res.keys())
+                component_key_map = self.component_key_map
             else:
                 component_key_map = component_keys
 
@@ -264,7 +266,8 @@ class HSGProperties:
 
     def _get_equation_source(
             self,
-            prop_name: str
+            prop_name: str,
+            component_keys: Optional[list[ComponentKey]] = None
     ) -> Optional[ComponentEquationSource]:
         '''
         Retrieve the equation source for the specified property.
@@ -280,11 +283,18 @@ class HSGProperties:
             The equation source if available, otherwise None.
         '''
         try:
+            # NOTE: check component keys
+            component_key_map: list[ComponentKey] = []
+            if component_keys is None:
+                component_key_map = self.component_key_map
+            else:
+                component_key_map = component_keys
+
             # NOTE: build equation
             eq_src = self.source.eq_builder(
                 components=[self.component],
                 prop_name=prop_name,
-                component_key=self.component_key  # type: ignore
+                component_keys=component_key_map
             )
 
             # >> check equation
