@@ -119,7 +119,7 @@ class HSGProperties:
         # NOTE: source
         self.source = source
         # NOTE: component key
-        self.component_key = component_key
+        self.component_key: ComponentKey = component_key
 
         # >> set component id
         self.component_id = set_component_id(
@@ -137,33 +137,39 @@ class HSGProperties:
         self.component_source = self.source.get_component_data(
             component_id=self.component_id,
             components=[self.component],
+            component_key=self.component_key
         )
 
         # SECTION: retrieve heat capacity equation source
         # NOTE: ideal gas heat capacity equation source
         self.Cp_IG_eq_src = self._get_Cp_equation_source(
-            phase='IG'
+            phase='IG',
+            component_key=self.component_key,
         )
 
         # NOTE: liquid heat capacity equation source
         self.Cp_LIQ_eq_src = self._get_Cp_equation_source(
-            phase='LIQ'
+            phase='LIQ',
+            component_key=self.component_key,
         )
 
         # NOTE: solid heat capacity equation source
         self.Cp_SOL_eq_src = self._get_Cp_equation_source(
-            phase='SOL'
+            phase='SOL',
+            component_key=self.component_key,
         )
 
         # SECTION: retrieve other necessary data if needed
         # NOTE: enthalpy of vaporization equation source
         self.EnVap_eq_src = self._get_equation_source(
-            prop_name=EnVap_SYMBOL
+            prop_name=EnVap_SYMBOL,
+            component_key=self.component_key,
         )
 
         # NOTE: enthalpy of sublimation equation source
         self.EnSub_eq_src = self._get_equation_source(
-            prop_name=EnSub_SYMBOL
+            prop_name=EnSub_SYMBOL,
+            component_key=self.component_key,
         )
 
     def _get_formation_data(
@@ -198,6 +204,7 @@ class HSGProperties:
     def _get_Cp_equation_source(
             self,
             phase: Literal['IG', 'LIQ', 'SOL'],
+            component_key: Optional[ComponentKey] = None,
             component_keys: Optional[list[ComponentKey]] = None
     ) -> Optional[ComponentEquationSource]:
         '''
@@ -207,6 +214,8 @@ class HSGProperties:
         ----------
         phase : Literal['IG', 'LIQ', 'SOL']
             The phase of the component ('IG' for ideal gas, 'LIQ' for liquid).
+        component_key : Optional[ComponentKey]
+            A specific component key to use for matching the component in the source data. If provided, this key will be used for matching instead of the default component keys. Defaults to None.
         component_keys : list[ComponentKey]
             A list of component keys to use for matching the component in the source data. Defaults to ['Name-State', 'Formula-State', 'Name-Formula'].
 
@@ -216,6 +225,9 @@ class HSGProperties:
             The heat capacity equation source if available, otherwise None.
         '''
         try:
+            # SECTION: check component key
+            selected_component_key: ComponentKey = component_key if component_key is not None else self.component_key
+
             # NOTE: check component keys
             component_key_map: list[ComponentKey] = []
             if component_keys is None:
@@ -232,13 +244,15 @@ class HSGProperties:
                 Cp_symbol = Cp_SOL_SYMBOL
             else:
                 raise ValueError(
-                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
+                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'."
+                )
 
             # NOTE: build equation
             # ! specify possible component keys for matching
             Cp_eq_src = self.source.eq_builder(
                 components=[self.component],
                 prop_name=Cp_symbol,
+                component_key=selected_component_key,
                 component_keys=component_key_map
             )
 
@@ -267,6 +281,7 @@ class HSGProperties:
     def _get_equation_source(
             self,
             prop_name: str,
+            component_key: Optional[ComponentKey] = None,
             component_keys: Optional[list[ComponentKey]] = None
     ) -> Optional[ComponentEquationSource]:
         '''
@@ -276,6 +291,10 @@ class HSGProperties:
         ----------
         prop_name : str
             The name of the property for which the equation source is to be retrieved.
+        component_key : Optional[ComponentKey]
+            A specific component key to use for matching the component in the source data. If provided, this key will be used for matching instead of the default component keys. Defaults to None.
+        component_keys : list[ComponentKey]
+            A list of component keys to use for matching the component in the source data. Defaults to ['Name-State', 'Formula-State', 'Name-Formula'].
 
         Returns
         -------
@@ -283,6 +302,9 @@ class HSGProperties:
             The equation source if available, otherwise None.
         '''
         try:
+            # SECTION: check component key
+            selected_component_key: ComponentKey = component_key if component_key is not None else self.component_key
+
             # NOTE: check component keys
             component_key_map: list[ComponentKey] = []
             if component_keys is None:
@@ -294,6 +316,7 @@ class HSGProperties:
             eq_src = self.source.eq_builder(
                 components=[self.component],
                 prop_name=prop_name,
+                component_key=selected_component_key,
                 component_keys=component_key_map
             )
 

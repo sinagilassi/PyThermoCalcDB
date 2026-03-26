@@ -1,4 +1,5 @@
 # import libs
+from copy import deepcopy
 import logging
 from typing import Optional, List, Dict, Literal, cast, Any
 from pythermodb_settings.models import Temperature, Pressure, Component, CustomProp, ComponentKey
@@ -105,7 +106,14 @@ class HSGReaction:
         self.source = source
 
         # SECTION: set components
-        self.components = reaction.available_components
+        # ! Deep copy component models so local state updates do not mutate
+        # the reaction-owned component instances.
+        self.components = deepcopy(reaction.available_components)
+        # reaction components with state information (for mapping to hsg properties)
+        reaction_components: List[Component] = deepcopy(
+            reaction.available_components
+        )
+
         # checker
         if reaction.component_checker is False:
             raise ValueError(
@@ -114,7 +122,7 @@ class HSGReaction:
 
         # NOTE: standard components
         self.standard_components = set_components_state(
-            components=self.components,
+            components=reaction_components,
             state='g'
         )
 
@@ -122,6 +130,8 @@ class HSGReaction:
         self.map_components = reaction.map_components
 
         # SECTION: set component IDs
+        # NOTE: component IDs based on component key
+        # ! 'Formula-State'
         self.component_ids = [
             set_component_id(
                 component=component,
@@ -130,6 +140,8 @@ class HSGReaction:
             for component in self.components
         ]
 
+        # NOTE: standard component IDs
+        # ! Name-Formula
         self.standard_component_ids = [
             set_component_id(
                 component=component,
@@ -149,9 +161,11 @@ class HSGReaction:
         ]
 
         # SECTION: hsg properties instances
+        # ! search mode: original => use original components and their states as defined in the reaction
         self.hsg_properties = self._components_hsg_properties()
 
         # SECTION: hsg properties instances for standard states
+        # ! standard mode: standard => gas-phase properties
         self.standard_hsg_properties = self._components_hsg_properties(
             search_mode='standard'
         )
@@ -159,11 +173,6 @@ class HSGReaction:
     def _components_hsg_properties(
             self,
             search_mode: Literal['standard', 'original'] = 'original',
-            component_keys: list[ComponentKey] = [
-                'Name-State',
-                'Formula-State',
-                'Name-Formula'
-            ]
     ) -> Dict[str, HSGProperties]:
         """
         Get the HSGProperties instances for all components in the mixture.
@@ -172,13 +181,17 @@ class HSGReaction:
         ----------
         search_mode : Literal['standard', 'original'], optional
             The mode to search for components and their properties. 'standard' will use the standard components (e.g., gas-phase), while 'original' will use the original components as defined in the reaction. Default is 'original'.
-        component_keys : list[ComponentKey], optional
-            A list of component keys to use for matching the component in the source data. Defaults to ['Name-State', 'Formula-State', 'Name-Formula'].
 
         Returns
         -------
         Dict[str, HSGProperties]
             A dictionary mapping component IDs to their corresponding HSGProperties instances.
+
+        Notes
+        -----
+        - The component IDs are determined based on the specified component key (e.g., 'Formula-State' or 'Name-Formula').
+        - Standard components are typically considered in their gas-phase state for thermodynamic calculations, while original components may have their specified states (e.g., liquid, solid) as defined in the reaction.
+        - For standard properties, the component key is automatically set to 'Name-Formula' to ignore state information, while for original properties, the component key is 'Formula-State' to include state information in the component ID.
         """
         try:
             # SECTION: select components by state
@@ -190,6 +203,10 @@ class HSGReaction:
             # ! components
             # ! component ids
             # ! component key
+
+            # NOTE: select source of components and component ids based on search mode
+            # ! standard: Name-Formula to ignore state information for standard properties
+            # ! original: Formula-State to include state information for original properties
 
             # >> component ids source
             if search_mode == 'standard':
@@ -214,7 +231,7 @@ class HSGReaction:
 
                 # >> check if component already processed
                 if component_id not in hsg_properties:
-                    # get hsg properties
+                    # ! get hsg properties
                     hsg_res_ = HSGProperties(
                         component=component,
                         source=self.source,
@@ -226,15 +243,21 @@ class HSGReaction:
 
                     # ! create other keys for the same component
                     comp_mapper_: Dict[ComponentKey, str] = build_component_mapper(
-                        component=component
+                        component=component,
+                        component_keys=None
                     )
-                    # keys
-                    comp_keys_ = list(comp_mapper_.values())
 
-                    # iterate over other keys
-                    for comp_key_ in comp_keys_:
-                        if comp_key_ != component_id:
-                            hsg_properties[comp_key_] = hsg_res_
+                    # ! check predefined component key in mapper
+                    comp_keys = list(comp_mapper_.keys())
+                    if component_key_src not in comp_keys:
+                        raise ValueError(
+                            f"Component key '{component_key_src}' not found in component mapper keys: {comp_keys}"
+                        )
+
+                    # ! iterate over mapper
+                    for comp_key_, comp_id_ in comp_mapper_.items():
+                        # set
+                        hsg_properties[comp_id_] = hsg_res_
 
             # >> hsg properties
             return hsg_properties
@@ -279,12 +302,12 @@ class HSGReaction:
         Equations
         ---------
         For a reaction:
-            aA + bB => cC + dD
+            aA(x) + bB(x) => cC(x) + dD(x)
         - The reaction enthalpy (ΔH_rxn) is calculated as:
             dH_rxn = Σ(ν_i * H_IG(T))
 
         - ideal gas enthalpy (H_IG) is calculated as:
-            H_IG(T) = ΔH_f(T) + ∫(Cp_IG dT) from 298.15 K to T
+            H_IG(T) = ΔH_f(298.15) + ∫(Cp_IG dT) from 298.15 K to T
 
         When H_IG is not available, the following approximations are used:
 
@@ -292,7 +315,7 @@ class HSGReaction:
             H_LIQ(T) = H_IG(T) - ΔH_vap(T)
 
         - solid enthalpy (H_SOL) is calculated as (not implemented):
-            H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fusion(T) or H_IG(T) - ΔH_sub(T)
+            H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fusion(T)
         """
         try:
             # NOTE: initialize reaction enthalpy
