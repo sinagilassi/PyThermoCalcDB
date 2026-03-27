@@ -15,6 +15,49 @@ logger = logging.getLogger(__name__)
 
 
 @measure_time
+def dH_rxn_298(
+    reaction: Reaction,
+    model_source: ModelSource,
+    **kwargs
+) -> Optional[CustomProp]:
+    """
+    Calculate the standard enthalpy of reaction at 298.15 K using HSG properties.
+
+    Parameters
+    ----------
+    reaction : Reaction
+        The Reaction object representing the chemical reaction.
+    model_source : ModelSource
+        The ModelSource object representing the data source for the components.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        The standard enthalpy of reaction at 298.15 K in J/mol, or None if calculation fails.
+    """
+    try:
+        # NOTE: calculate standard enthalpy of reaction at 298.15 K
+        temperature = Temperature(value=298.15, unit='K')
+
+        dH_rxn_298 = dH_rxn_STD(
+            reaction=reaction,
+            temperature=temperature,
+            model_source=model_source,
+            **kwargs
+        )
+
+        return dH_rxn_298
+    except Exception as e:
+        logger.error(
+            f"Error calculating standard enthalpy of reaction at 298.15 K: {e}")
+        return None
+
+
+@measure_time
 def dH_rxn_STD(
     reaction: Reaction,
     temperature: Temperature,
