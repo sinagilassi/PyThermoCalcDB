@@ -252,6 +252,32 @@ class HSGProperties:
 
         return res
 
+    def _get_inputs(
+            self,
+            eq_src: ComponentEquationSource,
+            except_args: Optional[List[str]] = None
+    ):
+        # res
+        res = {}
+
+        # iterate over inputs
+        for name, details in eq_src.inputs.items():
+
+            # get symbol
+            symbol = details.get('symbol', '')
+
+            if except_args is not None and symbol in except_args:
+                continue
+
+            # get value from component source
+            value = details.get('value', None)
+
+            res[symbol] = value
+
+        return res
+
+    # SECTION: data retrieval methods
+
     def _get_formation_data(
             self,
             prop_name: str

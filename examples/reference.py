@@ -164,13 +164,13 @@ REFERENCES:
           EQUATIONS:
             EQ-1:
               BODY:
-                - parms['t | t | 1'] = 1 - args['temperature | T | K']/parms['critical-temperature | Tc | K']
-                - parms['A | A | 1'] = parms['A | A | 1'] * math.pow(parms['t | t | 1'], 1/3)
-                - parms['B | B | 1'] = parms['B | B | 1'] * math.pow(parms['t | t | 1'], 2/3)
-                - parms['C | C | 1'] = parms['C | C | 1'] * math.pow(parms['t | t | 1'], 1)
-                - parms['D | D | 1'] = parms['D | D | 1'] * math.pow(parms['t | t | 1'], 2)
-                - parms['E | E | 1'] = parms['E | E | 1'] * math.pow(parms['t | t | 1'], 6)
-                - parms['F | F | 1'] = parms['universal-gas-constant | R | J/mol.K'] * args['critical-temperature | Tc | K']
+                - t = 1 - args['temperature | T | K']/parms['critical-temperature | Tc | K']
+                - parms['A | A | 1'] = parms['A | A | 1'] * math.pow(t, 1/3)
+                - parms['B | B | 1'] = parms['B | B | 1'] * math.pow(t, 2/3)
+                - parms['C | C | 1'] = parms['C | C | 1'] * math.pow(t, 1)
+                - parms['D | D | 1'] = parms['D | D | 1'] * math.pow(t, 2)
+                - parms['E | E | 1'] = parms['E | E | 1'] * math.pow(t, 6)
+                - parms['F | F | 1'] = parms['universal-gas-constant | R | J/mol.K'] * parms['critical-temperature | Tc | K']
                 - res['enthalpy-of-vaporization | EnVap | J/mol'] = parms['F | F | 1'] * (parms['A | A | 1'] + parms['B | B | 1'] + parms['C | C | 1'] + parms['D | D | 1'] + parms['E | E | 1'])
               BODY-INTEGRAL:
                   None

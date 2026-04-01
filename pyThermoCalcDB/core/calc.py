@@ -517,7 +517,7 @@ def calc_eq(
         # ! args
         eq_args = eq_src.args
         # ! arg symbols
-        eq_arg_symbols = eq_src.arg_symbols
+        eq_arg_symbols = list(eq_src.arg_symbols.keys())
         # ! returns
         eq_returns = eq_src.returns
         # >> get return units
@@ -532,8 +532,8 @@ def calc_eq(
         equation = eq_src.source
 
         # SECTION: check all vars are provided
-        for arg in eq_args:
-            if arg not in vars:
+        for arg in eq_arg_symbols:
+            if arg not in list(vars.keys()):
                 logger.error(
                     f"Missing argument '{arg}' for equation calculation.")
                 raise ValueError(
