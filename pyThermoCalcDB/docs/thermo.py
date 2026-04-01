@@ -1,6 +1,6 @@
 # import libs
 import logging
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, cast
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import (
     Component,
@@ -13,6 +13,7 @@ from pyThermoLinkDB.thermo import Source
 import pycuc
 # local
 from ..utils.tools import measure_time
+from ..utils.component_tools import map_state_to_phase
 from ..core.hsg_properties import HSGProperties
 from ..core.hsg_mixture import HSGMixture
 from ..models.component_ref import (
@@ -186,6 +187,90 @@ def calc_En(
     except Exception as e:
         logger.error(
             f"Error calculating enthalpy of formation for component '{component.name}': {e}")
+        return None
+
+
+@measure_time
+def calc_En_IG_ref(
+    component: Component,
+    model_source: ModelSource,
+    temperature: Temperature,
+    component_key: ComponentKey = 'Name-Formula',
+    **kwargs
+) -> Optional[ComponentEnthalpy]:
+    """
+    Calculate the ideal gas enthalpy (J/mol) at a given temperature (K) for a component.
+
+    Parameters
+    ----------
+    component : Component
+        The chemical component for which to calculate the ideal gas enthalpy of formation.
+    model_source : ModelSource
+        The source model containing necessary data.
+    temperature : Temperature
+        The temperature at which to calculate the ideal gas enthalpy of formation.
+    component_key : Literal[..., optional]
+        The key to identify the component, by default 'Name-State'.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[ComponentEnthalpy]
+        A ComponentEnthalpy object containing the ideal gas enthalpy of formation value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - The function initializes the HSGProperties class and uses it to compute the ideal gas enthalpy of formation.
+    - The ideal gas enthalpy of formation symbol must be consistent with the defined unit in the configuration which is EnFo_IG.
+    - Reference temperature is set to 298.15 K.
+    - All enthalpy results are provided in J/mol.
+    """
+    try:
+        # SECTION: Input validation
+        if not isinstance(component, Component):
+            logger.error("Invalid component provided.")
+            return None
+
+        if not isinstance(model_source, ModelSource):
+            logger.error("Invalid model_source provided.")
+            return None
+
+        if not isinstance(temperature, Temperature):
+            logger.error("Invalid temperature provided.")
+            return None
+
+        # SECTION: Component phase
+        component_state = component.state.upper()
+        phase = map_state_to_phase(
+            state=component_state
+        )
+
+        # SECTION: Prepare source
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
+
+        # SECTION: Initialize HSGProperties
+        hsg_props = HSGProperties(
+            component=component,
+            source=Source_,
+            component_key=component_key
+        )
+
+        # NOTE: calculate
+        EnFo_IG_result = hsg_props.calc_reference_enthalpy(
+            temperature=temperature,
+            phase=cast(Literal["IG", "LIQ", "SOL"], phase)
+        )
+
+        return EnFo_IG_result
+    except Exception as e:
+        logger.error(
+            f"Error calculating ideal gas enthalpy of formation for component '{component.name}': {e}")
         return None
 
 

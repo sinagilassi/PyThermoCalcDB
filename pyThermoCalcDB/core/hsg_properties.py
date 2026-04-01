@@ -1,7 +1,7 @@
 # import libs
 import logging
 import math
-from typing import Dict, Any, Literal, Optional, List, cast
+from typing import Dict, Any, Literal, Optional, List, cast, Tuple
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp, ComponentKey
 from pythermodb_settings.utils import set_component_id, build_component_mapper
 import pycuc
@@ -146,18 +146,30 @@ class HSGProperties:
             phase='IG',
             component_key=self.component_key,
         )
+        # ! >> unit
+        self.Cp_IG_eq_args_units: Dict[str, str] = self._get_args_units(
+            self.Cp_IG_eq_src
+        ) if self.Cp_IG_eq_src is not None else {}
 
         # NOTE: liquid heat capacity equation source
         self.Cp_LIQ_eq_src = self._get_Cp_equation_source(
             phase='LIQ',
             component_key=self.component_key,
         )
+        # ! >> unit
+        self.Cp_LIQ_eq_args_units: Dict[str, str] = self._get_args_units(
+            self.Cp_LIQ_eq_src
+        ) if self.Cp_LIQ_eq_src is not None else {}
 
         # NOTE: solid heat capacity equation source
         self.Cp_SOL_eq_src = self._get_Cp_equation_source(
             phase='SOL',
             component_key=self.component_key,
         )
+        # ! >> unit
+        self.Cp_SOL_eq_args_units: Dict[str, str] = self._get_args_units(
+            self.Cp_SOL_eq_src
+        ) if self.Cp_SOL_eq_src is not None else {}
 
         # SECTION: retrieve other necessary data if needed
         # NOTE: enthalpy of vaporization equation source
@@ -165,12 +177,38 @@ class HSGProperties:
             prop_name=EnVap_SYMBOL,
             component_key=self.component_key,
         )
+        # ! >> unit
+        self.EnVap_eq_args_units: Dict[str, str] = self._get_args_units(
+            self.EnVap_eq_src
+        ) if self.EnVap_eq_src is not None else {}
 
         # NOTE: enthalpy of sublimation equation source
         self.EnSub_eq_src = self._get_equation_source(
             prop_name=EnSub_SYMBOL,
             component_key=self.component_key,
         )
+        # ! >> unit
+        self.EnSub_eq_args_units: Dict[str, str] = self._get_args_units(
+            self.EnSub_eq_src
+        ) if self.EnSub_eq_src is not None else {}
+
+    def _get_args_units(
+            self,
+            eq_src: ComponentEquationSource
+    ):
+        # res
+        res = {}
+
+        # iterate over inputs
+        for name, details in eq_src.arg_mappings.items():
+            # get unit
+            unit = details.get('unit', '')
+            # symbol
+            symbol = details.get('symbol', '')
+
+            res[symbol] = unit
+
+        return res
 
     def _get_formation_data(
             self,
@@ -527,34 +565,40 @@ class HSGProperties:
             T_val = temperature.value
             T_unit = temperature.unit
 
-            # >> convert temperature to K if necessary
-            # ! K
-            if T_unit != 'K':
-                T_val = pycuc.to(
-                    T_val,
-                    f"{T_unit} => K"
-                )
-
             # NOTE: get symbol based on phase
             if phase == 'IG':
                 # set
                 EnFo_SYMBOL = EnFo_IG_SYMBOL
                 EnFo_UNIT = EnFo_IG_UNIT
                 Cp_eq_src = self.Cp_IG_eq_src
+                # >> unit
+                Cp_T_unit = self.Cp_IG_eq_args_units.get('T', 'K')
             elif phase == 'LIQ':
                 # set
                 EnFo_SYMBOL = EnFo_LIQ_SYMBOL
                 Cp_eq_src = self.Cp_LIQ_eq_src
                 EnFo_UNIT = EnFo_LIQ_UNIT
+                # >> unit
+                Cp_T_unit = self.Cp_LIQ_eq_args_units.get('T', 'K')
             elif phase == 'SOL':
                 # set
                 EnFo_SYMBOL = EnFo_SOL_SYMBOL
                 Cp_eq_src = self.Cp_SOL_eq_src
                 EnFo_UNIT = EnFo_SOL_UNIT
+                # >> unit
+                Cp_T_unit = self.Cp_SOL_eq_args_units.get('T', 'K')
             else:
                 logger.error(
                     f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
                 return None
+
+            # >> convert temperature to K if necessary
+            # ! K
+            if T_unit != Cp_T_unit:
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => {Cp_T_unit}"
+                )
 
             # >> check Cp equation source
             if Cp_eq_src is None:
@@ -688,13 +732,6 @@ class HSGProperties:
             T_val = temperature.value
             T_unit = temperature.unit
 
-            # >> convert temperature to K if necessary
-            if T_unit != 'K':
-                T_val = pycuc.to(
-                    T_val,
-                    f"{T_unit} => K"
-                )
-
             # SECTION: get formation data
             # >> enthalpy of formation (EnFo_X) unit ?
             # >> gibbs energy of formation (GiEnFo_X) unit ?
@@ -703,20 +740,33 @@ class HSGProperties:
                 GiEnFo_SYMBOL = GiEnFo_IG_SYMBOL
                 GiEnFo_UNIT = GiEnFo_IG_UNIT
                 Cp_eq_src = self.Cp_IG_eq_src
+                # >> unit
+                Cp_T_unit = self.Cp_IG_eq_args_units.get('T', 'K')
             elif phase == 'LIQ':
                 EnFo_SYMBOL = EnFo_LIQ_SYMBOL
                 GiEnFo_SYMBOL = GiEnFo_LIQ_SYMBOL
                 GiEnFo_UNIT = GiEnFo_LIQ_UNIT
                 Cp_eq_src = self.Cp_LIQ_eq_src
+                # >> unit
+                Cp_T_unit = self.Cp_LIQ_eq_args_units.get('T', 'K')
             elif phase == 'SOL':
                 EnFo_SYMBOL = EnFo_SOL_SYMBOL
                 GiEnFo_SYMBOL = GiEnFo_SOL_SYMBOL
                 GiEnFo_UNIT = GiEnFo_SOL_UNIT
                 Cp_eq_src = self.Cp_SOL_eq_src
+                # >> unit
+                Cp_T_unit = self.Cp_SOL_eq_args_units.get('T', 'K')
             else:
                 logger.error(
                     f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
                 return None
+
+            # >> convert temperature to K if necessary
+            if T_unit != Cp_T_unit:
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => {Cp_T_unit}"
+                )
 
             # >> get formation data
             formation_data = self._get_formation_data(EnFo_SYMBOL)
@@ -1029,18 +1079,19 @@ class HSGProperties:
             T_val = temperature.value
             T_unit = temperature.unit
 
-            # >> convert temperature to K if necessary
-            if T_unit != 'K':
-                T_val = pycuc.to(
-                    T_val,
-                    f"{T_unit} => K"
-                )
-
             # SECTION: check EnVap equation source
             if self.EnVap_eq_src is None:
                 logger.error(
                     f"No enthalpy of vaporization equation source available for component {self.component_id}.")
                 return None
+
+            # >> convert temperature to K if necessary
+            # args units
+            if T_unit != self.EnVap_eq_args_units['T']:
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => {self.EnVap_eq_args_units['T']}"
+                )
 
             # SECTION: evaluate EnVap equation at temperature
             EnVap_result = calc_eq(
@@ -1096,18 +1147,18 @@ class HSGProperties:
             T_val = temperature.value
             T_unit = temperature.unit
 
-            # >> convert temperature to K if necessary
-            if T_unit != 'K':
-                T_val = pycuc.to(
-                    T_val,
-                    f"{T_unit} => K"
-                )
-
             # SECTION: check EnSub equation source
             if self.EnSub_eq_src is None:
                 logger.error(
                     f"No enthalpy of sublimation equation source available for component {self.component_id}.")
                 return None
+
+            # >> convert temperature to K if necessary
+            if T_unit != self.EnSub_eq_args_units['T']:
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => {self.EnSub_eq_args_units['T']}"
+                )
 
             # SECTION: evaluate EnSub equation at temperature
             EnSub_result = calc_eq(
@@ -1149,7 +1200,7 @@ class HSGProperties:
         """
         Calculate the enthalpy (J/mol) for a specific phase at a given temperature (K). The phases supported are ideal gas (IG), liquid (LIQ), and solid (SOL).
 
-        The reference phase is `ideal gas` at 298.15 K and 1 atm. In the case of `the unavailability of enthalpy for liquid and solid phases`, they are calculated based on the ideal gas enthalpy and phase change enthalpies. Thus, the
+        The reference phase is `ideal gas` at 298.15 K and 1 atm. In the case of `the unavailability of enthalpy for liquid and solid phases`, they are calculated based on the ideal gas enthalpy and phase change enthalpies.
 
         Parameters
         ----------
