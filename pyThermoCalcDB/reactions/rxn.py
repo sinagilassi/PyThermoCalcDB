@@ -1,6 +1,6 @@
 # import libs
 import logging
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Callable
 from pyreactlab_core.models.reaction import Reaction
 from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
@@ -74,6 +74,12 @@ class RXN:
         # NOTE: reaction
         self.reaction: Reaction = reaction
 
+        # NOTE: reaction stoichiometry
+        self.reaction_stoichiometry: Dict[
+            str,
+            float
+        ] = reaction.reaction_stoichiometry
+
         # SECTION: set components
         self.components = reaction.available_components
         # checker
@@ -112,7 +118,7 @@ class RXN:
             reaction_enthalpy = 0.0
 
             # SECTION: calculate reaction enthalpy
-            for component_id, coeff in self.reaction.reaction_stoichiometry.items():
+            for component_id, coeff in self.reaction_stoichiometry.items():
                 if component_id in H_i_IG:
                     # NOTE: Get component enthalpy value and unit
                     H_component_value = H_i_IG[component_id].value
@@ -163,7 +169,7 @@ class RXN:
             reaction_gibbs = 0.0
 
             # SECTION: calculate reaction Gibbs free energy
-            for component_id, coeff in self.reaction.reaction_stoichiometry.items():
+            for component_id, coeff in self.reaction_stoichiometry.items():
                 if component_id in G_i_IG:
                     # NOTE: Get component Gibbs value and unit
                     G_component_value = G_i_IG[component_id].value
@@ -214,7 +220,7 @@ class RXN:
             reaction_entropy = 0.0
 
             # SECTION: calculate reaction entropy
-            for component_id, coeff in self.reaction.reaction_stoichiometry.items():
+            for component_id, coeff in self.reaction_stoichiometry.items():
                 if component_id in S_i_IG:
                     # NOTE: Get component entropy value and unit
                     S_component_value = S_i_IG[component_id].value
