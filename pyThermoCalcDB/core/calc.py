@@ -117,14 +117,14 @@ def Cp_integral(
         # NOTE: calculate integral
         if function_integral:
             # calc
-            # method 1 (still takes return unit from equation)
+            # >>> method 1 (still takes return unit from equation)
             _eq_Cp_integral = Cp_eq.cal_integral(
                 T1=T_ref,
                 T2=T
             )
         else:
             # calc
-            # method 2 (still takes return unit from equation)
+            # >>> method 2 (still takes return unit from equation)
             _eq_Cp_integral, _ = integrate.quad(
                 integrand_1,
                 T_ref,
@@ -135,14 +135,16 @@ def Cp_integral(
         # ! set when method 1 is used
         # >> check
         if unit_ is None:
-            logger.warning(
-                f"Equation does not have a unit for Cp integral.")
+            # logger.warning(
+            #     f"Equation does not have a unit for Cp integral."
+            # )
             unit_ = eq_return_unit  # ! fallback to equation return unit
 
         # >> check
         if _eq_Cp_integral is None:
             logger.error(
-                f"Failed to calculate Cp integral from T={T_ref} K to T={T} K.")
+                f"Failed to calculate Cp integral from T={T_ref} K to T={T} K."
+            )
             return None
 
         # TODO: FINALLY convert Cp equation to [J/mol.K] (after integration means the unit is [J/mol])
