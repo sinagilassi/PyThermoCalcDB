@@ -23,26 +23,26 @@ EnVap_SYMBOL = 'EnVap'  # enthalpy of vaporization symbol
 EnSub_SYMBOL = 'EnSub'  # enthalpy of sublimation symbol
 
 # NOTE: units
-EnFo_IG_UNIT = 'J/mol'  # enthalpy of formation unit
-EnFo_LIQ_UNIT = 'J/mol'  # enthalpy of formation liquid unit
-EnFo_SOL_UNIT = 'J/mol'  # enthalpy of formation solid unit
-Ent_STD_UNIT = 'J/mol.K'  # entropy of formation unit
-GiEnFo_IG_UNIT = 'J/mol'  # Gibbs free energy of formation unit
-GiEnFo_LIQ_UNIT = 'J/mol'  # Gibbs free energy of formation liquid unit
-GiEnFo_SOL_UNIT = 'J/mol'  # Gibbs free energy of formation solid unit
-En_IG_UNIT = 'J/mol'  # ideal gas enthalpy unit
-En_LIQ_UNIT = 'J/mol'  # liquid enthalpy unit
-En_SOL_UNIT = 'J/mol'  # solid enthalpy unit
-GiEn_IG_UNIT = 'J/mol'  # ideal gas Gibbs energy unit
-GiEn_LIQ_UNIT = 'J/mol'  # liquid Gibbs energy unit
-GiEn_SOL_UNIT = 'J/mol'  # solid Gibbs energy unit
-Cp_IG_UNIT = 'J/mol.K'  # ideal gas heat capacity unit
-Cp_LIQ_UNIT = 'J/mol.K'  # liquid heat capacity unit
-Cp_SOL_UNIT = 'J/mol.K'  # solid heat capacity unit
-VaPr_UNIT = 'Pa'  # vapor pressure unit
-EnVap_UNIT = 'J/mol'  # enthalpy of vaporization unit
-EnSub_UNIT = 'J/mol'  # enthalpy of sublimation unit
+# EnFo_IG_UNIT = 'J/mol'  # enthalpy of formation unit
+# EnFo_LIQ_UNIT = 'J/mol'  # enthalpy of formation liquid unit
+# EnFo_SOL_UNIT = 'J/mol'  # enthalpy of formation solid unit
+# Ent_STD_UNIT = 'J/mol.K'  # entropy of formation unit
+# GiEnFo_IG_UNIT = 'J/mol'  # Gibbs free energy of formation unit
+# GiEnFo_LIQ_UNIT = 'J/mol'  # Gibbs free energy of formation liquid unit
+# GiEnFo_SOL_UNIT = 'J/mol'  # Gibbs free energy of formation solid unit
+# En_IG_UNIT = 'J/mol'  # ideal gas enthalpy unit
+# En_LIQ_UNIT = 'J/mol'  # liquid enthalpy unit
+# En_SOL_UNIT = 'J/mol'  # solid enthalpy unit
+# GiEn_IG_UNIT = 'J/mol'  # ideal gas Gibbs energy unit
+# GiEn_LIQ_UNIT = 'J/mol'  # liquid Gibbs energy unit
+# GiEn_SOL_UNIT = 'J/mol'  # solid Gibbs energy unit
+# Cp_IG_UNIT = 'J/mol.K'  # ideal gas heat capacity unit
+# Cp_LIQ_UNIT = 'J/mol.K'  # liquid heat capacity unit
+# Cp_SOL_UNIT = 'J/mol.K'  # solid heat capacity unit
+# VaPr_UNIT = 'Pa'  # vapor pressure unit
+# EnVap_UNIT = 'J/mol'  # enthalpy of vaporization unit
+# EnSub_UNIT = 'J/mol'  # enthalpy of sublimation unit
 
 # NOTE: integration units
-Cp_IG_INTEGRATION_UNIT = 'J/mol'  # ideal gas heat capacity integration unit
-Cp_LIQ_INTEGRATION_UNIT = 'J/mol'  # liquid heat capacity integration unit
+# Cp_IG_INTEGRATION_UNIT = 'J/mol'  # ideal gas heat capacity integration unit
+# Cp_LIQ_INTEGRATION_UNIT = 'J/mol'  # liquid heat capacity integration unit

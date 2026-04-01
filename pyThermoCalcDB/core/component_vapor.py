@@ -12,7 +12,7 @@ from math import pow
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # local
-from ..configs.thermo_props import VaPr_SYMBOL, VaPr_UNIT
+from ..configs.thermo_props import VaPr_SYMBOL
 from ..configs.constants import R_J_molK, T_ref_K
 from ..models import CalcResult
 

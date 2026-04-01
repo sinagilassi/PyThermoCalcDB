@@ -7,7 +7,7 @@ import pycuc
 from scipy import integrate
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
-from ..configs.thermo_props import Cp_IG_INTEGRATION_UNIT
+
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)

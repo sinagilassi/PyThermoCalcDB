@@ -9,33 +9,17 @@ from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # local
 from ..configs.thermo_props import (
-    EnFo_IG_UNIT,
-    EnFo_LIQ_UNIT,
-    EnFo_SOL_UNIT,
-    Ent_STD_UNIT,
-    GiEnFo_IG_UNIT,
-    GiEnFo_LIQ_UNIT,
-    GiEnFo_SOL_UNIT,
     EnFo_IG_SYMBOL,
     EnFo_LIQ_SYMBOL,
     EnFo_SOL_SYMBOL,
     GiEnFo_IG_SYMBOL,
     GiEnFo_LIQ_SYMBOL,
     GiEnFo_SOL_SYMBOL,
-    Ent_STD_SYMBOL,
-    En_IG_SYMBOL,
-    En_LIQ_SYMBOL,
-    En_SOL_SYMBOL,
     Cp_IG_SYMBOL,
     Cp_LIQ_SYMBOL,
     Cp_SOL_SYMBOL,
-    Cp_IG_UNIT,
-    Cp_LIQ_UNIT,
-    Cp_SOL_UNIT,
     EnVap_SYMBOL,
-    EnVap_UNIT,
     EnSub_SYMBOL,
-    EnSub_UNIT
 )
 from .calc import (
     Cp_integral,
@@ -146,30 +130,54 @@ class HSGProperties:
             phase='IG',
             component_key=self.component_key,
         )
-        # ! >> unit
+        # ! >> args units
         self.Cp_IG_eq_args_units: Dict[str, str] = self._get_args_units(
             self.Cp_IG_eq_src
         ) if self.Cp_IG_eq_src is not None else {}
+        # ! temp unit for integration
+        self.Cp_IG_eq_T_unit: str = self.Cp_IG_eq_args_units.get('T', 'K')
+        # ? >> return unit
+        self.Cp_IG_eq_return_units: Dict[str, str] = self._get_return_unit(
+            self.Cp_IG_eq_src
+        ) if self.Cp_IG_eq_src is not None else {}
+        # >>
+        self.Cp_IG_UNIT = self.Cp_IG_eq_return_units.get('Cp_IG', 'J/mol.K')
 
         # NOTE: liquid heat capacity equation source
         self.Cp_LIQ_eq_src = self._get_Cp_equation_source(
             phase='LIQ',
             component_key=self.component_key,
         )
-        # ! >> unit
+        # ! >> args units
         self.Cp_LIQ_eq_args_units: Dict[str, str] = self._get_args_units(
             self.Cp_LIQ_eq_src
         ) if self.Cp_LIQ_eq_src is not None else {}
+        # ! temp unit for integration
+        self.Cp_LIQ_eq_T_unit: str = self.Cp_LIQ_eq_args_units.get('T', 'K')
+        # ? >> return unit
+        self.Cp_LIQ_eq_return_units: Dict[str, str] = self._get_return_unit(
+            self.Cp_LIQ_eq_src
+        ) if self.Cp_LIQ_eq_src is not None else {}
+        # >>
+        self.Cp_LIQ_UNIT = self.Cp_LIQ_eq_return_units.get('Cp_LIQ', 'J/mol.K')
 
         # NOTE: solid heat capacity equation source
         self.Cp_SOL_eq_src = self._get_Cp_equation_source(
             phase='SOL',
             component_key=self.component_key,
         )
-        # ! >> unit
+        # ! >> args units
         self.Cp_SOL_eq_args_units: Dict[str, str] = self._get_args_units(
             self.Cp_SOL_eq_src
         ) if self.Cp_SOL_eq_src is not None else {}
+        # ! temp unit for integration
+        self.Cp_SOL_eq_T_unit: str = self.Cp_SOL_eq_args_units.get('T', 'K')
+        # ? >> return unit
+        self.Cp_SOL_eq_return_units: Dict[str, str] = self._get_return_unit(
+            self.Cp_SOL_eq_src
+        ) if self.Cp_SOL_eq_src is not None else {}
+        # >>
+        self.Cp_SOL_UNIT = self.Cp_SOL_eq_return_units.get('Cp_SOL', 'J/mol.K')
 
         # SECTION: retrieve other necessary data if needed
         # NOTE: enthalpy of vaporization equation source
@@ -177,20 +185,36 @@ class HSGProperties:
             prop_name=EnVap_SYMBOL,
             component_key=self.component_key,
         )
-        # ! >> unit
+        # ! >> args units
         self.EnVap_eq_args_units: Dict[str, str] = self._get_args_units(
             self.EnVap_eq_src
         ) if self.EnVap_eq_src is not None else {}
+        # ! temp unit for integration
+        self.EnVap_eq_T_unit: str = self.EnVap_eq_args_units.get('T', 'K')
+        # ? >> return unit
+        self.EnVap_eq_return_units: Dict[str, str] = self._get_return_unit(
+            self.EnVap_eq_src
+        ) if self.EnVap_eq_src is not None else {}
+        # >>
+        self.EnVap_UNIT = self.EnVap_eq_return_units.get('EnVap', 'J/mol')
 
         # NOTE: enthalpy of sublimation equation source
         self.EnSub_eq_src = self._get_equation_source(
             prop_name=EnSub_SYMBOL,
             component_key=self.component_key,
         )
-        # ! >> unit
+        # ! >> args units
         self.EnSub_eq_args_units: Dict[str, str] = self._get_args_units(
             self.EnSub_eq_src
         ) if self.EnSub_eq_src is not None else {}
+        # ! temp unit for integration
+        self.EnSub_eq_T_unit: str = self.EnSub_eq_args_units.get('T', 'K')
+        # ? >> return unit
+        self.EnSub_eq_return_units: Dict[str, str] = self._get_return_unit(
+            self.EnSub_eq_src
+        ) if self.EnSub_eq_src is not None else {}
+        # >>
+        self.EnSub_UNIT = self.EnSub_eq_return_units.get('EnSub', 'J/mol')
 
     def _get_args_units(
             self,
@@ -201,6 +225,24 @@ class HSGProperties:
 
         # iterate over inputs
         for name, details in eq_src.arg_mappings.items():
+            # get unit
+            unit = details.get('unit', '')
+            # symbol
+            symbol = details.get('symbol', '')
+
+            res[symbol] = unit
+
+        return res
+
+    def _get_return_unit(
+            self,
+            eq_src: ComponentEquationSource
+    ):
+        # res
+        res = {}
+
+        # iterate over returns
+        for name, details in eq_src.returns.items():
             # get unit
             unit = details.get('unit', '')
             # symbol
@@ -458,22 +500,6 @@ class HSGProperties:
             A ComponentEnthalpyChange object containing the calculated enthalpy change if successful, otherwise None.
         '''
         try:
-            # SECTION: convert temperatures to K if necessary
-            T1_val = T1.value
-            T1_unit = T1.unit
-            if T1_unit != 'K':
-                T1_val = pycuc.to(
-                    T1_val,
-                    f"{T1_unit} => K"
-                )
-
-            T2_val = T2.value
-            T2_unit = T2.unit
-            if T2_unit != 'K':
-                T2_val = pycuc.to(
-                    T2_val,
-                    f"{T2_unit} => K"
-                )
 
             # SECTION: calculate enthalpy change
             # NOTE: check Cp equation source
@@ -485,6 +511,8 @@ class HSGProperties:
 
                 # set
                 Cp_eq_src = self.Cp_IG_eq_src
+                # >> unit
+                Cp_eq_T_unit = self.Cp_IG_eq_T_unit
             elif phase == 'LIQ':
                 if self.Cp_LIQ_eq_src is None:
                     logger.error(
@@ -493,10 +521,29 @@ class HSGProperties:
 
                 # set
                 Cp_eq_src = self.Cp_LIQ_eq_src
+                # >> unit
+                Cp_eq_T_unit = self.Cp_LIQ_eq_T_unit
             else:
                 logger.error(
                     f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
                 return None
+
+            # SECTION: convert temperatures to K if necessary
+            T1_val = T1.value
+            T1_unit = T1.unit
+            if T1_unit != Cp_eq_T_unit:
+                T1_val = pycuc.to(
+                    T1_val,
+                    f"{T1_unit} => {Cp_eq_T_unit}"
+                )
+
+            T2_val = T2.value
+            T2_unit = T2.unit
+            if T2_unit != Cp_eq_T_unit:
+                T2_val = pycuc.to(
+                    T2_val,
+                    f"{T2_unit} => {Cp_eq_T_unit}"
+                )
 
             # NOTE: calculate enthalpy change
             delta_H_val = self._calc_enthalpy_change(
@@ -569,7 +616,7 @@ class HSGProperties:
             if phase == 'IG':
                 # set
                 EnFo_SYMBOL = EnFo_IG_SYMBOL
-                EnFo_UNIT = EnFo_IG_UNIT
+                EnFo_UNIT = "J/mol"
                 Cp_eq_src = self.Cp_IG_eq_src
                 # >> unit
                 Cp_T_unit = self.Cp_IG_eq_args_units.get('T', 'K')
@@ -577,14 +624,14 @@ class HSGProperties:
                 # set
                 EnFo_SYMBOL = EnFo_LIQ_SYMBOL
                 Cp_eq_src = self.Cp_LIQ_eq_src
-                EnFo_UNIT = EnFo_LIQ_UNIT
+                EnFo_UNIT = "J/mol"
                 # >> unit
                 Cp_T_unit = self.Cp_LIQ_eq_args_units.get('T', 'K')
             elif phase == 'SOL':
                 # set
                 EnFo_SYMBOL = EnFo_SOL_SYMBOL
                 Cp_eq_src = self.Cp_SOL_eq_src
-                EnFo_UNIT = EnFo_SOL_UNIT
+                EnFo_UNIT = "J/mol"
                 # >> unit
                 Cp_T_unit = self.Cp_SOL_eq_args_units.get('T', 'K')
             else:
@@ -652,7 +699,7 @@ class HSGProperties:
             result_ = {
                 'temperature': temperature,
                 'value': EnFo_IG_T_val,
-                'unit': EnFo_IG_UNIT,
+                'unit': 'J/mol',
                 'symbol': EnFo_IG_SYMBOL
             }
 
@@ -738,21 +785,21 @@ class HSGProperties:
             if phase == 'IG':
                 EnFo_SYMBOL = EnFo_IG_SYMBOL
                 GiEnFo_SYMBOL = GiEnFo_IG_SYMBOL
-                GiEnFo_UNIT = GiEnFo_IG_UNIT
+                GiEnFo_UNIT = 'J/mol'
                 Cp_eq_src = self.Cp_IG_eq_src
                 # >> unit
                 Cp_T_unit = self.Cp_IG_eq_args_units.get('T', 'K')
             elif phase == 'LIQ':
                 EnFo_SYMBOL = EnFo_LIQ_SYMBOL
                 GiEnFo_SYMBOL = GiEnFo_LIQ_SYMBOL
-                GiEnFo_UNIT = GiEnFo_LIQ_UNIT
+                GiEnFo_UNIT = 'J/mol'
                 Cp_eq_src = self.Cp_LIQ_eq_src
                 # >> unit
                 Cp_T_unit = self.Cp_LIQ_eq_args_units.get('T', 'K')
             elif phase == 'SOL':
                 EnFo_SYMBOL = EnFo_SOL_SYMBOL
                 GiEnFo_SYMBOL = GiEnFo_SOL_SYMBOL
-                GiEnFo_UNIT = GiEnFo_SOL_UNIT
+                GiEnFo_UNIT = 'J/mol'
                 Cp_eq_src = self.Cp_SOL_eq_src
                 # >> unit
                 Cp_T_unit = self.Cp_SOL_eq_args_units.get('T', 'K')
@@ -788,7 +835,7 @@ class HSGProperties:
             EnFo_IG_val = formation_data['value']
             EnFo_IG_unit = formation_data['unit']
             # ! to [J/mol]
-            unit_ = f"{EnFo_IG_unit} => {EnFo_IG_UNIT}"
+            unit_ = f"{EnFo_IG_unit} => J/mol"
             EnFo_IG_val = pycuc.to(
                 EnFo_IG_val,
                 unit_
@@ -797,7 +844,7 @@ class HSGProperties:
             GiEnFo_IG_val = gibbs_formation_data['value']
             GiEnFo_IG_unit = gibbs_formation_data['unit']
             # ! to [J/mol]
-            unit_ = f"{GiEnFo_IG_unit} => {GiEnFo_IG_UNIT}"
+            unit_ = f"{GiEnFo_IG_unit} => J/mol"
             GiEnFo_IG_val = pycuc.to(
                 GiEnFo_IG_val,
                 unit_
@@ -860,7 +907,7 @@ class HSGProperties:
             result = {
                 'temperature': temperature,
                 'value': GiEn_T,
-                'unit': GiEnFo_UNIT,
+                'unit': 'J/mol',
                 'symbol': GiEnFo_SYMBOL
             }
 
@@ -950,22 +997,6 @@ class HSGProperties:
         - R is the universal gas constant (8.3145 J/mol.K).
         '''
         try:
-            # SECTION: convert temperatures to K if necessary
-            T1_val = T1.value
-            T1_unit = T1.unit
-            if T1_unit != 'K':
-                T1_val = pycuc.to(
-                    T1_val,
-                    f"{T1_unit} => K"
-                )
-
-            T2_val = T2.value
-            T2_unit = T2.unit
-            if T2_unit != 'K':
-                T2_val = pycuc.to(
-                    T2_val,
-                    f"{T2_unit} => K"
-                )
 
             # SECTION: calculate entropy change
             # NOTE: check Cp equation source
@@ -977,6 +1008,7 @@ class HSGProperties:
 
                 # set
                 Cp_eq_src = self.Cp_IG_eq_src
+                Cp_eq_src_T_unit = self.Cp_IG_eq_args_units.get('T', 'K')
                 Ent_symbol = 'dEnt_IG'
             elif phase == 'LIQ':
                 if self.Cp_LIQ_eq_src is None:
@@ -986,6 +1018,7 @@ class HSGProperties:
 
                 # set
                 Cp_eq_src = self.Cp_LIQ_eq_src
+                Cp_eq_src_T_unit = self.Cp_LIQ_eq_args_units.get('T', 'K')
                 Ent_symbol = 'dEnt_LIQ'
             elif phase == 'SOL':
                 if self.Cp_SOL_eq_src is None:
@@ -995,11 +1028,29 @@ class HSGProperties:
 
                 # set
                 Cp_eq_src = self.Cp_SOL_eq_src
+                Cp_eq_src_T_unit = self.Cp_SOL_eq_args_units.get('T', 'K')
                 Ent_symbol = 'dEnt_SOL'
             else:
                 logger.error(
                     f"Invalid phase: {phase}. Must be 'IG', 'LIQ' or 'SOL'.")
                 return None
+
+            # SECTION: convert temperatures to K if necessary
+            T1_val = T1.value
+            T1_unit = T1.unit
+            if T1_unit != Cp_eq_src_T_unit:
+                T1_val = pycuc.to(
+                    T1_val,
+                    f"{T1_unit} => {Cp_eq_src_T_unit}"
+                )
+
+            T2_val = T2.value
+            T2_unit = T2.unit
+            if T2_unit != Cp_eq_src_T_unit:
+                T2_val = pycuc.to(
+                    T2_val,
+                    f"{T2_unit} => {Cp_eq_src_T_unit}"
+                )
 
             # SECTION: integrate Cp/T dT from T1 to T2
             # ! [J/mol.K]
