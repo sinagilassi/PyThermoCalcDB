@@ -1,5 +1,6 @@
 # NOTE: reactions
 from .reactions import (
+    build_hsg_reaction,
     dH_rxn_STD,
     dG_rxn_STD,
     dH_rxn_298,
@@ -11,6 +12,7 @@ from .reactions import (
 
 
 __all__ = [
+    "build_hsg_reaction",
     "dH_rxn_STD",
     "dG_rxn_STD",
     "dH_rxn_298",
