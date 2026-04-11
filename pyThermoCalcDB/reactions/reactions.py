@@ -15,6 +15,47 @@ logger = logging.getLogger(__name__)
 
 
 @measure_time
+def build_hsg_reaction(
+    reaction: Reaction,
+    model_source: ModelSource,
+    **kwargs
+) -> Optional[HSGReaction]:
+    """
+    Build an HSGReaction object from a Reaction object and a ModelSource.
+
+    Parameters
+    ----------
+    reaction : Reaction
+        The Reaction object representing the chemical reaction.
+    model_source : ModelSource
+        The ModelSource object representing the data source for the components.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[HSGReaction]
+        An HSGReaction object if successful, or None if an error occurs.
+    """
+    try:
+        # SECTION: Prepare source
+        Source_ = Source(model_source=model_source)
+
+        # NOTE: initialize HSGReaction
+        hsg_reaction = HSGReaction(
+            reaction=reaction,
+            source=Source_,
+        )
+
+        return hsg_reaction
+    except Exception as e:
+        logger.error(f"Error building HSGReaction: {e}")
+        return None
+
+
+@measure_time
 def dH_rxn_298(
     reaction: Reaction,
     model_source: ModelSource,
@@ -62,6 +103,7 @@ def dH_rxn_STD(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
+    hsg_reaction: Optional[HSGReaction] = None,
     **kwargs
 ) -> Optional[CustomProp]:
     """
@@ -75,6 +117,8 @@ def dH_rxn_STD(
         The Temperature object representing the temperature at which to calculate the enthalpy of reaction.
     model_source : ModelSource
         The ModelSource object representing the data source for the components.
+    hsg_reaction : Optional[HSGReaction], optional
+        An optional HSGReaction object to use for the calculation. If not provided, a new HSGReaction will be initialized internally, by default None.
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -118,14 +162,15 @@ def dH_rxn_STD(
     """
     try:
         # SECTION: Prepare source
-        # ! component key is set to 'Name-State'
-        Source_ = Source(model_source=model_source)
+        if hsg_reaction is None:
+            # ! component key is set to 'Name-State'
+            Source_ = Source(model_source=model_source)
 
-        # NOTE: initialize HSGReaction
-        hsg_reaction = HSGReaction(
-            reaction=reaction,
-            source=Source_,
-        )
+            # NOTE: initialize HSGReaction
+            hsg_reaction = HSGReaction(
+                reaction=reaction,
+                source=Source_,
+            )
 
         # >> calculate standard enthalpy of reaction
         dH_rxn_std = hsg_reaction.calc_standard_rxn_enthalpy(
@@ -143,6 +188,7 @@ def dG_rxn_STD(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
+    hsg_reaction: Optional[HSGReaction] = None,
     **kwargs
 ) -> Optional[CustomProp]:
     """
@@ -156,6 +202,8 @@ def dG_rxn_STD(
         The Temperature object representing the temperature at which to calculate the Gibbs free energy of reaction.
     model_source : ModelSource
         The ModelSource object representing the data source for the components.
+    hsg_reaction : Optional[HSGReaction], optional
+        An optional HSGReaction object to use for the calculation. If not provided, a new HSGReaction will be initialized internally, by default None.
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -196,13 +244,15 @@ def dG_rxn_STD(
     """
     try:
         # SECTION: Prepare source
-        Source_ = Source(model_source=model_source)
+        if hsg_reaction is None:
+            # ! component key is set to 'Name-State'
+            Source_ = Source(model_source=model_source)
 
-        # NOTE: initialize HSGReaction
-        hsg_reaction = HSGReaction(
-            reaction=reaction,
-            source=Source_,
-        )
+            # NOTE: initialize HSGReaction
+            hsg_reaction = HSGReaction(
+                reaction=reaction,
+                source=Source_,
+            )
 
         # >> calculate standard Gibbs free energy of reaction
         dG_rxn_std = hsg_reaction.calc_standard_rxn_gibbs_free_energy(
@@ -221,6 +271,7 @@ def Keq_STD(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
+    hsg_reaction: Optional[HSGReaction] = None,
     component_key: ComponentKey = 'Name-Formula',
     **kwargs
 ) -> Optional[CustomProp]:
@@ -236,6 +287,8 @@ def Keq_STD(
         The Temperature object representing the temperature at which to calculate the equilibrium constant of reaction.
     model_source : ModelSource
         The ModelSource object representing the data source for the components.
+    hsg_reaction : Optional[HSGReaction], optional
+        An optional HSGReaction object to use for the calculation. If not provided, a new HSGReaction will be initialized internally, by default None.
     component_key : ComponentKey, optional
         The ComponentKey to identify components, by default 'Name-Formula'.
     **kwargs
@@ -250,16 +303,17 @@ def Keq_STD(
     """
     try:
         # SECTION: Prepare source
-        Source_ = Source(
-            model_source=model_source,
-            component_key=component_key
-        )
+        if hsg_reaction is None:
+            Source_ = Source(
+                model_source=model_source,
+                component_key=component_key
+            )
 
-        # NOTE: initialize HSGReaction
-        hsg_reaction = HSGReaction(
-            reaction=reaction,
-            source=Source_,
-        )
+            # NOTE: initialize HSGReaction
+            hsg_reaction = HSGReaction(
+                reaction=reaction,
+                source=Source_,
+            )
 
         # >> calculate standard equilibrium constant of reaction
         Keq_std = hsg_reaction.calc_equilibrium_constant_STD(
@@ -278,6 +332,7 @@ def Keq_VH(
     reaction: Reaction,
     temperature: Temperature,
     model_source: ModelSource,
+    hsg_reaction: Optional[HSGReaction] = None,
     component_key: ComponentKey = 'Name-Formula',
     **kwargs
 ) -> Optional[CustomProp]:
@@ -300,6 +355,8 @@ def Keq_VH(
         The Temperature object representing the temperature at which to calculate the equilibrium constant of reaction.
     model_source : ModelSource
         The ModelSource object representing the data source for the components.
+    hsg_reaction : Optional[HSGReaction], optional
+        An optional HSGReaction object to use for the calculation. If not provided, a new HSGReaction will be initialized internally, by default None.
     component_key : ComponentKey, optional
         The ComponentKey to identify components, by default 'Name-Formula'.
     **kwargs
@@ -314,16 +371,18 @@ def Keq_VH(
     """
     try:
         # SECTION: Prepare source
-        Source_ = Source(
-            model_source=model_source,
-            component_key=component_key
-        )
+        if hsg_reaction is None:
+            # ! component key is set
+            Source_ = Source(
+                model_source=model_source,
+                component_key=component_key
+            )
 
-        # NOTE: initialize HSGReaction
-        hsg_reaction = HSGReaction(
-            reaction=reaction,
-            source=Source_,
-        )
+            # NOTE: initialize HSGReaction
+            hsg_reaction = HSGReaction(
+                reaction=reaction,
+                source=Source_,
+            )
 
         # >> calculate equilibrium constant of reaction using Van't Hoff equation
         Keq_T = hsg_reaction.calc_equilibrium_constant_vh(
