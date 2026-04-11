@@ -29,6 +29,70 @@ logger = logging.getLogger(__name__)
 
 
 @measure_time
+def build_hsg_properties(
+    component: Component,
+    model_source: ModelSource,
+    component_key: ComponentKey = 'Name-Formula',
+    **kwargs
+) -> Optional[HSGProperties]:
+    """
+    Build and return an instance of the HSGProperties class for a given component and model source.
+
+    Parameters
+    ----------
+    component : Component
+        The chemical component for which to build the HSGProperties instance.
+    model_source : ModelSource
+        The source model containing necessary data.
+    component_key : Literal[..., optional]
+        The key to identify the component, by default 'Name-Formula'.
+    **kwargs
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Optional[HSGProperties]
+        An instance of the HSGProperties class, or None if initialization fails.
+
+    Notes
+    -----
+    - The function prepares the source using the provided model source and component key, then initializes and returns an instance of the HSGProperties class.
+    - This function can be used as a helper to create HSGProperties instances for various calculations.
+    """
+    try:
+        # SECTION: Input validation
+        if not isinstance(component, Component):
+            logger.error("Invalid component provided.")
+            return None
+
+        if not isinstance(model_source, ModelSource):
+            logger.error("Invalid model_source provided.")
+            return None
+
+        # SECTION: Prepare source
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
+
+        # SECTION: Initialize HSGProperties
+        hsg_props = HSGProperties(
+            component=component,
+            source=Source_,
+            component_key=component_key
+        )
+
+        return hsg_props
+    except Exception as e:
+        logger.error(
+            f"Error building HSGProperties for component '{component.name}': {e}")
+        return None
+
+# SECTION: enthalpy change calculations
+# ! enthalpy change between two temperatures
+
+
+@measure_time
 def calc_dEn(
         component: Component,
         model_source: ModelSource,
@@ -112,6 +176,62 @@ def calc_dEn(
             f"Error calculating enthalpy change for component '{component.name}': {e}")
         return None
 
+# ! enthalpy change between two temperatures using hsg properties
+
+
+def calc_dEn_hsg(
+        hsg_props: HSGProperties,
+        temperature_initial: Temperature,
+        temperature_final: Temperature,
+        **kwargs
+) -> Optional[ComponentEnthalpyChange]:
+    """
+    Calculate the enthalpy change (J/mol) between two temperatures (K) for a component using an existing HSGProperties instance.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    temperature_initial : Temperature
+        The initial temperature.
+    temperature_final : Temperature
+        The final temperature.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[ComponentEnthalpyChange]
+        The enthalpy change value, or None if calculation fails.
+
+    Notes
+    -----
+    - The function uses the provided HSGProperties instance to compute the enthalpy change by integrating the heat capacity equation between the two specified temperatures.
+    - The result is provided in J/mol.
+    - Reference temperature is set to 298.15 K.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        # NOTE: calculate enthalpy change
+        delta_H = hsg_props.calc_enthalpy_change(
+            T1=temperature_initial,
+            T2=temperature_final
+        )
+
+        return delta_H
+    except Exception as e:
+        logger.error(
+            f"Error calculating enthalpy change using HSGProperties: {e}")
+        return None
+
+# SECTION: enthalpy calculations
+# ! enthalpy at temperature
+
 
 @measure_time
 def calc_En(
@@ -189,6 +309,60 @@ def calc_En(
             f"Error calculating enthalpy of formation for component '{component.name}': {e}")
         return None
 
+# ! enthalpy at temperature using hsg properties
+
+
+def calc_En_hsg(
+    hsg_props: HSGProperties,
+    temperature: Temperature,
+    **kwargs
+) -> Optional[ComponentEnthalpy]:
+    """
+    Calculate the enthalpy (J/mol) at a given temperature (K) for a component using an existing HSGProperties instance.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    temperature : Temperature
+        The temperature at which to calculate the enthalpy of formation.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[ComponentEnthalpy]
+        A ComponentEnthalpy object containing the enthalpy of formation value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - The function uses the provided HSGProperties instance to compute the enthalpy of formation at the specified temperature.
+    - The enthalpy of formation symbol must be consistent with the defined unit in the configuration which is EnFo_IG.
+    - Reference temperature is set to 298.15 K.
+    - All enthalpy results are provided in J/mol.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        # NOTE: calculate
+        EnFo_result = hsg_props.calc_enthalpy(
+            temperature=temperature
+        )
+
+        return EnFo_result
+    except Exception as e:
+        logger.error(
+            f"Error calculating enthalpy of formation using HSGProperties: {e}"
+        )
+        return None
+
+
+# SECTION: reference enthalpy calculations (phase inferred from component state)
+# ! reference enthalpy at temperature
 
 @measure_time
 def calc_En_IG_ref(
@@ -199,16 +373,16 @@ def calc_En_IG_ref(
     **kwargs
 ) -> Optional[ComponentEnthalpy]:
     """
-    Calculate the ideal gas enthalpy (J/mol) at a given temperature (K) for a component.
+    Calculate the reference enthalpy (J/mol) at a given temperature (K) for a component.
 
     Parameters
     ----------
     component : Component
-        The chemical component for which to calculate the ideal gas enthalpy of formation.
+        The chemical component for which to calculate the reference enthalpy.
     model_source : ModelSource
         The source model containing necessary data.
     temperature : Temperature
-        The temperature at which to calculate the ideal gas enthalpy of formation.
+        The temperature at which to calculate the reference enthalpy.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
     **kwargs
@@ -219,12 +393,12 @@ def calc_En_IG_ref(
     Returns
     -------
     Optional[ComponentEnthalpy]
-        A ComponentEnthalpy object containing the ideal gas enthalpy of formation value, unit, and symbol, or None if calculation fails.
+        A ComponentEnthalpy object containing the reference enthalpy value, unit, and symbol, or None if calculation fails.
 
     Notes
     -----
-    - The function initializes the HSGProperties class and uses it to compute the ideal gas enthalpy of formation.
-    - The ideal gas enthalpy of formation symbol must be consistent with the defined unit in the configuration which is EnFo_IG.
+    - The function initializes HSGProperties and computes phase-specific reference enthalpy via `calc_reference_enthalpy`.
+    - The phase is inferred from `component.state` and mapped to one of `IG`, `LIQ`, or `SOL`.
     - Reference temperature is set to 298.15 K.
     - All enthalpy results are provided in J/mol.
     """
@@ -270,8 +444,73 @@ def calc_En_IG_ref(
         return EnFo_IG_result
     except Exception as e:
         logger.error(
-            f"Error calculating ideal gas enthalpy of formation for component '{component.name}': {e}")
+            f"Error calculating reference enthalpy for component '{component.name}': {e}")
         return None
+
+# ! reference enthalpy at temperature using hsg properties
+
+
+def calc_En_IG_ref_hsg(
+    hsg_props: HSGProperties,
+    temperature: Temperature,
+    **kwargs
+) -> Optional[ComponentEnthalpy]:
+    """
+    Calculate the reference enthalpy (J/mol) at a given temperature (K) using an existing HSGProperties instance.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    temperature : Temperature
+        The temperature at which to calculate the reference enthalpy.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[ComponentEnthalpy]
+        A ComponentEnthalpy object containing the reference enthalpy value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - The function uses the provided HSGProperties instance to compute phase-specific reference enthalpy via `calc_reference_enthalpy`.
+    - The phase is inferred from `hsg_props.component.state` and mapped to one of `IG`, `LIQ`, or `SOL`.
+    - Reference temperature is set to 298.15 K.
+    - All enthalpy results are provided in J/mol.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        if not isinstance(temperature, Temperature):
+            logger.error("Invalid temperature provided.")
+            return None
+
+        # SECTION: Component phase
+        component_state = hsg_props.component.state.upper()
+        phase = map_state_to_phase(
+            state=component_state
+        )
+
+        # NOTE: calculate
+        EnFo_IG_result = hsg_props.calc_reference_enthalpy(
+            temperature=temperature,
+            phase=cast(Literal["IG", "LIQ", "SOL"], phase)
+        )
+
+        return EnFo_IG_result
+    except Exception as e:
+        logger.error(
+            f"Error calculating reference enthalpy using HSGProperties: {e}"
+        )
+        return None
+
+# SECTION: Gibbs free energy calculations
+# ! Gibbs free energy at temperature
 
 
 @measure_time
@@ -354,6 +593,63 @@ def calc_GiFrEn(
             f"Error calculating Gibbs free energy of formation for component '{component.name}': {e}")
         return None
 
+# ! Gibbs free energy at temperature using hsg properties
+
+
+def calc_GiFrEn_hsg(
+        hsg_props: HSGProperties,
+        temperature: Temperature,
+        phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
+        **kwargs
+) -> Optional[ComponentGibbsFreeEnergy]:
+    """
+    Calculate the Gibbs free energy (J/mol) at a given temperature (K) for a component using an existing HSGProperties instance.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    temperature : Temperature
+        The temperature at which to calculate the Gibbs free energy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase of the component ('IG' for ideal gas, 'LIQ' for liquid, 'SOL' for solid). Default is 'IG'.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[ComponentGibbsFreeEnergy]
+        A ComponentGibbsFreeEnergy object containing the Gibbs free energy of formation value, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - The function uses the provided HSGProperties instance to compute the Gibbs free energy of formation at the specified temperature and phase.
+    - The Gibbs free energy of formation symbol must be consistent with the defined unit in the configuration which is GiEnFo_IG.
+    - Reference temperature is set to 298.15 K.
+    - All Gibbs energy results are provided in J/mol.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        # NOTE: calculate
+        GiEnFo_result = hsg_props.calc_gibbs_free_energy(
+            temperature=temperature,
+            phase=phase
+        )
+
+        return GiEnFo_result
+    except Exception as e:
+        logger.error(
+            f"Error calculating Gibbs free energy of formation using HSGProperties: {e}")
+        return None
+
+# SECTION: enthalpy calculations over a range of temperatures
+# ! enthalpy at temperature over a range of temperatures
+
 
 @measure_time
 def calc_En_range(
@@ -431,6 +727,63 @@ def calc_En_range(
             f"Error calculating enthalpy of formation range for component '{component.name}': {e}")
         return None
 
+# ! Gibbs free energy at temperature over a range of temperatures using hsg properties
+
+
+def calc_En_range_hsg(
+        hsg_props: HSGProperties,
+        temperatures: list[Temperature],
+        **kwargs
+) -> Optional[list[ComponentEnthalpy]]:
+    """
+    Calculate the enthalpy of formation (J/mol) over a range of temperatures (K) for a component using an existing HSGProperties instance.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    temperatures : list[Temperature]
+        The list of temperatures at which to calculate the enthalpy of formation.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[list[ComponentEnthalpy]]
+        A list of ComponentEnthalpy objects containing the enthalpy of formation values, units, and symbols, or None if calculation fails.
+
+    Notes
+    -----
+    - The function uses the provided HSGProperties instance to compute the enthalpy of formation at the specified range of temperatures.
+    - The enthalpy of formation symbol must be consistent with the defined unit in the configuration which is EnFo_IG.
+    - Reference temperature is set to 298.15 K.
+    - All enthalpy results are provided in J/mol.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        if not all(isinstance(temp, Temperature) for temp in temperatures):
+            logger.error("Invalid temperatures provided.")
+            return None
+
+        # NOTE: calculate
+        EnFo_results = hsg_props.calc_enthalpy_range(
+            temperatures=temperatures
+        )
+
+        return EnFo_results
+    except Exception as e:
+        logger.error(
+            f"Error calculating enthalpy of formation range using HSGProperties: {e}")
+        return None
+
+# SECTION: Gibbs free energy calculations over a range of temperatures
+# ! Gibbs free energy at temperature over a range of temperatures
+
 
 @measure_time
 def calc_GiFrEn_range(
@@ -507,6 +860,63 @@ def calc_GiFrEn_range(
         logger.error(
             f"Error calculating Gibbs free energy of formation range for component '{component.name}': {e}")
         return None
+
+# ! Gibbs free energy at temperature over a range of temperatures using hsg properties
+
+
+def calc_GiFrEn_range_hsg(
+        hsg_props: HSGProperties,
+        temperatures: list[Temperature],
+        **kwargs
+) -> Optional[list[ComponentGibbsFreeEnergy]]:
+    """
+    Calculate the Gibbs free energy (J/mol) over a range of temperatures (K) for a component using an existing HSGProperties instance.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    temperatures : list[Temperature]
+        The list of temperatures at which to calculate the Gibbs free energy of formation.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[list[ComponentGibbsFreeEnergy]]
+        A list of ComponentGibbsFreeEnergy objects containing the Gibbs free energy of formation values, units, and symbols, or None if calculation fails.
+
+    Notes
+    -----
+    - The function uses the provided HSGProperties instance to compute the Gibbs free energy of formation at the specified range of temperatures.
+    - The Gibbs free energy of formation symbol must be consistent with the defined unit in the configuration which is GiEnFo_IG.
+    - Reference temperature is set to 298.15 K.
+    - All Gibbs energy results are provided in J/mol.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        if not all(isinstance(temp, Temperature) for temp in temperatures):
+            logger.error("Invalid temperatures provided.")
+            return None
+
+        # NOTE: calculate
+        GiEnFo_results = hsg_props.calc_gibbs_free_energy_range(
+            temperatures=temperatures
+        )
+
+        return GiEnFo_results
+    except Exception as e:
+        logger.error(
+            f"Error calculating Gibbs free energy of formation range using HSGProperties: {e}")
+        return None
+
+# SECTION: entropy change calculations
+# ! entropy change between two temperatures and pressures
 
 
 @measure_time
@@ -629,6 +1039,106 @@ def calc_dEnt(
     except Exception as e:
         logger.error(
             f"Error calculating entropy change for component '{component.name}': {e}")
+        return None
+
+# ! entropy change between two temperatures and pressures using hsg properties
+
+
+def calc_dEnt_hsg(
+        hsg_props: HSGProperties,
+        temperature_initial: Temperature,
+        temperature_final: Temperature,
+        pressure_initial: Pressure,
+        pressure_final: Pressure,
+        phase: Literal['IG', 'LIQ', 'SOL'],
+        **kwargs
+) -> Optional[ComponentEntropyChange]:
+    """
+    Calculate the entropy change (J/mol.K) between two temperatures (K) and pressures in any unit for a component using an existing HSGProperties instance.
+
+    The entropy change is calculated by integrating the heat capacity equation between the two specified temperatures and accounting for pressure changes based on the phase of the component. The result is provided in J/mol.K.
+
+    The calculation considers the following:
+    - For ideal gases, the pressure change contribution is included using the relation ΔS = nR ln(P2/P1).
+    - For liquids, the pressure change contribution is typically negligible and may be omitted.
+    - For solids, the pressure change contribution is typically negligible and may be omitted.
+
+    The expression for entropy change is given by:
+        ΔS = ∫(Cp/T) dT + ln(P2/P1) * R  (for ideal gases)
+        ΔS = ∫(Cp/T) dT                    (for liquids)
+        ΔS = ∫(Cp/T) dT                    (for solids)
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    temperature_initial : Temperature
+        The initial temperature.
+    temperature_final : Temperature
+        The final temperature.
+    pressure_initial : Pressure
+        The initial pressure.
+    pressure_final : Pressure
+        The final pressure.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase of the component ('IG' for ideal gas, 'LIQ' for liquid, 'SOL' for solid).
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'log'.
+
+    Returns
+    -------
+    Optional[ComponentEntropyChange]
+        The entropy change value, or None if calculation fails.
+
+    Notes
+    -----
+    - The function uses the provided HSGProperties instance to compute the entropy change.
+    - The entropy change is calculated by integrating the heat capacity equation between the two specified temperatures and accounting for pressure changes.
+    - The result is provided in J/mol.K.
+    - R is the universal gas constant (8.3145 J/mol.K).
+    - Pressures can be provided in any unit as they will be converted internally.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        if not isinstance(temperature_initial, Temperature):
+            logger.error("Invalid initial temperature provided.")
+            return None
+
+        if not isinstance(temperature_final, Temperature):
+            logger.error("Invalid final temperature provided.")
+            return None
+
+        if not isinstance(pressure_initial, Pressure):
+            logger.error("Invalid initial pressure provided.")
+            return None
+
+        if not isinstance(pressure_final, Pressure):
+            logger.error("Invalid final pressure provided.")
+            return None
+
+        if phase not in ['IG', 'LIQ', 'SOL']:
+            logger.error(
+                "Invalid phase provided. Must be 'IG', 'LIQ', or 'SOL'.")
+            return None
+
+        # NOTE: calculate entropy change
+        delta_S = hsg_props.calc_entropy_change(
+            T1=temperature_initial,
+            T2=temperature_final,
+            P1=pressure_initial,
+            P2=pressure_final,
+            phase=phase
+        )
+
+        return delta_S
+    except Exception as e:
+        logger.error(
+            f"Error calculating entropy change using HSGProperties: {e}")
         return None
 
 
