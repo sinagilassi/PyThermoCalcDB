@@ -84,10 +84,10 @@ C2H6 = Component(
 )
 
 # components
-components = [CH3OH]
+components = [CH3OH, H2]
 
 # NOTE: ignore state properties
-ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'En_VAP']
+ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'EnVap']
 
 # ====================================================
 # SECTION: build components thermodb
@@ -101,6 +101,8 @@ for comp in components:
         component_state=comp.state,
         reference_content=REFERENCE_CONTENT,
         ignore_state_props=ignore_state_props,
+        thermodb_save=True,
+        thermodb_save_path=thermodb_dir,
     )
     if thermodb_component is None:
         raise ValueError(f"thermodb_component for {comp.name} is None")
