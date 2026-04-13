@@ -2,7 +2,7 @@
 import logging
 import math
 from typing import Dict, Any, Literal, Optional, List, cast, Tuple
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp, ComponentKey
+from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp, ComponentKey, CustomProperty
 from pythermodb_settings.utils import set_component_id, build_component_mapper
 import pycuc
 from pyThermoLinkDB.thermo import Source
@@ -451,6 +451,279 @@ class HSGProperties:
             logger.exception(
                 f"Error retrieving equation source for {prop_name}: {e}")
             raise
+
+    # SECTION: constant properties
+    # ! ideal gas enthalpy of formation at reference temperature (298.15 K and 1 atm)
+    @property
+    def EnFo_IG(self) -> Optional[CustomProperty]:
+        '''
+        Retrieve the ideal gas enthalpy of formation (EnFo_IG) at 298.15K and 1 atm for the component.
+
+        Returns
+        -------
+        Optional[CustomProperty]
+            The ideal gas enthalpy of formation if available, otherwise None.
+        '''
+        try:
+            formation_data = self._get_formation_data(EnFo_IG_SYMBOL)
+
+            if formation_data is None:
+                logger.warning(
+                    f"No ideal gas enthalpy of formation data available for component {self.component_id}.")
+                return None
+
+            # NOTE: get value and unit
+            value = formation_data['value']
+            unit = formation_data['unit']
+
+            # set
+            result = CustomProperty(
+                value=value,
+                unit=unit,
+                symbol=EnFo_IG_SYMBOL
+            )
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving ideal gas enthalpy of formation: {e}"
+            )
+            return None
+
+    # SECTION: other properties
+    # ! enthalpy of formation for liquid
+    @property
+    def EnFo_LIQ(self) -> Optional[CustomProperty]:
+        '''
+        Retrieve the liquid enthalpy of formation (EnFo_LIQ) at 298.15K and 1 atm for the component.
+
+        Returns
+        -------
+        Optional[CustomProperty]
+            The liquid enthalpy of formation if available, otherwise None.
+        '''
+        try:
+            formation_data = self._get_formation_data(EnFo_LIQ_SYMBOL)
+
+            if formation_data is None:
+                logger.warning(
+                    f"No liquid enthalpy of formation data available for component {self.component_id}.")
+                return None
+
+            # NOTE: get value and unit
+            value = formation_data['value']
+            unit = formation_data['unit']
+
+            # set
+            result = CustomProperty(
+                value=value,
+                unit=unit,
+                symbol=EnFo_LIQ_SYMBOL
+            )
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving liquid enthalpy of formation: {e}"
+            )
+            return None
+
+    # ! enthalpy of formation for solid
+    @property
+    def EnFo_SOL(self) -> Optional[CustomProperty]:
+        '''
+        Retrieve the solid enthalpy of formation (EnFo_SOL) at 298.15K and 1 atm for the component.
+
+        Returns
+        -------
+        Optional[CustomProperty]
+            The solid enthalpy of formation if available, otherwise None.
+        '''
+        try:
+            formation_data = self._get_formation_data(EnFo_SOL_SYMBOL)
+
+            if formation_data is None:
+                logger.warning(
+                    f"No solid enthalpy of formation data available for component {self.component_id}.")
+                return None
+
+            # NOTE: get value and unit
+            value = formation_data['value']
+            unit = formation_data['unit']
+
+            # set
+            result = CustomProperty(
+                value=value,
+                unit=unit,
+                symbol=EnFo_SOL_SYMBOL
+            )
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving solid enthalpy of formation: {e}"
+            )
+            return None
+
+    # ! ideal gas Gibbs free energy of formation at reference temperature (298.15 K and 1 atm)
+    @property
+    def GiEnFo_IG(self) -> Optional[CustomProperty]:
+        '''
+        Retrieve the ideal gas Gibbs free energy of formation (GiEnFo_IG) at 298.15K and 1 atm for the component.
+
+        Returns
+        -------
+        Optional[CustomProperty]
+            The ideal gas Gibbs free energy of formation if available, otherwise None.
+        '''
+        try:
+            formation_data = self._get_formation_data(GiEnFo_IG_SYMBOL)
+
+            if formation_data is None:
+                logger.warning(
+                    f"No ideal gas Gibbs free energy of formation data available for component {self.component_id}.")
+                return None
+
+            # NOTE: get value and unit
+            value = formation_data['value']
+            unit = formation_data['unit']
+
+            # set
+            result = CustomProperty(
+                value=value,
+                unit=unit,
+                symbol=GiEnFo_IG_SYMBOL
+            )
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving ideal gas Gibbs free energy of formation: {e}"
+            )
+            return None
+
+    # SECTION: data retrieval methods
+    def get_custom_prop(
+            self,
+            prop_name: str
+    ) -> Optional[CustomProperty]:
+        '''
+        Retrieve a custom property for the component.
+
+        Parameters
+        ----------
+        prop_name : str
+            The name of the custom property to retrieve.
+
+        Returns
+        -------
+        Optional[CustomProperty]
+            The custom property if available, otherwise None.
+        '''
+        try:
+            prop_data = self._get_formation_data(prop_name)
+
+            if prop_data is None:
+                logger.warning(
+                    f"No data available for property {prop_name} for component {self.component_id}.")
+                return None
+
+            # NOTE: get value and unit
+            value = prop_data['value']
+            unit = prop_data['unit']
+
+            # set
+            result = CustomProperty(
+                value=value,
+                unit=unit,
+                symbol=prop_name
+            )
+
+            return result
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving custom property {prop_name}: {e}"
+            )
+            return None
+
+    # SECTION: equation retrieval methods
+    # ! enthalpy of vaporization equation source
+    @property
+    def EnVap(self) -> Optional[ComponentEquationSource]:
+        '''
+        Retrieve the equation source for the enthalpy of vaporization (EnVap) for the component.
+
+        Returns
+        -------
+        Optional[ComponentEquationSource]
+            The equation source for the enthalpy of vaporization if available, otherwise None.
+        '''
+        try:
+            eq_src = self._get_equation_source(
+                prop_name=EnVap_SYMBOL,
+                component_key=self.component_key,
+            )
+
+            return eq_src
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving equation source for enthalpy of vaporization: {e}")
+            return None
+
+    # ! enthalpy of sublimation equation source
+    @property
+    def EnSub(self) -> Optional[ComponentEquationSource]:
+        '''
+        Retrieve the equation source for the enthalpy of sublimation (EnSub) for the component.
+
+        Returns
+        -------
+        Optional[ComponentEquationSource]
+            The equation source for the enthalpy of sublimation if available, otherwise None.
+        '''
+        try:
+            eq_src = self._get_equation_source(
+                prop_name=EnSub_SYMBOL,
+                component_key=self.component_key,
+            )
+
+            return eq_src
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving equation source for enthalpy of sublimation: {e}")
+            return None
+
+    # ! generic method to retrieve equation source for a specified property name
+    def get_equation_source_by_prop_name(
+            self,
+            prop_name: str
+    ) -> Optional[ComponentEquationSource]:
+        '''
+        Retrieve the equation source for a specified property.
+
+        Parameters
+        ----------
+        prop_name : str
+            The name of the property for which to retrieve the equation source.
+
+        Returns
+        -------
+        Optional[ComponentEquationSource]
+            The equation source for the specified property if available, otherwise None.
+        '''
+        try:
+            eq_src = self._get_equation_source(
+                prop_name=prop_name,
+                component_key=self.component_key,
+            )
+
+            return eq_src
+        except Exception as e:
+            logger.exception(
+                f"Error retrieving equation source for property {prop_name}: {e}")
+            return None
+
+    # SECTION: calculation methods
 
     # ! calculate enthalpy change by integrating Cp equation from T1 to T2
     def _calc_enthalpy_change(
