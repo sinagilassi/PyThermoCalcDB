@@ -55,6 +55,13 @@ CH3OH = Component(
     state='g',
 )
 
+# ethanol
+C2H6O = Component(
+    name='ethanol',
+    formula='C2H6O',
+    state='g',
+)
+
 # water
 H2O = Component(
     name='water',
@@ -84,10 +91,10 @@ C2H6 = Component(
 )
 
 # components
-components = [CH3OH, H2]
+components = [C2H6O]
 
 # NOTE: ignore state properties
-ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'EnVap']
+ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'EnVap', 'Cp_LIQ']
 
 # ====================================================
 # SECTION: build components thermodb
