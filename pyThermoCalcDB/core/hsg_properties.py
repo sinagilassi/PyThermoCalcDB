@@ -216,6 +216,8 @@ class HSGProperties:
         # >>
         self.EnSub_UNIT = self.EnSub_eq_return_units.get('EnSub', 'J/mol')
 
+    # NOTE: utility methods to extract data from equation source
+
     def _get_args_units(
             self,
             eq_src: ComponentEquationSource
@@ -306,6 +308,8 @@ class HSGProperties:
             logger.exception(
                 f"Error retrieving formation data for {prop_name}: {e}")
             return None
+
+    # SECTION: calculation methods
 
     def _get_Cp_equation_source(
             self,
@@ -448,6 +452,7 @@ class HSGProperties:
                 f"Error retrieving equation source for {prop_name}: {e}")
             raise
 
+    # ! calculate enthalpy change by integrating Cp equation from T1 to T2
     def _calc_enthalpy_change(
             self,
             Cp_eq_src: ComponentEquationSource,
@@ -502,6 +507,7 @@ class HSGProperties:
                 f"Error calculating enthalpy change from {T1} K to {T2} K: {e}")
             return None
 
+    # ! calculate enthalpy by integrating Cp equation from reference temperature to T and adding enthalpy of formation at reference temperature
     def calc_enthalpy_change(
             self,
             T1: Temperature,
@@ -603,6 +609,7 @@ class HSGProperties:
                 f"Error calculating enthalpy change between temperatures: {e}")
             return None
 
+    # ! calculate enthalpy by integrating Cp equation from reference temperature to T and adding enthalpy of formation at reference temperature
     def calc_enthalpy(
             self,
             temperature: Temperature,
@@ -737,6 +744,7 @@ class HSGProperties:
                 f"Error calculating enthalpy of formation: {e}")
             return None
 
+    # ! calculate enthalpy over a range of temperatures by integrating Cp equation from reference temperature to each temperature and adding enthalpy of formation at reference temperature
     def calc_enthalpy_range(
             self,
             temperatures: list[Temperature],
@@ -772,6 +780,7 @@ class HSGProperties:
                 f"Error calculating enthalpy of formation over range: {e}")
             return results
 
+    # ! calculate Gibbs free energy by calculating enthalpy at temperature and calculating entropy change from heat capacity equations, then using Gibbs free energy equation
     def calc_gibbs_free_energy(
             self,
             temperature: Temperature,
@@ -946,6 +955,7 @@ class HSGProperties:
                 f"Error calculating Gibbs free energy of formation: {e}")
             return None
 
+    # ! calculate Gibbs free energy over a range of temperatures by calculating enthalpy at each temperature and calculating entropy change from heat capacity equations, then using Gibbs free energy equation
     def calc_gibbs_free_energy_range(
             self,
             temperatures: list[Temperature],
@@ -983,6 +993,7 @@ class HSGProperties:
                 f"Error calculating Gibbs free energy of formation over range: {e}")
             return results
 
+    # ! calculate entropy change
     def calc_entropy_change(
             self,
             T1: Temperature,
@@ -1134,6 +1145,7 @@ class HSGProperties:
                 f"Error calculating entropy change between temperatures: {e}")
             return None
 
+    # ! calculate enthalpy of evaporation by evaluating EnVap equation at temperature
     def calc_evaporation_enthalpy(
             self,
             temperature: Temperature,
@@ -1202,6 +1214,7 @@ class HSGProperties:
                 f"Error calculating enthalpy of evaporation: {e}")
             return None
 
+    # ! calculate enthalpy of sublimation by evaluating EnSub equation at temperature
     def calc_sublimation_enthalpy(
             self,
             temperature: Temperature,
@@ -1269,6 +1282,7 @@ class HSGProperties:
                 f"Error calculating enthalpy of sublimation: {e}")
             return None
 
+    # ! calculate enthalpy of formation for a specific phase at a given temperature by calculating ideal gas enthalpy and then adjusting for phase changes if necessary
     def calc_reference_enthalpy(
             self,
             temperature: Temperature,

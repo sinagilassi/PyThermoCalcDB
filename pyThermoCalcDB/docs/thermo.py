@@ -12,6 +12,7 @@ from pythermodb_settings.models import (
 from pyThermoLinkDB.thermo import Source
 import pycuc
 # local
+from ..configs.constants import T_298_K
 from ..utils.tools import measure_time
 from ..utils.component_tools import map_state_to_phase
 from ..core.hsg_properties import HSGProperties
@@ -506,6 +507,131 @@ def calc_En_IG_ref_hsg(
     except Exception as e:
         logger.error(
             f"Error calculating reference enthalpy using HSGProperties: {e}"
+        )
+        return None
+
+# ! calculate enthalpy at temperature
+
+
+def calc_En_IG_ref_hsg_plus(
+    hsg_props: HSGProperties,
+    EnFo_IG: CustomProp,
+    temperature: Temperature,
+    temperature_ref: Temperature = T_298_K,
+    output_unit: Optional[str] = None,
+) -> Optional[CustomProp]:
+    """
+    Calculate the enthalpy (J/mol) at a given temperature (K) using an existing HSGProperties instance and a reference enthalpy.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    EnFo_IG : CustomProp
+        The reference enthalpy value at 298.15 K.
+    temperature : Temperature
+        The temperature at which to calculate the enthalpy.
+    temperature_ref : Temperature
+        The reference temperature corresponding to the reference enthalpy (typically 298.15 K), default is T_298_K.
+    output_unit : Optional[str]
+        The desired output unit for the enthalpy result (e.g., 'J/mol', 'kJ/mol'). If None, the unit of the reference enthalpy will be used.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        A CustomProp object containing the enthalpy value at the specified temperature, unit, and symbol, or None if calculation fails.
+
+    Notes
+    -----
+    - The function calculates the enthalpy at the specified temperature by adding the reference enthalpy (EnFo_IG) to the enthalpy change from 298.15 K to the specified temperature.
+    - All enthalpy results are provided in J/mol.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        if not isinstance(EnFo_IG, CustomProp):
+            logger.error("Invalid reference enthalpy provided.")
+            return None
+
+        if not isinstance(temperature, Temperature):
+            logger.error("Invalid temperature provided.")
+            return None
+
+        if not isinstance(temperature_ref, Temperature):
+            logger.error("Invalid reference temperature provided.")
+            return None
+
+        # NOTE: enthalpy at reference temperature
+        # ! J/mol
+        if EnFo_IG.unit != "J/mol":
+            val_ = pycuc.convert_from_to(
+                value=EnFo_IG.value,
+                from_unit=EnFo_IG.unit,
+                to_unit="J/mol"
+            )
+
+            # upd
+            EnFo_IG = CustomProp(
+                value=val_,
+                unit="J/mol"
+            )
+
+        # NOTE: calculate enthalpy change from 298.15 K to specified temperature
+        # ! J/mol
+        delta_H = hsg_props.calc_enthalpy_change(
+            T1=temperature_ref,
+            T2=temperature
+        )
+
+        # >> check
+        if delta_H is None:
+            logger.error("Failed to calculate enthalpy change.")
+            return None
+
+        # >> check unit
+        if delta_H.unit != "J/mol":
+            val_ = pycuc.convert_from_to(
+                value=delta_H.value,
+                from_unit=delta_H.unit,
+                to_unit="J/mol"
+            )
+
+            # upd
+            delta_H = CustomProp(
+                value=val_,
+                unit="J/mol"
+            )
+
+        # NOTE: calculate total enthalpy at specified temperature
+        # ! J/mol
+        En_result = CustomProp(
+            value=float(EnFo_IG.value + delta_H.value),
+            unit=EnFo_IG.unit,
+        )
+
+        # NOTE: convert to output unit if specified
+        if (
+            output_unit is not None and
+            En_result.unit != output_unit
+        ):
+            val_converted = pycuc.convert_from_to(
+                value=En_result.value,
+                from_unit=En_result.unit,
+                to_unit=output_unit
+            )
+
+            # upd
+            En_result = CustomProp(
+                value=val_converted,
+                unit=output_unit
+            )
+
+        return En_result
+    except Exception as e:
+        logger.error(
+            f"Error calculating enthalpy using HSGProperties and reference enthalpy: {e}"
         )
         return None
 
