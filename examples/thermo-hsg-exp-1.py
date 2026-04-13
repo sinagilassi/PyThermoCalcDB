@@ -29,6 +29,7 @@ from pyThermoCalcDB.docs.thermo import (
     calc_GiFrEn_range_hsg,
     calc_dEnt,
     calc_dEnt_hsg,
+    calc_En_IG_ref_hsg_plus,
 )
 
 # check version
