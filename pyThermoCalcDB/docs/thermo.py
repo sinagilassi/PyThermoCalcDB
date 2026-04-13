@@ -664,6 +664,124 @@ def calc_En_IG_ref_hsg_plus(
         )
         return None
 
+# ! calculate enthalpy at temperature using hsg properties and reference enthalpy - liquid phase
+
+
+def calc_En_LIQ_ref_hsg_plus(
+    hsg_props: HSGProperties,
+    EnFo_LIQ: CustomProperty,
+    temperature: Temperature,
+    temperature_ref: Temperature = T_298_K,
+    output_unit: Optional[str] = None,
+    **kwargs
+) -> Optional[CustomProperty]:
+    """
+    Calculate the enthalpy (J/mol) at a given temperature (K) for the liquid phase using an existing HSGProperties instance and a reference enthalpy.
+
+    Parameters
+    ----------
+    hsg_props : HSGProperties
+        An instance of the HSGProperties class for the component of interest.
+    EnFo_LIQ : CustomProperty
+        The reference enthalpy value for the liquid phase at 298.15 K.
+    temperature : Temperature
+        The temperature at which to calculate the enthalpy.
+    temperature_ref : Temperature
+        The reference temperature corresponding to the reference enthalpy (typically 298.15 K), default is T_298_K.
+    output_unit : Optional[str]
+        The desired output unit for the enthalpy result (e.g., 'J/mol', 'kJ/mol'). If None, the unit of the reference enthalpy will be used.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'silent'.
+
+    Returns
+    -------
+    Optional[CustomProperty]
+        A CustomProperty object containing the enthalpy value at the specified temperature, unit, and symbol, or None if calculation fails.
+    """
+    try:
+        if not isinstance(hsg_props, HSGProperties):
+            logger.error("Invalid HSGProperties instance provided.")
+            return None
+
+        if not isinstance(EnFo_LIQ, CustomProperty):
+            logger.error("Invalid reference enthalpy provided.")
+            return None
+
+        if not isinstance(temperature, Temperature):
+            logger.error("Invalid temperature provided.")
+            return None
+
+        if not isinstance(temperature_ref, Temperature):
+            logger.error("Invalid reference temperature provided.")
+            return None
+
+        # NOTE: enthalpy at reference temperature
+        # ! J/mol
+        if EnFo_LIQ.unit != "J/mol":
+            val_ = pycuc.convert_from_to(
+                value=EnFo_LIQ.value,
+                from_unit=EnFo_LIQ.unit,
+                to_unit="J/mol"
+            )
+
+            # upd
+            EnFo_LIQ = CustomProperty(
+                value=val_,
+                unit="J/mol",
+                symbol=EnFo_LIQ.symbol,
+            )
+
+        # >> check symbol
+        if EnFo_LIQ.symbol != EnFo_LIQ_SYMBOL:
+            logger.warning(
+                f"Reference enthalpy symbol '{EnFo_LIQ.symbol}' does not match expected {EnFo_LIQ_SYMBOL}."
+            )
+
+        # NOTE: calculate enthalpy change from 298.15 K to specified temperature
+        # ! J/mol
+        delta_H = hsg_props.calc_enthalpy_change(
+            T1=temperature_ref,
+            T2=temperature,
+            phase="LIQ"
+        )
+
+        # >> check
+        if delta_H is None:
+            logger.error("Failed to calculate enthalpy change.")
+            return None
+
+        # >> check unit
+        if delta_H.unit != "J/mol":
+            val_ = pycuc.convert_from_to(
+                value=delta_H.value,
+                from_unit=delta_H.unit,
+                to_unit="J/mol"
+            )
+
+            # upd
+            delta_H = CustomProperty(
+                value=val_,
+                unit="J/mol",
+                symbol=delta_H.symbol
+            )
+
+        # NOTE: calculate total enthalpy at specified temperature
+        # ! J/mol
+        En_result = CustomProperty(
+            value=float(EnFo_LIQ.value + delta_H.value),
+            unit=EnFo_LIQ.unit,
+            symbol=EnFo_LIQ.symbol,
+        )
+
+        return En_result
+    except Exception as e:
+        logger.error(
+            f"Error calculating liquid phase enthalpy using HSGProperties and reference enthalpy: {e}"
+        )
+        return None
+
 # SECTION: Gibbs free energy calculations
 # ! Gibbs free energy at temperature
 
