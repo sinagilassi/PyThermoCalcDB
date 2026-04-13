@@ -7,7 +7,8 @@ from pythermodb_settings.models import (
     Temperature,
     Pressure,
     CustomProp,
-    ComponentKey
+    ComponentKey,
+    CustomProperty
 )
 from pyThermoLinkDB.thermo import Source
 import pycuc
@@ -23,6 +24,19 @@ from ..models.component_ref import (
     ComponentEnthalpyChange,
     ComponentEntropyChange,
     MixtureEnthalpyResult
+)
+from ..configs.thermo_props import (
+    EnFo_IG_SYMBOL,
+    EnFo_LIQ_SYMBOL,
+    EnFo_SOL_SYMBOL,
+    GiEnFo_IG_SYMBOL,
+    GiEnFo_LIQ_SYMBOL,
+    GiEnFo_SOL_SYMBOL,
+    Cp_IG_SYMBOL,
+    Cp_LIQ_SYMBOL,
+    Cp_SOL_SYMBOL,
+    EnVap_SYMBOL,
+    EnSub_SYMBOL,
 )
 
 # NOTE: Logger
@@ -513,13 +527,15 @@ def calc_En_IG_ref_hsg(
 # ! calculate enthalpy at temperature
 
 
+@measure_time
 def calc_En_IG_ref_hsg_plus(
     hsg_props: HSGProperties,
-    EnFo_IG: CustomProp,
+    EnFo_IG: CustomProperty,
     temperature: Temperature,
     temperature_ref: Temperature = T_298_K,
     output_unit: Optional[str] = None,
-) -> Optional[CustomProp]:
+    **kwargs
+) -> Optional[CustomProperty]:
     """
     Calculate the enthalpy (J/mol) at a given temperature (K) using an existing HSGProperties instance and a reference enthalpy.
 
@@ -527,7 +543,7 @@ def calc_En_IG_ref_hsg_plus(
     ----------
     hsg_props : HSGProperties
         An instance of the HSGProperties class for the component of interest.
-    EnFo_IG : CustomProp
+    EnFo_IG : CustomProperty
         The reference enthalpy value at 298.15 K.
     temperature : Temperature
         The temperature at which to calculate the enthalpy.
@@ -535,10 +551,14 @@ def calc_En_IG_ref_hsg_plus(
         The reference temperature corresponding to the reference enthalpy (typically 298.15 K), default is T_298_K.
     output_unit : Optional[str]
         The desired output unit for the enthalpy result (e.g., 'J/mol', 'kJ/mol'). If None, the unit of the reference enthalpy will be used.
+    **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'silent'.
 
     Returns
     -------
-    Optional[CustomProp]
+    Optional[CustomProperty]
         A CustomProp object containing the enthalpy value at the specified temperature, unit, and symbol, or None if calculation fails.
 
     Notes
@@ -551,7 +571,7 @@ def calc_En_IG_ref_hsg_plus(
             logger.error("Invalid HSGProperties instance provided.")
             return None
 
-        if not isinstance(EnFo_IG, CustomProp):
+        if not isinstance(EnFo_IG, CustomProperty):
             logger.error("Invalid reference enthalpy provided.")
             return None
 
@@ -573,16 +593,23 @@ def calc_En_IG_ref_hsg_plus(
             )
 
             # upd
-            EnFo_IG = CustomProp(
+            EnFo_IG = CustomProperty(
                 value=val_,
-                unit="J/mol"
+                unit="J/mol",
+                symbol=EnFo_IG.symbol,
+            )
+
+        # >> check symbol
+        if EnFo_IG.symbol != EnFo_IG_SYMBOL:
+            logger.warning(
+                f"Reference enthalpy symbol '{EnFo_IG.symbol}' does not match expected {EnFo_IG_SYMBOL}."
             )
 
         # NOTE: calculate enthalpy change from 298.15 K to specified temperature
         # ! J/mol
         delta_H = hsg_props.calc_enthalpy_change(
             T1=temperature_ref,
-            T2=temperature
+            T2=temperature,
         )
 
         # >> check
@@ -606,9 +633,10 @@ def calc_En_IG_ref_hsg_plus(
 
         # NOTE: calculate total enthalpy at specified temperature
         # ! J/mol
-        En_result = CustomProp(
+        En_result = CustomProperty(
             value=float(EnFo_IG.value + delta_H.value),
             unit=EnFo_IG.unit,
+            symbol=EnFo_IG.symbol,
         )
 
         # NOTE: convert to output unit if specified
@@ -623,9 +651,10 @@ def calc_En_IG_ref_hsg_plus(
             )
 
             # upd
-            En_result = CustomProp(
+            En_result = CustomProperty(
                 value=val_converted,
-                unit=output_unit
+                unit=output_unit,
+                symbol=En_result.symbol,
             )
 
         return En_result
