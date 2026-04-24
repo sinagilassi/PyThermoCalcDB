@@ -1,5 +1,5 @@
 # import libs
-from pyThermoCalcDB.thermo.heat_capacity import (
+from pythermocalcdb.thermo.heat_capacity import (
     Cp_IG_polynomial,
     Cp_IG_NASA9_polynomial,
     Cp_IG_shomate,

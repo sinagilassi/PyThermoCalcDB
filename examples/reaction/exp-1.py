@@ -2,7 +2,7 @@
 import logging
 from rich import print
 from pyreactlab_core.models.reaction import Reaction
-from pyThermoCalcDB.reactions import dH_rxn_STD, dG_rxn_STD
+from pythermocalcdb.reactions import dH_rxn_STD, dG_rxn_STD
 from pythermodb_settings.models import Component, Temperature
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink

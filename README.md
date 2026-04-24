@@ -61,7 +61,7 @@ model_source = ptdblink.load_and_build_model_source(
 Example:
 
 ```python
-from pyThermoCalcDB.docs import thermo, sat
+from pythermocalcdb.docs import thermo, sat
 from pythermodb_settings.models import Temperature, Pressure
 
 T = Temperature(value=300.0, unit="K")

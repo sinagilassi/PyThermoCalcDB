@@ -1,5 +1,5 @@
 # import libs
-from pyThermoCalcDB.thermo.vapor_pressure import wagner
+from pythermocalcdb.thermo.vapor_pressure import wagner
 from pythermodb_settings.models import Temperature, Pressure
 from rich import print
 

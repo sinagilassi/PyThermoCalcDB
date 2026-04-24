@@ -24,7 +24,7 @@ import os
 import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
-from pyThermoCalcDB.docs import thermo, sat
+from pythermocalcdb.docs import thermo, sat
 
 CO2 = Component(name="carbon dioxide", formula="CO2", state="g")
 thermodb_dir = "/path/to/thermodb"

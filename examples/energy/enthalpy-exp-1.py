@@ -1,6 +1,6 @@
 # import libs
 from pythermodb_settings.models import Temperature
-from pyThermoCalcDB.thermo.enthalpy import (
+from pythermocalcdb.thermo.enthalpy import (
     En_IG_NASA9_polynomial,
     En_IG_shomate,
     En_IG_NASA9_polynomial_ranges,

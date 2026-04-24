@@ -1,5 +1,5 @@
 # import libs
-from pyThermoCalcDB.thermo.vapor_pressure import antoine
+from pythermocalcdb.thermo.vapor_pressure import antoine
 from pythermodb_settings.models import Temperature
 from rich import print
 

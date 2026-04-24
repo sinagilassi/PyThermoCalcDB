@@ -22,7 +22,7 @@ Notes 🧠:
 Example 🎯:
 
 ```python
-from pyThermoCalcDB.docs import thermo
+from pythermocalcdb.docs import thermo
 from pythermodb_settings.models import Component, Temperature, Pressure
 
 # model_source built via pyThermoLinkDB
@@ -75,7 +75,7 @@ Notes 💡:
 Example 🧪:
 
 ```python
-from pyThermoCalcDB.docs import sat
+from pythermocalcdb.docs import sat
 from pythermodb_settings.models import Pressure, Temperature
 
 T_grid = [Temperature(value=v, unit="K") for v in (280.0, 300.0, 320.0)]
@@ -100,7 +100,7 @@ Tsat = sat.calc_T_sat(
 Example 🔥:
 
 ```python
-from pyThermoCalcDB.reactions.reactions import dEn_rxn_STD
+from pythermocalcdb.reactions.reactions import dEn_rxn_STD
 from pyreactlab_core.models.reaction import Reaction
 from pythermodb_settings.models import Component, Temperature
 

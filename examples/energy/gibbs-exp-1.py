@@ -1,7 +1,7 @@
 # import libs
 from rich import print
 from pythermodb_settings.models import Temperature
-from pyThermoCalcDB.thermo.gibbs import (
+from pythermocalcdb.thermo.gibbs import (
     GiFrEn_IG,
     GiFrEn_IG_ranges,
 )

@@ -8,7 +8,7 @@ from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 from pyThermoDB.core import TableEquation
 # local
-from pyThermoCalcDB.docs.sat import (
+from pythermocalcdb.docs.sat import (
     calc_vapor_pressure_at_temperature,
     calc_enthalpy_of_vaporization_at_temperature,
     calc_saturated_temperature_at_pressure,

@@ -7,8 +7,8 @@ import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pythermodb_settings.models import Pressure, Temperature, CustomProp, Volume, Component, CustomProperty
 # locals
-from pyThermoCalcDB.models import ComponentEnthalpy
-from pyThermoCalcDB.docs.thermo import calc_En, calc_En_IG_ref
+from pythermocalcdb.models import ComponentEnthalpy
+from pythermocalcdb.docs.thermo import calc_En, calc_En_IG_ref
 # NOTE: for example
 # ! model sources
 from model_source import model_source

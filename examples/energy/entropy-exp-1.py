@@ -1,7 +1,7 @@
 # import libs
 from rich import print
 from pythermodb_settings.models import Temperature
-from pyThermoCalcDB.thermo.entropy import (
+from pythermocalcdb.thermo.entropy import (
     S_IG_NASA9_polynomial,
     S_IG_NASA9_polynomial_ranges,
     dS_IG_NASA7_polynomial,

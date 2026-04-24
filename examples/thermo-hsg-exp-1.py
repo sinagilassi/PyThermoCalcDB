@@ -13,7 +13,7 @@ from pythermodb_settings.models import (
     Pressure,
 )
 # local
-from pyThermoCalcDB.docs.thermo import (
+from pythermocalcdb.docs.thermo import (
     build_hsg_properties,
     calc_dEn,
     calc_dEn_hsg,

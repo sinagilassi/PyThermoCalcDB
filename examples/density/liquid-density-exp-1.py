@@ -1,5 +1,5 @@
 # import libs
-from pyThermoCalcDB.thermo.density import rackett
+from pythermocalcdb.thermo.density import rackett
 from pythermodb_settings.models import (
     Temperature,
     Pressure,

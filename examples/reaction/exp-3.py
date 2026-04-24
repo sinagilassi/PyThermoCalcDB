@@ -2,8 +2,8 @@
 import logging
 from rich import print
 from pyreactlab_core.models.reaction import Reaction
-from pyThermoCalcDB.reactions import dH_rxn_STD, dG_rxn_STD, build_hsg_reaction
-from pyThermoCalcDB.core import HSGReaction
+from pythermocalcdb.reactions import dH_rxn_STD, dG_rxn_STD, build_hsg_reaction
+from pythermocalcdb.core import HSGReaction
 from pythermodb_settings.models import Component, Temperature
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink

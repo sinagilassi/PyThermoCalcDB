@@ -7,7 +7,7 @@ import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB.models import ModelSource
 from pythermodb_settings.models import Component, ComponentRule, ComponentThermoDBSource, Temperature, Pressure
 # local
-from pyThermoCalcDB.docs.thermo import (
+from pythermocalcdb.docs.thermo import (
     calc_En,
     calc_GiFrEn,
     calc_En_range,
