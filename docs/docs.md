@@ -2,7 +2,7 @@
 
 All helpers take typed values from `pythermodb_settings` and expect a `ModelSource` built with PyThermoLinkDB. The optional `mode` kwarg supports `silent`, `log`, or `attach` timing/logging behavior.
 
-## Thermodynamic properties (`pyThermoCalcDB.docs.thermo`) 🔥
+## Thermodynamic properties (`pythermocalcdb.docs.thermo`) 🔥
 
 | Function | What it does | Key inputs | Output (units) |
 | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ mix_H = thermo.calc_En_mix(
 )
 ```
 
-## Saturation and phase-change (`pyThermoCalcDB.docs.sat`) 💧
+## Saturation and phase-change (`pythermocalcdb.docs.sat`) 💧
 
 | Function | What it does | Key inputs | Output (units) |
 | --- | --- | --- | --- |
@@ -90,7 +90,7 @@ Tsat = sat.calc_T_sat(
 )
 ```
 
-## Reaction energetics (`pyThermoCalcDB.reactions.reactions`) 🔁
+## Reaction energetics (`pythermocalcdb.reactions.reactions`) 🔁
 
 | Function | What it does | Key inputs | Output (units) |
 | --- | --- | --- | --- |

@@ -1,6 +1,6 @@
 # import libs
-import pyThermoCalcDB
+import pythermocalcdb
 from rich import print
 
 # NOTE: version
-print(pyThermoCalcDB.__version__)
+print(pythermocalcdb.__version__)

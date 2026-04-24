@@ -10,14 +10,14 @@ PyThermoCalcDB is a thermodynamic calculation layer built on PyThermoDB and PyTh
 ## Install 🛠
 
 ```bash
-pip install pyThermoCalcDB
+pip install pythermocalcdb
 ```
 
 ## Quickstart ⚡
 
 1. 🗂 Collect ThermoDB pickle paths for the components you care about.
 2. 🧭 Build a `ModelSource` with `pyThermoLinkDB.load_and_build_model_source`.
-3. 🎯 Call helpers from `pyThermoCalcDB.docs.thermo` or `pyThermoCalcDB.docs.sat`.
+3. 🎯 Call helpers from `pythermocalcdb.docs.thermo` or `pythermocalcdb.docs.sat`.
 
 ```python
 import os
@@ -66,9 +66,9 @@ print(Tsat)
 
 | Area | Module | Highlights |
 | --- | --- | --- |
-| Thermodynamic properties | `pyThermoCalcDB.docs.thermo` | enthalpy/Gibbs at a temperature or range, enthalpy and entropy changes, mixture enthalpy with optional departure/excess terms |
-| Saturation & phase change | `pyThermoCalcDB.docs.sat` | vapor pressure, enthalpy of vaporization, saturated temperature solving, vapor-pressure sensitivity |
-| Reactions | `pyThermoCalcDB.reactions.reactions` | standard reaction enthalpy and Gibbs free energy from stoichiometry |
+| Thermodynamic properties | `pythermocalcdb.docs.thermo` | enthalpy/Gibbs at a temperature or range, enthalpy and entropy changes, mixture enthalpy with optional departure/excess terms |
+| Saturation & phase change | `pythermocalcdb.docs.sat` | vapor pressure, enthalpy of vaporization, saturated temperature solving, vapor-pressure sensitivity |
+| Reactions | `pythermocalcdb.reactions.reactions` | standard reaction enthalpy and Gibbs free energy from stoichiometry |
 
 ## Next steps 👉
 - See `docs.md` for the full method reference and signatures.

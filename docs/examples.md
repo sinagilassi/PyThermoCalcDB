@@ -52,5 +52,5 @@ model_source: ModelSource = ptdblink.load_and_build_model_source(
 | `examples/reaction/exp-1.py` | Standard enthalpy of reaction for methane combustion at 298.15 K. | `reactions.dEn_rxn_STD` |
 
 Notes 📝:
-- Scripts import verbose names like `calc_vapor_pressure_at_temperature`; the underlying implementations live in `pyThermoCalcDB.docs.sat` and `pyThermoCalcDB.docs.thermo` as listed in the method reference.
+- Scripts import verbose names like `calc_vapor_pressure_at_temperature`; the underlying implementations live in `pythermocalcdb.docs.sat` and `pythermocalcdb.docs.thermo` as listed in the method reference.
 - Temperatures are specified in Kelvin and pressures in Pascal unless noted; conversions are handled internally.

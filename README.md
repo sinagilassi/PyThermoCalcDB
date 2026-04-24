@@ -23,7 +23,7 @@ Calculations can also be done on your mobile with the MoziThermoCalc iOS app: [D
 ## 📦 Installation
 
 ```bash
-pip install pyThermoCalcDB
+pip install pythermocalcdb
 ```
 
 ## 🚀 Usage
@@ -54,9 +54,9 @@ model_source = ptdblink.load_and_build_model_source(
 
 ### 2) Call helper modules
 
-- **Thermodynamic properties** (`pyThermoCalcDB.docs.thermo`): `calc_En`, `calc_GiFrEn`, `calc_En_range`, `calc_GiFrEn_range`, `calc_dEn` (Delta H between temperatures), `calc_dEnt` (Delta S with pressures and phase), `calc_En_mix` (mixture enthalpy with optional departure/excess terms and `output_unit`).
-- **Saturation & phase change** (`pyThermoCalcDB.docs.sat`): `calc_VaPr`, `calc_VaPr_range`, `calc_EnVap`, `calc_EnVap_range`, `calc_T_sat`, `calc_VaPr_sensitivity`, `calc_VaPr_sensitivity_range`.
-- **Reactions** (`pyThermoCalcDB.reactions.reactions`): `dEn_rxn_STD` and `dGiFrEn_rxn_STD` for standard reaction energetics.
+- **Thermodynamic properties** (`pythermocalcdb.docs.thermo`): `calc_En`, `calc_GiFrEn`, `calc_En_range`, `calc_GiFrEn_range`, `calc_dEn` (Delta H between temperatures), `calc_dEnt` (Delta S with pressures and phase), `calc_En_mix` (mixture enthalpy with optional departure/excess terms and `output_unit`).
+- **Saturation & phase change** (`pythermocalcdb.docs.sat`): `calc_VaPr`, `calc_VaPr_range`, `calc_EnVap`, `calc_EnVap_range`, `calc_T_sat`, `calc_VaPr_sensitivity`, `calc_VaPr_sensitivity_range`.
+- **Reactions** (`pythermocalcdb.reactions.reactions`): `dEn_rxn_STD` and `dGiFrEn_rxn_STD` for standard reaction energetics.
 
 Example:
 
