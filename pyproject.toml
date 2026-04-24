@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyThermoCalcDB"
+name = "pythermocalcdb"
 version = "0.10.0"
 description = "Python Thermodynamic Calculation Engine powered by PyThermoDB."
 readme = "README.md"
@@ -29,15 +29,13 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-    "scipy>=1.17.1",
-    "pydantic>=2.12.5",
-    "pydantic-settings>=2.12.0",
-    "rich>=14.2.0",
-    "pycuc>=2.7.0",
-    "pythermodb>=1.12.2",
-    "pythermolinkdb>=1.4.14",
-    "pythermodb-settings>=0.2.10",
-    "pyreactlab-core>=0.1.6",
+    "scipy",
+    "pydantic",
+    "pycuc",
+    "pythermodb",
+    "pythermolinkdb",
+    "pythermodb-settings",
+    "pyreactlab-core",
 ]
 
 [project.urls]
@@ -65,7 +63,7 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
-pyThermoCalcDB = [
+pythermocalcdb = [
     "config/*.yml",
     "data/*.csv",
     "templates/*.html",
