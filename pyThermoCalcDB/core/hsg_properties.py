@@ -380,7 +380,7 @@ class HSGProperties:
             if component_Cp_eq_src is None:
                 logger.warning(
                     f"No heat capacity equation available for component {self.component_id}.")
-                raise ValueError("No heat capacity equation source found.")
+                return None
 
             return component_Cp_eq_src
         except Exception as e:
@@ -976,7 +976,7 @@ class HSGProperties:
             EnFo_unit = formation_data['unit']
             # ! to [J/mol]
             unit_ = f"{EnFo_unit} => {EnFo_UNIT}"
-            EnFo_IG_val = pycuc.to(
+            EnFo_val = pycuc.to(
                 EnFo_val,
                 unit_
             )
@@ -999,14 +999,14 @@ class HSGProperties:
 
             # SECTION: calculate enthalpy of formation at temperature
             # ! [J/mol]
-            EnFo_IG_T_val = EnFo_IG_val + delta_Cp_val
+            EnFo_T_val = EnFo_val + delta_Cp_val
 
             # SECTION: prepare result
             result_ = {
                 'temperature': temperature,
-                'value': EnFo_IG_T_val,
+                'value': EnFo_T_val,
                 'unit': 'J/mol',
-                'symbol': EnFo_IG_SYMBOL
+                'symbol': EnFo_SYMBOL
             }
 
             # >> set
