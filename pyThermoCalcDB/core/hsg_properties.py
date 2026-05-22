@@ -1,8 +1,8 @@
 # import libs
 import logging
 import math
-from typing import Dict, Any, Literal, Optional, List, cast, Tuple
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProp, ComponentKey, CustomProperty
+from typing import Dict, Any, Literal, Optional, List
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
 from pythermodb_settings.utils import set_component_id, build_component_mapper
 import pycuc
 from pyThermoLinkDB.thermo import Source
