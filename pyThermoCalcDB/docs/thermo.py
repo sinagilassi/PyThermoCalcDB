@@ -975,6 +975,7 @@ def calc_En_range(
         component: Component,
         model_source: ModelSource,
         temperatures: list[Temperature],
+        phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
         component_key: ComponentKey = 'Name-Formula',
         **kwargs
 ) -> Optional[list[ComponentEnthalpy]]:
@@ -989,6 +990,8 @@ def calc_En_range(
         The source model containing necessary data.
     temperatures : list[Temperature]
         The list of temperatures at which to calculate the enthalpy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase for which to calculate the enthalpy (ideal gas, liquid, or solid), default is 'IG'.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
     **kwargs
@@ -1037,7 +1040,8 @@ def calc_En_range(
 
         # NOTE: calculate
         EnFo_results = hsg_props.calc_enthalpy_range(
-            temperatures=temperatures
+            temperatures=temperatures,
+            phase=phase
         )
 
         return EnFo_results
@@ -1052,6 +1056,7 @@ def calc_En_range(
 def calc_En_range_hsg(
         hsg_props: HSGProperties,
         temperatures: list[Temperature],
+        phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
         **kwargs
 ) -> Optional[list[ComponentEnthalpy]]:
     """
@@ -1063,6 +1068,8 @@ def calc_En_range_hsg(
         An instance of the HSGProperties class for the component of interest.
     temperatures : list[Temperature]
         The list of temperatures at which to calculate the enthalpy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase for which to calculate the enthalpy (ideal gas, liquid, or solid), default is 'IG'.
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -1091,7 +1098,8 @@ def calc_En_range_hsg(
 
         # NOTE: calculate
         EnFo_results = hsg_props.calc_enthalpy_range(
-            temperatures=temperatures
+            temperatures=temperatures,
+            phase=phase
         )
 
         return EnFo_results
@@ -1109,6 +1117,7 @@ def calc_GiFrEn_range(
         component: Component,
         model_source: ModelSource,
         temperatures: list[Temperature],
+        phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
         component_key: ComponentKey = 'Name-Formula',
         **kwargs
 ) -> Optional[list[ComponentGibbsFreeEnergy]]:
@@ -1123,6 +1132,8 @@ def calc_GiFrEn_range(
         The source model containing necessary data.
     temperatures : list[Temperature]
         The list of temperatures at which to calculate the Gibbs free energy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase for which to calculate the Gibbs free energy (ideal gas, liquid, or solid), default is 'IG'.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-Formula'.
     **kwargs
@@ -1171,7 +1182,8 @@ def calc_GiFrEn_range(
 
         # NOTE: calculate
         GiEnFo_results = hsg_props.calc_gibbs_free_energy_range(
-            temperatures=temperatures
+            temperatures=temperatures,
+            phase=phase
         )
 
         return GiEnFo_results
@@ -1186,6 +1198,7 @@ def calc_GiFrEn_range(
 def calc_GiFrEn_range_hsg(
         hsg_props: HSGProperties,
         temperatures: list[Temperature],
+        phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
         **kwargs
 ) -> Optional[list[ComponentGibbsFreeEnergy]]:
     """
@@ -1197,6 +1210,8 @@ def calc_GiFrEn_range_hsg(
         An instance of the HSGProperties class for the component of interest.
     temperatures : list[Temperature]
         The list of temperatures at which to calculate the Gibbs free energy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase for which to calculate the Gibbs free energy (ideal gas, liquid, or solid), default is 'IG'.
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -1225,7 +1240,8 @@ def calc_GiFrEn_range_hsg(
 
         # NOTE: calculate
         GiEnFo_results = hsg_props.calc_gibbs_free_energy_range(
-            temperatures=temperatures
+            temperatures=temperatures,
+            phase=phase
         )
 
         return GiEnFo_results
