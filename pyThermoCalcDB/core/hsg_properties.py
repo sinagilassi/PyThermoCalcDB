@@ -1113,7 +1113,7 @@ class HSGProperties:
                 Cp_T_unit = self.Cp_SOL_eq_args_units.get('T', 'K')
             else:
                 logger.error(
-                    f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
+                    f"Invalid phase: {phase}. Must be 'IG', 'LIQ', and 'SOL'.")
                 return None
 
             # >> convert temperature to K if necessary
@@ -1140,21 +1140,21 @@ class HSGProperties:
 
             # NOTE: unit conversion if necessary
             # TODO: convert to [J/mol]
-            EnFo_IG_val = formation_data['value']
-            EnFo_IG_unit = formation_data['unit']
+            EnFo_ref_val = formation_data['value']
+            EnFo_ref_unit = formation_data['unit']
             # ! to [J/mol]
-            unit_ = f"{EnFo_IG_unit} => J/mol"
-            EnFo_IG_val = pycuc.to(
-                EnFo_IG_val,
+            unit_ = f"{EnFo_ref_unit} => J/mol"
+            EnFo_ref_val = pycuc.to(
+                EnFo_ref_val,
                 unit_
             )
 
-            GiEnFo_IG_val = gibbs_formation_data['value']
-            GiEnFo_IG_unit = gibbs_formation_data['unit']
+            GiEnFo_ref_val = gibbs_formation_data['value']
+            GiEnFo_ref_unit = gibbs_formation_data['unit']
             # ! to [J/mol]
-            unit_ = f"{GiEnFo_IG_unit} => J/mol"
-            GiEnFo_IG_val = pycuc.to(
-                GiEnFo_IG_val,
+            unit_ = f"{GiEnFo_ref_unit} => J/mol"
+            GiEnFo_ref_val = pycuc.to(
+                GiEnFo_ref_val,
                 unit_
             )
 
@@ -1199,9 +1199,9 @@ class HSGProperties:
             # ! Gibbs free energy of formation at T
             # ! [J/mol]
             # A
-            A = (GiEnFo_IG_val - EnFo_IG_val)/(self.R*self.T_ref)
+            A = (GiEnFo_ref_val - EnFo_ref_val)/(self.R*self.T_ref)
             # B
-            B = EnFo_IG_val/(self.R*T_val)
+            B = EnFo_ref_val/(self.R*T_val)
             # C
             C = (1/T_val)*_eq_Cp_integral/self.R
             # D
@@ -1227,6 +1227,36 @@ class HSGProperties:
             logger.exception(
                 f"Error calculating Gibbs free energy of formation: {e}")
             return None
+
+    # ! calculate standard Gibbs free energy
+    def calc_standard_gibbs_free_energy_IG(
+            self,
+            temperature: Temperature = Temperature(value=298.15, unit='K')
+    ) -> Optional[ComponentGibbsFreeEnergy]:
+        '''
+        Calculate the standard Gibbs free energy (J/mol) at a given temperature.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the ideal gas Gibbs free energy of formation.
+
+        Returns
+        -------
+        Optional[ComponentGibbsFreeEnergy]
+            A ComponentGibbsFreeEnergy object containing the calculated ideal gas Gibbs free energy of formation if successful, otherwise None.
+
+        Notes
+        -----
+        - The ideal gas Gibbs free energy of formation is calculated using the enthalpy of formation and heat capacity equations for the ideal gas phase.
+        - All Gibbs energy results are provided in J/mol.
+        - Reference temperature is set to 298.15 K.
+        - The ideal gas Gibbs free energy of formation symbol must be consistent with the defined unit in the configuration which is GiEnFo_IG for ideal-gas.
+        '''
+        return self.calc_gibbs_free_energy(
+            temperature=temperature,
+            phase='IG'
+        )
 
     # ! calculate Gibbs free energy over a range of temperatures by calculating enthalpy at each temperature and calculating entropy change from heat capacity equations, then using Gibbs free energy equation
     def calc_gibbs_free_energy_range(
