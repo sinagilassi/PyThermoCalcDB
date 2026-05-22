@@ -113,6 +113,7 @@ def calc_dEn(
         model_source: ModelSource,
         temperature_initial: Temperature,
         temperature_final: Temperature,
+        phase: Literal['IG', 'LIQ'] = 'IG',
         component_key: ComponentKey = 'Name-Formula',
         **kwargs
 ) -> Optional[ComponentEnthalpyChange]:
@@ -129,6 +130,8 @@ def calc_dEn(
         The initial temperature.
     temperature_final : Temperature
         The final temperature.
+    phase : Literal['IG', 'LIQ'], optional
+        The phase for which to calculate the enthalpy change (ideal gas or liquid), default is 'IG'.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
     **kwargs
@@ -182,7 +185,8 @@ def calc_dEn(
         # NOTE: calculate enthalpy change
         delta_H = hsg_props.calc_enthalpy_change(
             T1=temperature_initial,
-            T2=temperature_final
+            T2=temperature_final,
+            phase=phase
         )
 
         return delta_H
@@ -198,6 +202,7 @@ def calc_dEn_hsg(
         hsg_props: HSGProperties,
         temperature_initial: Temperature,
         temperature_final: Temperature,
+        phase: Literal['IG', 'LIQ'] = 'IG',
         **kwargs
 ) -> Optional[ComponentEnthalpyChange]:
     """
@@ -211,6 +216,8 @@ def calc_dEn_hsg(
         The initial temperature.
     temperature_final : Temperature
         The final temperature.
+    phase : Literal['IG', 'LIQ'], optional
+        The phase for which to calculate the enthalpy change (ideal gas or liquid), default is 'IG'.
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -235,7 +242,8 @@ def calc_dEn_hsg(
         # NOTE: calculate enthalpy change
         delta_H = hsg_props.calc_enthalpy_change(
             T1=temperature_initial,
-            T2=temperature_final
+            T2=temperature_final,
+            phase=phase
         )
 
         return delta_H
@@ -253,11 +261,12 @@ def calc_En(
     component: Component,
     model_source: ModelSource,
     temperature: Temperature,
+    phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
     component_key: ComponentKey = 'Name-Formula',
     **kwargs
 ) -> Optional[ComponentEnthalpy]:
     """
-    Calculate the enthalpy (J/mol) at a given temperature (K) for a component.
+    Calculate the enthalpy (J/mol) at a given temperature (K) and and phase including gas, liquid, and solid for a component.
 
     Parameters
     ----------
@@ -267,6 +276,8 @@ def calc_En(
         The source model containing necessary data.
     temperature : Temperature
         The temperature at which to calculate the enthalpy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase for which to calculate the enthalpy (ideal gas, liquid, or solid), default is 'IG'.
     component_key : Literal[..., optional]
         The key to identify the component, by default 'Name-State'.
     **kwargs
@@ -314,8 +325,10 @@ def calc_En(
         )
 
         # NOTE: calculate
+        # ! phase enthalpy at temperature
         EnFo_result = hsg_props.calc_enthalpy(
-            temperature=temperature
+            temperature=temperature,
+            phase=phase
         )
 
         return EnFo_result
@@ -330,10 +343,11 @@ def calc_En(
 def calc_En_hsg(
     hsg_props: HSGProperties,
     temperature: Temperature,
+    phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
     **kwargs
 ) -> Optional[ComponentEnthalpy]:
     """
-    Calculate the enthalpy (J/mol) at a given temperature (K) for a component using an existing HSGProperties instance.
+    Calculate the enthalpy (J/mol) at a given temperature (K) and phase including gas, liquid, and solid for a component.
 
     Parameters
     ----------
@@ -341,6 +355,8 @@ def calc_En_hsg(
         An instance of the HSGProperties class for the component of interest.
     temperature : Temperature
         The temperature at which to calculate the enthalpy of formation.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase for which to calculate the enthalpy (ideal gas, liquid, or solid), default is 'IG'.
     **kwargs
         Additional keyword arguments.
         - mode : Literal['silent', 'log', 'attach'], optional
@@ -364,8 +380,10 @@ def calc_En_hsg(
             return None
 
         # NOTE: calculate
+        # ! phase enthalpy at temperature
         EnFo_result = hsg_props.calc_enthalpy(
-            temperature=temperature
+            temperature=temperature,
+            phase=phase
         )
 
         return EnFo_result
@@ -451,6 +469,7 @@ def calc_En_IG_ref(
         )
 
         # NOTE: calculate
+        # ! reference enthalpy at temperature
         EnFo_IG_result = hsg_props.calc_reference_enthalpy(
             temperature=temperature,
             phase=cast(Literal["IG", "LIQ", "SOL"], phase)
@@ -512,6 +531,7 @@ def calc_En_IG_ref_hsg(
         )
 
         # NOTE: calculate
+        # ! reference enthalpy at temperature
         EnFo_IG_result = hsg_props.calc_reference_enthalpy(
             temperature=temperature,
             phase=cast(Literal["IG", "LIQ", "SOL"], phase)
@@ -537,7 +557,9 @@ def calc_En_IG_ref_hsg_plus(
     **kwargs
 ) -> Optional[CustomProperty]:
     """
-    Calculate the enthalpy (J/mol) at a given temperature (K) using an existing HSGProperties instance and a reference enthalpy.
+    Calculate the enthalpy (J/mol) at a given temperature (K) using an existing HSGProperties instance and a reference enthalpy. The formula is as:
+
+        En(T) = EnFo_IG + ΔH(T_ref -> T)
 
     Parameters
     ----------
@@ -565,6 +587,8 @@ def calc_En_IG_ref_hsg_plus(
     -----
     - The function calculates the enthalpy at the specified temperature by adding the reference enthalpy (EnFo_IG) to the enthalpy change from 298.15 K to the specified temperature.
     - All enthalpy results are provided in J/mol.
+    - The enthalpy symbol is consistent with the reference enthalpy symbol (EnFo_IG).
+    - Reference temperature is set to 298.15 K.
     """
     try:
         if not isinstance(hsg_props, HSGProperties):
@@ -606,10 +630,12 @@ def calc_En_IG_ref_hsg_plus(
             )
 
         # NOTE: calculate enthalpy change from 298.15 K to specified temperature
+        # ?? phase is set to ideal gas (IG)
         # ! J/mol
         delta_H = hsg_props.calc_enthalpy_change(
             T1=temperature_ref,
             T2=temperature,
+            phase="IG"
         )
 
         # >> check
@@ -676,7 +702,9 @@ def calc_En_LIQ_ref_hsg_plus(
     **kwargs
 ) -> Optional[CustomProperty]:
     """
-    Calculate the enthalpy (J/mol) at a given temperature (K) for the liquid phase using an existing HSGProperties instance and a reference enthalpy.
+    Calculate the enthalpy (J/mol) at a given temperature (K) for the liquid phase using an existing HSGProperties instance and a reference enthalpy. The formula is as:
+
+        En(T) = EnFo_LIQ + ΔH(T_ref -> T)
 
     Parameters
     ----------
@@ -774,6 +802,24 @@ def calc_En_LIQ_ref_hsg_plus(
             unit=EnFo_LIQ.unit,
             symbol=EnFo_LIQ.symbol,
         )
+
+        # >> check output unit
+        if (
+            output_unit is not None and
+            En_result.unit != output_unit
+        ):
+            val_converted = pycuc.convert_from_to(
+                value=En_result.value,
+                from_unit=En_result.unit,
+                to_unit=output_unit
+            )
+
+            # upd
+            En_result = CustomProperty(
+                value=val_converted,
+                unit=output_unit,
+                symbol=En_result.symbol,
+            )
 
         return En_result
     except Exception as e:
