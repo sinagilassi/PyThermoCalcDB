@@ -1499,10 +1499,11 @@ class HSGProperties:
 
             # >> convert temperature to K if necessary
             # args units
-            if T_unit != self.EnVap_eq_args_units['T']:
+            T_target_unit = self.EnVap_eq_args_units.get('T', 'K')
+            if T_unit != T_target_unit:
                 T_val = pycuc.to(
                     T_val,
-                    f"{T_unit} => {self.EnVap_eq_args_units['T']}"
+                    f"{T_unit} => {T_target_unit}"
                 )
 
             # SECTION: evaluate EnVap equation at temperature
