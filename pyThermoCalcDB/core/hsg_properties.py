@@ -829,6 +829,7 @@ class HSGProperties:
                 # >> unit
                 Cp_eq_T_unit = self.Cp_LIQ_eq_T_unit
             else:
+                # REVIEW: currently only IG and LIQ phases are supported for enthalpy change calculation, can add SOL phase if needed in the future
                 logger.error(
                     f"Invalid phase: {phase}. Must be 'IG' or 'LIQ'.")
                 return None
@@ -1636,19 +1637,29 @@ class HSGProperties:
 
         Equations
         ---------
-        - ideal gas enthalpy (H_IG) is calculated as:
+        For a given temperature T, the enthalpy of formation for each phase can be calculated as follows:
+
+        - Ideal gas enthalpy (H_IG) is calculated as:
             H_IG(T) = ΔH_f(T) + ∫(Cp_IG dT) from 298.15 K to T
 
-        - liquid enthalpy (H_LIQ) is calculated as:
+        - Liquid enthalpy (H_LIQ) is calculated as:
             H_LIQ(T) = H_IG(T) - ΔH_vap(T)
 
-        - solid enthalpy (H_SOL) is calculated as (not implemented):
-            H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fusion(T)
+        solid enthalpy (H_SOL) can be calculated by one of the following methods:
 
-        Which assume that the solid is converted to liquid via sublimation and then to gas via vaporization or directly to gas via sublimation as:
+        - Direct solid reference (not implemented here):
+            H_SOL(T) = ΔH_f,SOL°(298.15 K) + ∫ Cp_SOL dT from 298.15 K to T
+
+        - Ideal-gas reference using sublimation:
             H_SOL(T) = H_IG(T) - ΔH_sub(T)
 
-        Where the sublimation enthalpy is the sum of fusion and vaporization enthalpies.
+        - Ideal-gas reference using fusion and vaporization:
+            H_SOL(T) = H_IG(T) - ΔH_vap(T) - ΔH_fus(T)
+
+        where, for a thermodynamically consistent reference:
+            ΔH_sub(T) = ΔH_fus(T) + ΔH_vap(T)
+
+        This assumes the phase-change enthalpies are defined consistently at the same temperature or have been corrected to the target temperature.
         """
         try:
             # SECTION: calculate ideal gas enthalpy
@@ -1695,17 +1706,6 @@ class HSGProperties:
 
                 return result
             elif phase == 'SOL':
-                # NOTE: calculate enthalpy of vaporization
-                # ! [J/mol]
-                EnVap = self.calc_evaporation_enthalpy(
-                    temperature=temperature
-                )
-
-                if EnVap is None:
-                    logger.error(
-                        f"Failed to calculate enthalpy of vaporization for liquid phase calculation.")
-                    return None
-
                 # NOTE: calculate enthalpy of sublimation
                 # ! [J/mol]
                 EnSub = self.calc_sublimation_enthalpy(
