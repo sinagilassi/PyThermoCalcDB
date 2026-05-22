@@ -1411,8 +1411,27 @@ class HSGProperties:
             # ! [J/mol.K]
             delta_S_pressure = 0.0
             if phase == 'IG':
+                # NOTE: check pressure unit consistency
+                P1_val = P1.value
+                P1_unit = P1.unit
+                # ! convert to Pa if necessary
+                if P1_unit != 'Pa':
+                    P1_val = pycuc.to(
+                        P1_val,
+                        f"{P1_unit} => Pa"
+                    )
+
+                P2_val = P2.value
+                P2_unit = P2.unit
+                # ! convert to Pa if necessary
+                if P2_unit != 'Pa':
+                    P2_val = pycuc.to(
+                        P2_val,
+                        f"{P2_unit} => Pa"
+                    )
+
                 # ideal gas
-                delta_S_pressure = -self.R * math.log(P2.value / P1.value)
+                delta_S_pressure = -self.R * math.log(P2_val / P1_val)
             elif phase == 'LIQ':
                 # liquid - typically negligible
                 delta_S_pressure = 0.0
