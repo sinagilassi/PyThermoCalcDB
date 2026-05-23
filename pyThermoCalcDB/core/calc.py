@@ -84,7 +84,10 @@ def Cp_integral(
             Integral of Cp equation, unit: [J/mol]
             '''
             nonlocal unit_
-            res_ = Cp_eq.cal(T=T)
+            res_ = Cp_eq.cal(
+                method='custom integral',
+                T=T
+            )
             cal_ = res_.get('value', None)
             unit_ = res_.get('unit', None)  # ! get unit from equation
 
