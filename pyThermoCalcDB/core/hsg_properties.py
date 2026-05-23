@@ -1232,7 +1232,7 @@ class HSGProperties:
     # ! calculate standard Gibbs free energy
     def calc_standard_gibbs_free_energy_IG(
             self,
-            temperature: Temperature = Temperature(value=298.15, unit='K')
+            temperature: Optional[Temperature] = None,
     ) -> Optional[ComponentGibbsFreeEnergy]:
         '''
         Calculate the standard Gibbs free energy (J/mol) at a given temperature.
@@ -1254,6 +1254,11 @@ class HSGProperties:
         - Reference temperature is set to 298.15 K.
         - The ideal gas Gibbs free energy of formation symbol must be consistent with the defined unit in the configuration which is GiEnFo_IG for ideal-gas.
         '''
+        # NOTE: check temperature, if None, use reference temperature
+        if temperature is None:
+            temperature = Temperature(value=298.15, unit='K')
+
+        # calculate ideal gas Gibbs free energy of formation at specified temperature
         return self.calc_gibbs_free_energy(
             temperature=temperature,
             phase='IG'
@@ -1568,10 +1573,11 @@ class HSGProperties:
                 return None
 
             # >> convert temperature to K if necessary
-            if T_unit != self.EnSub_eq_args_units['T']:
+            T_target_unit = self.EnSub_eq_args_units.get('T', 'K')
+            if T_unit != T_target_unit:
                 T_val = pycuc.to(
                     T_val,
-                    f"{T_unit} => {self.EnSub_eq_args_units['T']}"
+                    f"{T_unit} => {T_target_unit}"
                 )
 
             # SECTION: evaluate EnSub equation at temperature
@@ -1742,3 +1748,27 @@ class HSGProperties:
             logger.exception(
                 f"Error calculating phase enthalpy of formation: {e}")
             return None
+
+    # SECTION: alias functions for easier access to component properties
+    # ! _calc_enthalpy_change
+    _calc_sensible_enthalpy_change = _calc_enthalpy_change
+    # ! calc_enthalpy_change
+    calc_sensible_enthalpy_change = calc_enthalpy_change
+    # ! calc_enthalpy
+    calc_formation_enthalpy = calc_enthalpy
+    # ! calc_enthalpy_range
+    calc_formation_enthalpy_range = calc_enthalpy_range
+    # ! calc_gibbs_free_energy
+    calc_formation_gibbs_free_energy = calc_gibbs_free_energy
+    # ! calc_standard_gibbs_free_energy_IG
+    calc_standard_formation_gibbs_free_energy_IG = calc_standard_gibbs_free_energy_IG
+    # ! calc_gibbs_free_energy_range
+    calc_formation_gibbs_free_energy_range = calc_gibbs_free_energy_range
+    # ! calc_entropy_change
+    calc_entropy_change_between_temperatures = calc_entropy_change
+    # ! calc_evaporation_enthalpy
+    calc_enthalpy_of_vaporization = calc_evaporation_enthalpy
+    # ! calc_sublimation_enthalpy
+    calc_enthalpy_of_sublimation = calc_sublimation_enthalpy
+    # ! calc_reference_enthalpy
+    calc_formation_enthalpy_from_ig_reference = calc_reference_enthalpy
