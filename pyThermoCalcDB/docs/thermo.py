@@ -103,6 +103,86 @@ def build_hsg_properties(
             f"Error building HSGProperties for component '{component.name}': {e}")
         return None
 
+# SECTION: heat capacity calculations
+
+
+@measure_time
+def calc_Cp(
+    component: Component,
+    model_source: ModelSource,
+    temperature: Temperature,
+    phase: Literal['IG', 'LIQ', 'SOL'] = 'IG',
+    component_key: ComponentKey = 'Name-Formula',
+    **kwargs
+) -> Optional[CustomProp]:
+    """
+    Calculate the heat capacity (Cp) at a given temperature (K) and phase for a component.
+
+    Parameters
+    ----------
+    component : Component
+        The chemical component for which to calculate the heat capacity.
+    model_source : ModelSource
+        The source model containing necessary data.
+    temperature : Temperature
+        The temperature at which to calculate the heat capacity.
+    phase : Literal['IG', 'LIQ', 'SOL'], optional
+        The phase for which to calculate the heat capacity (ideal gas, liquid, or solid), default is 'IG'.
+    component_key : Literal[..., optional]
+        The key to identify the component, by default 'Name-Formula'.
+    **kwargs
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        A CustomProp object containing the heat capacity value and unit, or None if calculation fails.
+
+    Notes
+    -----
+    - The function initializes the HSGProperties class and uses it to compute the heat capacity at the specified temperature and phase.
+    - All heat capacity results are provided in J/mol/K.
+    """
+    try:
+        # SECTION: Input validation
+        if not isinstance(component, Component):
+            logger.error("Invalid component provided.")
+            return None
+
+        if not isinstance(model_source, ModelSource):
+            logger.error("Invalid model_source provided.")
+            return None
+
+        if not isinstance(temperature, Temperature):
+            logger.error("Invalid temperature provided.")
+            return None
+
+        # SECTION: Prepare source
+        Source_ = Source(
+            model_source=model_source,
+            component_key=component_key
+        )
+
+        # SECTION: Initialize HSGProperties
+        hsg_props = HSGProperties(
+            component=component,
+            source=Source_,
+            component_key=component_key
+        )
+
+        # NOTE: calculate heat capacity at specified temperature and phase
+        Cp_result = hsg_props.calc_heat_capacity(
+            T=temperature,
+            phase=phase
+        )
+
+        return Cp_result
+    except Exception as e:
+        logger.error(
+            f"Error calculating heat capacity for component '{component.name}': {e}")
+        return None
+
+
 # SECTION: enthalpy change calculations
 # ! enthalpy change between two temperatures
 
