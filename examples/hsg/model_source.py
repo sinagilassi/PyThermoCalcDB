@@ -91,7 +91,7 @@ C2H6 = Component(
 )
 
 # components
-components = [C2H6O]
+components = [C2H6O, CH3OH]
 
 # NOTE: ignore state properties
 ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'EnVap', 'Cp_LIQ']
