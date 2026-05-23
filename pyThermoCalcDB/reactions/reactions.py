@@ -79,6 +79,37 @@ def dH_rxn_298(
     -------
     Optional[CustomProp]
         The standard enthalpy of reaction at 298.15 K in J/mol, or None if calculation fails.
+
+    Notes
+    -----
+    The standard enthalpy of reaction is calculated for the reaction as written,
+    using each species in its specified phase.
+
+    For a reaction:
+        aA(x) + bB(x) <=> cC(x) + dD(x)
+
+    the standard reaction enthalpy is:
+        ΔH°_rxn(T) = Σ(ν_i * H_i°(T, phase_i))
+
+    where:
+        - ν_i is the stoichiometric coefficient
+        - H_i°(T, phase_i) is the standard molar enthalpy of species i in its
+        stated phase at temperature T
+
+    For ideal gas enthalpy (H_IG) is calculated as:
+        H_IG(T) = ΔH_f(298.15) + ∫(Cp_IG dT) from 298.15 K to T
+
+    If phase-specific enthalpy data are unavailable, they may be approximated
+    from ideal-gas data:
+
+        H_LIQ(T) ≈ H_IG(T) - ΔH_vap(T)
+        H_SOL(T) ≈ H_IG(T) - ΔH_sub(T) or H_IG(T) - ΔH_vap(T) - ΔH_fusion(T)
+
+    Therefore, for a liquid reactant such as CH4(l), vaporization correction is
+    required when only ideal-gas enthalpy data are available. And for a solid reactant such as NaCl(s), either sublimation or vaporization + fusion correction is required when only ideal-gas enthalpy data are available.
+
+    This method returns the reaction enthalpy for the reaction as written, not
+    the reaction enthalpy on a pure ideal-gas reference basis.
     """
     try:
         # NOTE: calculate standard enthalpy of reaction at 298.15 K
@@ -155,7 +186,7 @@ def dH_rxn_STD(
         H_SOL(T) ≈ H_IG(T) - ΔH_sub(T) or H_IG(T) - ΔH_vap(T) - ΔH_fusion(T)
 
     Therefore, for a liquid reactant such as CH4(l), vaporization correction is
-    required when only ideal-gas enthalpy data are available.
+    required when only ideal-gas enthalpy data are available. And for a solid reactant such as NaCl(s), either sublimation or vaporization + fusion correction is required when only ideal-gas enthalpy data are available.
 
     This method returns the reaction enthalpy for the reaction as written, not
     the reaction enthalpy on a pure ideal-gas reference basis.
