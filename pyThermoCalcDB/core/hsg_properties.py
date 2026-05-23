@@ -744,6 +744,7 @@ class HSGProperties:
     def calc_heat_capacity(
             self,
             T: Temperature,
+            phase: Literal['IG', 'LIQ', 'SOL'] = 'IG'
     ) -> Optional[CustomProp]:
         '''
         Calculate the heat capacity at a specified temperature.
@@ -760,18 +761,23 @@ class HSGProperties:
         '''
         try:
             # NOTE: check Cp equation source
-            if self.Cp_IG_eq_src is not None:
+            if phase == 'IG':
                 Cp_eq_src = self.Cp_IG_eq_src
                 Cp_eq_T_unit = self.Cp_IG_eq_T_unit
-            elif self.Cp_LIQ_eq_src is not None:
+            elif phase == 'LIQ':
                 Cp_eq_src = self.Cp_LIQ_eq_src
                 Cp_eq_T_unit = self.Cp_LIQ_eq_T_unit
-            elif self.Cp_SOL_eq_src is not None:
+            elif phase == 'SOL':
                 Cp_eq_src = self.Cp_SOL_eq_src
                 Cp_eq_T_unit = self.Cp_SOL_eq_T_unit
             else:
-                logger.error(
-                    f"No heat capacity equation source available for component {self.component_id}.")
+                raise ValueError(
+                    f"Invalid phase: {phase}. Must be 'IG', 'LIQ', or 'SOL'."
+                )
+
+            if Cp_eq_src is None:
+                logger.warning(
+                    f"No heat capacity equation available for component {self.component_id} in phase {phase}.")
                 return None
 
             # SECTION: convert temperature to K if necessary
