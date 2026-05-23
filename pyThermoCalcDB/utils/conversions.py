@@ -48,3 +48,35 @@ def _to_kelvin(temperature: Temperature) -> float:
         T_value = pycuc.convert_from_to(
             value=T_value, from_unit=T_unit, to_unit="K")
     return float(T_value)
+
+
+def to_g_mol(
+    value: float,
+    from_unit: str,
+    **kwargs
+) -> Optional[float]:
+    """
+    Convert energy value to g/mol.
+
+    Parameters
+    ----------
+    value : float
+        The energy value to convert.
+    from_unit : str
+        The unit of the input energy value.
+
+    Returns
+    -------
+    float
+        The energy value in g/mol.
+    """
+    try:
+        converted_value = pycuc.convert_from_to(
+            value=value,
+            from_unit=from_unit,
+            to_unit="g/mol",
+        )
+        return converted_value
+    except Exception as e:
+        logger.error(f"Error converting energy to g/mol: {e}")
+        return None
