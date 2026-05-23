@@ -35,6 +35,7 @@ from ..models import (
     ComponentHeatOfVaporization,
     ComponentHeatOfSublimation
 )
+from ..utils.conversions import to_g_mol
 
 # NOTE: Logger
 logger = logging.getLogger(__name__)
@@ -75,6 +76,9 @@ class HSGProperties:
     T_ref = 298.15
     # universal gas constant in J/mol.K
     R = 8.3145
+
+    # ! molecular weight symbol
+    MW_SYMBOL = 'MW'
 
     def __init__(
         self,
@@ -124,7 +128,16 @@ class HSGProperties:
             component_key=self.component_key
         )
 
-        # SECTION: retrieve heat capacity equation source
+        # SECTION: retrieve thermodynamic equations and data for calculations
+        # NOTE: molecular weight data
+        # ! g/mol
+        self.MW = self._get_formation_data(self.MW_SYMBOL)
+        if self.MW is not None:
+            self.MW["value"] = to_g_mol(
+                value=self.MW["value"],
+                from_unit=self.MW["unit"],
+            )
+
         # NOTE: ideal gas heat capacity equation source
         self.Cp_IG_eq_src = self._get_Cp_equation_source(
             phase='IG',
@@ -786,6 +799,7 @@ class HSGProperties:
             T1: Temperature,
             T2: Temperature,
             phase: Literal['IG', 'LIQ'] = 'IG',
+            res_basis: Literal['molar', 'mass'] = 'molar'
     ) -> Optional[ComponentEnthalpyChange]:
         '''
         Calculate the enthalpy change in (J/mol) between two temperatures using the provided equation source.
@@ -798,6 +812,8 @@ class HSGProperties:
             The final temperature.
         phase : Literal['IG', 'LIQ']
             The phase of the component ('IG' for ideal gas, 'LIQ' for liquid). Defaults to 'IG'.
+        res_basis : Literal['molar', 'mass']
+            The basis for the result, either 'molar' for J/mol or 'mass' for J/g. Defaults to 'molar'. If 'mass' is selected, the result will be converted to J/g using the molecular weight of the component.
 
         Returns
         -------
@@ -874,6 +890,25 @@ class HSGProperties:
                 'symbol': 'dEn_IG' if phase == 'IG' else 'dEn_LIQ'
             }
 
+            # NOTE: convert to mass basis if needed
+            if (
+                res_basis == 'mass' and
+                self.MW is not None
+            ):
+                # get molecular weight value and unit
+                # ! g/mol
+                MW_val = self.MW['value']
+
+                # ! convert delta_H_val from J/mol to J/g
+                delta_H_val_molar = result['value']
+                # ! (J/mol) / (g/mol) = J/g
+                delta_H_val_mass = delta_H_val_molar / MW_val
+
+                # update result
+                result['value'] = delta_H_val_mass
+                result['unit'] = 'J/g'
+                result['symbol'] = 'dEn_IG' if phase == 'IG' else 'dEn_LIQ'
+
             # >> set
             result = ComponentEnthalpyChange(**result)
 
@@ -891,6 +926,12 @@ class HSGProperties:
     ) -> Optional[ComponentEnthalpy]:
         '''
         Calculate the enthalpy (J/mol) at a given temperature (K) and phase including ideal-gas, liquid, solid.
+
+        The result is referenced to the standard enthalpy of formation of the same
+        phase at 298.15 K:
+
+            h_phase(T) = ΔHf_phase°(298.15 K)
+                    + ∫[298.15 K to T] Cp_phase(T) dT
 
         Each phase uses its respective enthalpy of formation and heat capacity equations. If the equations for a specific phase are not available, the method will return None for that phase.
 
@@ -1750,25 +1791,41 @@ class HSGProperties:
             return None
 
     # SECTION: alias functions for easier access to component properties
-    # ! _calc_enthalpy_change
+    # ! _calc_enthalpy_change:
+    # ?? calculate enthalpy change by integrating heat capacity equation from T1 to T2
     _calc_sensible_enthalpy_change = _calc_enthalpy_change
     # ! calc_enthalpy_change
+    # ?? calculate enthalpy change by integrating heat capacity equation from T1 to T2
     calc_sensible_enthalpy_change = calc_enthalpy_change
+
     # ! calc_enthalpy
-    calc_formation_enthalpy = calc_enthalpy
+    # ?? calculate enthalpy of formation at a given temperature by integrating heat capacity equation from reference temperature to target temperature and adding enthalpy of formation at reference temperature
+    calc_phase_formation_enthalpy = calc_enthalpy
     # ! calc_enthalpy_range
+    # ?? calculate enthalpy of formation over a range of temperatures by integrating heat capacity equation from reference temperature to each temperature and adding enthalpy of formation at reference temperature
     calc_formation_enthalpy_range = calc_enthalpy_range
+
     # ! calc_gibbs_free_energy
+    # ?? calculate Gibbs free energy by calculating enthalpy at temperature and calculating entropy change from heat capacity equations, then using Gibbs free energy equation
     calc_formation_gibbs_free_energy = calc_gibbs_free_energy
     # ! calc_standard_gibbs_free_energy_IG
-    calc_standard_formation_gibbs_free_energy_IG = calc_standard_gibbs_free_energy_IG
+    # ?? calculate standard Gibbs free energy by calculating ideal gas Gibbs free energy of formation at specified temperature
+    calc_standard_formation_gibbs_free_energy_ig = calc_standard_gibbs_free_energy_IG
     # ! calc_gibbs_free_energy_range
+    # ?? calculate Gibbs free energy over a range of temperatures by calculating enthalpy at each temperature and calculating entropy change from heat capacity equations, then using Gibbs free energy equation
     calc_formation_gibbs_free_energy_range = calc_gibbs_free_energy_range
+
     # ! calc_entropy_change
+    # ?? calculate entropy change by integrating heat capacity equation from T1 to T2 and accounting for pressure changes
     calc_entropy_change_between_temperatures = calc_entropy_change
+
     # ! calc_evaporation_enthalpy
-    calc_enthalpy_of_vaporization = calc_evaporation_enthalpy
+    # ?? calculate enthalpy of evaporation by evaluating EnVap equation at temperature
+    calc_vaporization_enthalpy = calc_evaporation_enthalpy
     # ! calc_sublimation_enthalpy
-    calc_enthalpy_of_sublimation = calc_sublimation_enthalpy
+    # ?? calculate enthalpy of sublimation by evaluating EnSub equation at temperature
+    # calc_sublimation_enthalpy = calc_sublimation_enthalpy
+
     # ! calc_reference_enthalpy
-    calc_formation_enthalpy_from_ig_reference = calc_reference_enthalpy
+    # ?? calculate enthalpy of formation for a specific phase at a given temperature by calculating ideal gas enthalpy and then adjusting for phase changes if necessary
+    calc_enthalpy_from_ig_reference = calc_reference_enthalpy
