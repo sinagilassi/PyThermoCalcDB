@@ -1,12 +1,15 @@
 # import libs
 import logging
 import math
+import numpy as np
 from typing import Dict, Any, Literal, Optional, List
-from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty, CustomProp
 from pythermodb_settings.utils import set_component_id, build_component_mapper
 import pycuc
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
+from pyThermoDB.core import TableEquation
+from pyThermoDB.models import EquationResult
 # local
 from ..configs.thermo_props import (
     EnFo_IG_SYMBOL,
@@ -737,8 +740,81 @@ class HSGProperties:
             return None
 
     # SECTION: calculation methods
+    # ! calculate heat capacity at temperature T
+    def calc_heat_capacity(
+            self,
+            T: Temperature,
+    ) -> Optional[CustomProp]:
+        '''
+        Calculate the heat capacity at a specified temperature.
+
+        Parameters
+        ----------
+        T : Temperature
+            The temperature at which to calculate the heat capacity.
+
+        Returns
+        -------
+        Optional[CustomProp]
+            The calculated heat capacity if successful, otherwise None.
+        '''
+        try:
+            # NOTE: check Cp equation source
+            if self.Cp_IG_eq_src is not None:
+                Cp_eq_src = self.Cp_IG_eq_src
+                Cp_eq_T_unit = self.Cp_IG_eq_T_unit
+            elif self.Cp_LIQ_eq_src is not None:
+                Cp_eq_src = self.Cp_LIQ_eq_src
+                Cp_eq_T_unit = self.Cp_LIQ_eq_T_unit
+            elif self.Cp_SOL_eq_src is not None:
+                Cp_eq_src = self.Cp_SOL_eq_src
+                Cp_eq_T_unit = self.Cp_SOL_eq_T_unit
+            else:
+                logger.error(
+                    f"No heat capacity equation source available for component {self.component_id}.")
+                return None
+
+            # SECTION: convert temperature to K if necessary
+            T_val = T.value
+            T_unit = T.unit
+            if T_unit != Cp_eq_T_unit:
+                T_val = pycuc.to(
+                    T_val,
+                    f"{T_unit} => {Cp_eq_T_unit}"
+                )
+
+            # NOTE: calculate heat capacity using the equation source
+            # source
+            # ! equation
+            Cp_eq: TableEquation = Cp_eq_src.source
+            Cp_eq_res: EquationResult = Cp_eq.cal(
+                message=f"Calculating heat capacity for component {self.component_id} at {T_val} {Cp_eq_T_unit}",
+                T=T_val
+            )
+
+            # extract value and unit
+            if isinstance(Cp_eq_res['value'], (int, float)):
+                Cp_value = float(Cp_eq_res['value'])
+                Cp_unit = self.Cp_IG_UNIT  # ! default unit if not provided by equation result
+            elif isinstance(Cp_eq_res['value'], np.ndarray) and Cp_eq_res['value'].size == 1:
+                Cp_value = float(Cp_eq_res['value'][0])
+                Cp_unit = self.Cp_IG_UNIT  # ! default unit if not provided by equation result
+            else:
+                logger.error(
+                    f"Unexpected format for heat capacity equation result: {Cp_eq_res}")
+                return None
+
+            return CustomProp(
+                value=Cp_value,
+                unit=Cp_unit
+            )
+        except Exception as e:
+            logger.exception(
+                f"Error calculating heat capacity at {T.value} {T.unit}: {e}")
+            return None
 
     # ! calculate enthalpy change by integrating Cp equation from T1 to T2
+
     def _calc_enthalpy_change(
             self,
             Cp_eq_src: ComponentEquationSource,
