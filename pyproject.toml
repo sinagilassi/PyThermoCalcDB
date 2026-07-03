@@ -39,9 +39,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sinagilassi/pyThermoCalcDB"
-Source = "https://github.com/sinagilassi/pyThermoCalcDB"
-Tracker = "https://github.com/sinagilassi/pyThermoCalcDB/issues"
+Homepage = "https://github.com/sinagilassi/PyThermoCalcDB"
+Source = "https://github.com/sinagilassi/PyThermoCalcDB"
+Tracker = "https://github.com/sinagilassi/PyThermoCalcDB/issues"
 
 [tool.setuptools]
 include-package-data = true
