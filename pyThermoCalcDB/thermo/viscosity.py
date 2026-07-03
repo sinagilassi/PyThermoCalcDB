@@ -1,10 +1,8 @@
 # import libs
 import logging
 import math
-from typing import Dict, Optional, Any, Sequence, Literal, cast
+from typing import Optional, Sequence, Literal
 from pythermodb_settings.models import (
-    Temperature,
-    Pressure,
     CustomProp,
 )
 # locals
@@ -25,13 +23,12 @@ def gas_mixture_viscosity(
 
     Parameters
     ----------
-    y : sequence of float
+    mole_fractions : sequence of float
         Mole fractions of components.
-    mu : sequence of float
-        Pure-component gas viscosities [Pa.s].
-    mw : sequence of float
-        Molecular weights [g/mol] or [kg/kmol].
-        Only ratios are used, so either unit is fine.
+    viscosities : sequence of CustomProp
+        Pure-component gas viscosities. All values must have the same unit.
+    molecular_weights : sequence of CustomProp
+        Molecular weights. All values must have the same unit.
     mode : {"wilke", "linear"}, optional
         "wilke"  : Wilke mixing rule for gas mixtures.
         "linear" : simple mole-fraction average.
@@ -40,8 +37,9 @@ def gas_mixture_viscosity(
 
     Returns
     -------
-    float
-        Mixture viscosity [Pa.s].
+    Optional[CustomProp]
+        Mixture viscosity using the same unit as the input viscosities, or None
+        if an error occurs.
 
     Notes
     -----
@@ -57,67 +55,106 @@ def gas_mixture_viscosity(
 
     For i = j, phi_ij = 1.
     """
+    try:
+        # NOTE: collect inputs as lists for length checks and repeated access
+        y = list(mole_fractions)
+        viscosity_props = list(viscosities)
+        molecular_weight_props = list(molecular_weights)
 
-    y = list(y)
-    mu = list(mu)
-    mw = list(mw)
+        n = len(y)
 
-    n = len(y)
+        # NOTE: validate list sizes and mole fractions
+        if not (len(viscosity_props) == len(molecular_weight_props) == n):
+            logger.warning(
+                "mole_fractions, viscosities, and molecular_weights must have the same length."
+            )
+            return None
 
-    if not (len(mu) == len(mw) == n):
-        raise ValueError("y, mu, and mw must have the same length.")
+        if n == 0:
+            logger.warning("Input lists cannot be empty.")
+            return None
 
-    if n == 0:
-        raise ValueError("Input lists cannot be empty.")
+        if any(value < 0 for value in y):
+            logger.warning("Mole fractions cannot be negative.")
+            return None
 
-    if any(value < 0 for value in y):
-        raise ValueError("Mole fractions cannot be negative.")
+        # NOTE: validate CustomProp units before using values
+        viscosity_units = {prop.unit.strip() for prop in viscosity_props}
+        if len(viscosity_units) != 1:
+            logger.warning("All viscosities must have the same unit.")
+            return None
 
-    if any(value <= 0 for value in mu):
-        raise ValueError("Viscosities must be positive.")
+        molecular_weight_units = {
+            prop.unit.strip() for prop in molecular_weight_props}
+        if len(molecular_weight_units) != 1:
+            logger.warning("All molecular weights must have the same unit.")
+            return None
 
-    if any(value <= 0 for value in mw):
-        raise ValueError("Molecular weights must be positive.")
+        # NOTE: extract numeric values from CustomProp inputs
+        viscosity_unit = viscosity_props[0].unit.strip()
+        mu = [float(prop.value) for prop in viscosity_props]
+        mw = [float(prop.value) for prop in molecular_weight_props]
 
-    y_sum = sum(y)
+        # NOTE: validate physical property values
+        if any(value <= 0 for value in mu):
+            logger.warning("Viscosities must be positive.")
+            return None
 
-    if y_sum <= 0:
-        raise ValueError("Sum of mole fractions must be positive.")
+        if any(value <= 0 for value in mw):
+            logger.warning("Molecular weights must be positive.")
+            return None
 
-    if normalize:
-        y = [value / y_sum for value in y]
-    else:
-        if abs(y_sum - 1.0) > 1e-8:
-            raise ValueError(
-                "Mole fractions must sum to 1, or use normalize=True.")
+        y_sum = sum(y)
 
-    if mode == "linear":
-        return sum(y_i * mu_i for y_i, mu_i in zip(y, mu))
+        if y_sum <= 0:
+            logger.warning("Sum of mole fractions must be positive.")
+            return None
 
-    elif mode == "wilke":
-        mu_mix = 0.0
+        # NOTE: normalize or validate mole-fraction sum
+        if normalize:
+            y = [value / y_sum for value in y]
+        else:
+            if abs(y_sum - 1.0) > 1e-8:
+                logger.warning(
+                    "Mole fractions must sum to 1, or use normalize=True.")
+                return None
 
-        for i in range(n):
-            denominator = 0.0
+        # NOTE: calculate mixture viscosity with the selected mixing rule
+        if mode == "linear":
+            mu_mix = sum(y_i * mu_i for y_i, mu_i in zip(y, mu))
 
-            for j in range(n):
-                if i == j:
-                    phi_ij = 1.0
-                else:
-                    phi_ij = (
-                        (
-                            1.0
-                            + math.sqrt(mu[i] / mu[j])
-                            * (mw[j] / mw[i]) ** 0.25
-                        )
-                        ** 2
-                    ) / math.sqrt(8.0 * (1.0 + mw[i] / mw[j]))
+        elif mode == "wilke":
+            mu_mix = 0.0
 
-                denominator += y[j] * phi_ij
+            for i in range(n):
+                denominator = 0.0
 
-            mu_mix += y[i] * mu[i] / denominator
+                for j in range(n):
+                    if i == j:
+                        phi_ij = 1.0
+                    else:
+                        phi_ij = (
+                            (
+                                1.0
+                                + math.sqrt(mu[i] / mu[j])
+                                * (mw[j] / mw[i]) ** 0.25
+                            )
+                            ** 2
+                        ) / math.sqrt(8.0 * (1.0 + mw[i] / mw[j]))
 
-        return mu_mix
+                    denominator += y[j] * phi_ij
 
-    else:
-        raise ValueError("mode must be either 'wilke' or 'linear'.")
+                mu_mix += y[i] * mu[i] / denominator
+
+        else:
+            logger.warning("mode must be either 'wilke' or 'linear'.")
+            return None
+
+        # NOTE: return result as CustomProp using the input viscosity unit
+        return CustomProp(
+            value=float(mu_mix),
+            unit=viscosity_unit,
+        )
+    except Exception as e:
+        logger.error(f"Error in gas mixture viscosity calculation: {e}")
+        return None
