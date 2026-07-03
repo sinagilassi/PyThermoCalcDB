@@ -11,6 +11,7 @@ from pythermodb_settings.models import (
 logger = logging.getLogger(__name__)
 
 
+# SECTION: Gas mixture viscosity calculation
 def gas_mixture_viscosity(
     mole_fractions: Sequence[float],
     viscosities: Sequence[CustomProp],
@@ -157,4 +158,120 @@ def gas_mixture_viscosity(
         )
     except Exception as e:
         logger.error(f"Error in gas mixture viscosity calculation: {e}")
+        return None
+
+# SECTION: Liquid mixture viscosity calculation
+
+
+def liquid_mixture_viscosity(
+    mole_fractions: Sequence[float],
+    viscosities: Sequence[CustomProp],
+    mode: Literal["log", "linear"] = "log",
+    normalize: bool = True,
+) -> Optional[CustomProp]:
+    """
+    Calculate ideal/simple liquid-mixture viscosity.
+
+    Parameters
+    ----------
+    mole_fractions : sequence of float
+        Liquid mole fractions of components.
+    viscosities : sequence of CustomProp
+        Pure-component liquid viscosities. All values must have the same unit.
+    mode : {"log", "linear"}, optional
+        "log":
+            Logarithmic mixing rule:
+
+                ln(mu_mix) = sum_i x_i ln(mu_i)
+
+            Recommended for ideal or near-ideal liquid mixtures.
+
+        "linear":
+            Simple mole-fraction average:
+
+                mu_mix = sum_i x_i mu_i
+
+            Rough approximation.
+
+    normalize : bool, optional
+        If True, mole fractions are normalized to sum to 1.
+        If False, mole fractions must already sum to 1.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Liquid-mixture viscosity using the same unit as the input viscosities,
+        or None if an error occurs.
+    """
+    try:
+        # NOTE: collect inputs as lists for length checks and repeated access
+        x = list(mole_fractions)
+        viscosity_props = list(viscosities)
+
+        n = len(x)
+
+        # NOTE: validate list sizes and mole fractions
+        if len(viscosity_props) != n:
+            logger.warning(
+                "mole_fractions and viscosities must have the same length.")
+            return None
+
+        if n == 0:
+            logger.warning("Input lists cannot be empty.")
+            return None
+
+        if any(value < 0 for value in x):
+            logger.warning("Mole fractions cannot be negative.")
+            return None
+
+        # NOTE: validate CustomProp units before using values
+        viscosity_units = {prop.unit.strip() for prop in viscosity_props}
+        if len(viscosity_units) != 1:
+            logger.warning("All viscosities must have the same unit.")
+            return None
+
+        # NOTE: extract numeric values from CustomProp inputs
+        viscosity_unit = viscosity_props[0].unit.strip()
+        mu = [float(prop.value) for prop in viscosity_props]
+
+        # NOTE: validate physical property values
+        if any(value <= 0 for value in mu):
+            logger.warning("Viscosities must be positive.")
+            return None
+
+        x_sum = sum(x)
+
+        if x_sum <= 0:
+            logger.warning("Sum of mole fractions must be positive.")
+            return None
+
+        # NOTE: normalize or validate mole-fraction sum
+        if normalize:
+            x = [value / x_sum for value in x]
+        else:
+            if abs(x_sum - 1.0) > 1e-8:
+                logger.warning(
+                    "Mole fractions must sum to 1, or use normalize=True.")
+                return None
+
+        # NOTE: calculate mixture viscosity with the selected mixing rule
+        if mode == "log":
+            ln_mu_mix = sum(x_i * math.log(mu_i)
+                            for x_i, mu_i in zip(x, mu))
+            mu_mix = math.exp(ln_mu_mix)
+
+        elif mode == "linear":
+            mu_mix = sum(x_i * mu_i for x_i, mu_i in zip(x, mu))
+
+        else:
+            logger.warning("mode must be either 'log' or 'linear'.")
+            return None
+
+        # NOTE: return result as CustomProp using the input viscosity unit
+        return CustomProp(
+            value=float(mu_mix),
+            unit=viscosity_unit,
+        )
+    except Exception as e:
+        logger.error(f"Error in liquid mixture viscosity calculation: {e}")
         return None
