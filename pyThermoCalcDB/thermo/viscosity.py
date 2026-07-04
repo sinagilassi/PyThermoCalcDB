@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 # SECTION: Gas mixture viscosity calculation
-def gas_mixture_viscosity(
+def calc_gas_mixture_viscosity(
     mole_fractions: Sequence[float],
     viscosities: Sequence[CustomProp],
     molecular_weights: Sequence[CustomProp],
@@ -163,7 +163,7 @@ def gas_mixture_viscosity(
 # SECTION: Liquid mixture viscosity calculation
 
 
-def liquid_mixture_viscosity(
+def calc_liquid_mixture_viscosity(
     mole_fractions: Sequence[float],
     viscosities: Sequence[CustomProp],
     mode: Literal["log", "linear"] = "log",
