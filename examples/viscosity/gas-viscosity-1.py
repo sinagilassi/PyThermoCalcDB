@@ -1,5 +1,5 @@
 # import libs
-from pythermocalcdb.thermo.viscosity import gas_mixture_viscosity
+from pythermocalcdb.thermo.viscosity import calc_gas_mixture_viscosity
 from pythermodb_settings.models import CustomProp
 from rich import print
 
@@ -22,7 +22,7 @@ molecular_weights = [
 ]
 
 # NOTE: Perform Wilke gas-mixture viscosity calculation
-result = gas_mixture_viscosity(
+result = calc_gas_mixture_viscosity(
     mole_fractions=mole_fractions,
     viscosities=viscosities,
     molecular_weights=molecular_weights,

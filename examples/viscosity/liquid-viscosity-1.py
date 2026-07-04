@@ -1,12 +1,11 @@
 # import libs
+from rich import print
+from pythermodb_settings.models import CustomProp
+from pythermocalcdb.thermo.viscosity import calc_liquid_mixture_viscosity
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from pythermocalcdb.thermo.viscosity import liquid_mixture_viscosity
-from pythermodb_settings.models import CustomProp
-from rich import print
 
 
 # NOTE: Define liquid-mixture composition
@@ -19,7 +18,7 @@ viscosities = [
 ]
 
 # NOTE: Perform logarithmic liquid-mixture viscosity calculation
-result = liquid_mixture_viscosity(
+result = calc_liquid_mixture_viscosity(
     mole_fractions=mole_fractions,
     viscosities=viscosities,
     mode="log",
