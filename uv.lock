@@ -290,16 +290,16 @@ wheels = [
 
 [[package]]
 name = "pyreactlab-core"
-version = "0.4.0"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
     { name = "pythermodb-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/1b/ed899df400ac81de5f18d594a7826e174433f95daedece090c4039cd9478/pyreactlab_core-0.4.0.tar.gz", hash = "sha256:debbf3a116be4a9cd659655dc7d28e9703c19a09bdca50f34b139fff551aa740", size = 46260, upload-time = "2026-08-25T19:48:50.745Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/be/a96cebd409240817fb41745305bab5849698383ec7565268d3e5fa071f24/pyreactlab_core-0.5.0.tar.gz", hash = "sha256:884889c8f755f0c1bac9d856d2073bc38f5f987dd010c21967b56bb5f7573a07", size = 47028, upload-time = "2026-08-26T03:58:51.079Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/16/9d/11eee3cbe2b20503797100078b8a1efbd106e9491804455b0fa9513676d5/pyreactlab_core-0.4.0-py3-none-any.whl", hash = "sha256:409dc2434c7f292de42c44e4527016c7ac75e7923d6ccb369553d45b2fac2b58", size = 50535, upload-time = "2026-08-25T19:48:49.717Z" },
+    { url = "https://files.pythonhosted.org/packages/69/77/d4ec05510b745cc526a3ca89313042470abeecb9d4af270c809b3eba8999/pyreactlab_core-0.5.0-py3-none-any.whl", hash = "sha256:ca6ed82c5dc713079f4da0d5c595e61d4372103a7ffd447c86becf4c36c1933a", size = 51096, upload-time = "2026-08-26T03:58:50.112Z" },
 ]
 
 [[package]]
