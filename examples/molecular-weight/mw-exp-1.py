@@ -1,6 +1,6 @@
 # import libs
 from rich import print
-from pythermocalcdb.thermo.molecular_weight import calculate_molecular_weight
+from pythermocalcdb.thermo.molecular_weight import calc_molecular_weight, calc_MW
 
 # NOTE: Compounds
 
@@ -19,7 +19,7 @@ compounds = [
 
 # NOTE: Calculate and print molecular weights
 for compound in compounds:
-    mw = calculate_molecular_weight(
+    mw = calc_MW(
         compound,
         include_electron_mass=True,
         decimal_digits=3
