@@ -125,3 +125,6 @@ ATOMIC_WEIGHTS: dict[str, float] = {
 
 # NOTE: List of elements in the periodic table
 PERIODIC_TABLE_ELEMENTS = list(ATOMIC_WEIGHTS)
+
+# NOTE: Electron molar mass [g/mol]
+ELECTRON_MOLAR_MASS = 5.485_799_090_65e-4
