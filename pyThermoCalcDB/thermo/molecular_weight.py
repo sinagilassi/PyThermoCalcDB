@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # ! ::: Calculate Molecular Weight
 
 
-def calculate_molecular_weight(
+def calc_molecular_weight(
     formula: str,
     include_electron_mass: bool = False,
     decimal_digits: Optional[int] = None
@@ -145,3 +145,7 @@ def calculate_molecular_weight(
             f"An error occurred while calculating molecular weight for formula '{formula}': {e}"
         )
         return None
+
+
+# SECTION: alias
+calc_MW = calc_molecular_weight
