@@ -15,6 +15,10 @@ compounds = [
     "Fe{3+}",
     "H{+}",
     "OH{-}",
+    "C2H5{*}",
+    "NH4{+}",
+    "NH3{+}-CH2-COO{-}",
+    "N(CH3)3{+}-CH2-COO{-}"
 ]
 
 # NOTE: Calculate and print molecular weights
