@@ -290,16 +290,16 @@ wheels = [
 
 [[package]]
 name = "pyreactlab-core"
-version = "0.5.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
     { name = "pythermodb-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/be/a96cebd409240817fb41745305bab5849698383ec7565268d3e5fa071f24/pyreactlab_core-0.5.0.tar.gz", hash = "sha256:884889c8f755f0c1bac9d856d2073bc38f5f987dd010c21967b56bb5f7573a07", size = 47028, upload-time = "2026-08-26T03:58:51.079Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/06/df1d0ce34f23acab8ee439741c55c14f6be422b3c6d0b0422017206b41ad/pyreactlab_core-0.7.0.tar.gz", hash = "sha256:fdf1bbacda6e8977f67251c4d47b6c2d4f89beaec23ed70d565ce1691095e8e4", size = 49992, upload-time = "2026-08-27T04:22:35.832Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/69/77/d4ec05510b745cc526a3ca89313042470abeecb9d4af270c809b3eba8999/pyreactlab_core-0.5.0-py3-none-any.whl", hash = "sha256:ca6ed82c5dc713079f4da0d5c595e61d4372103a7ffd447c86becf4c36c1933a", size = 51096, upload-time = "2026-08-26T03:58:50.112Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/d9/f5a438a8b281c841bfbb946e32e52a078742025c82681dbddd5279922b69/pyreactlab_core-0.7.0-py3-none-any.whl", hash = "sha256:0fa3a1753825dfb7000c6abaacc433917078f9e3a72c36dbf6b7107cabd78d55", size = 52889, upload-time = "2026-08-27T04:22:34.466Z" },
 ]
 
 [[package]]
@@ -345,15 +345,15 @@ wheels = [
 
 [[package]]
 name = "pythermodb-settings"
-version = "0.7.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/1e/6f373b72af295929689c69acd820760a3255c7a5951590b511a630d0c036/pythermodb_settings-0.7.0.tar.gz", hash = "sha256:0959dd3462cd0031e165730e2f91ef9d312abdc09c0f99f2838a6769feca438b", size = 31501, upload-time = "2026-08-25T01:20:54.434Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/f7/3a69a81354e680925d0c2a183dcf68db7f15581277f03b248301aeb6ef9a/pythermodb_settings-0.9.0.tar.gz", hash = "sha256:165927a521eaddde5b678e77e18dddfb63f13fc18e63b02ecc215839c6d57e04", size = 33866, upload-time = "2026-08-27T03:22:03.247Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b4/e3/4dd84bd2d3e28e45a6d136a1a2f5ba41cac3b5f206e250c14fbfc21f2589/pythermodb_settings-0.7.0-py3-none-any.whl", hash = "sha256:c34179bbaea6c0c2869ef7f8dddf266e53fc4ac8e490573039c3804e8cbc052f", size = 36318, upload-time = "2026-08-25T01:20:53.596Z" },
+    { url = "https://files.pythonhosted.org/packages/64/c9/755b1b868e1ee7c70269793ccd96370733341dff38cd87a995f4c3400052/pythermodb_settings-0.9.0-py3-none-any.whl", hash = "sha256:91cf57896028678ebbcb743566ab900e29142086c0379041c5e02d11bdf08fb1", size = 38103, upload-time = "2026-08-27T03:22:02.151Z" },
 ]
 
 [[package]]
