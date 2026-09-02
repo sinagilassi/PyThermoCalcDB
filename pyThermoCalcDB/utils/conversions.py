@@ -1,11 +1,112 @@
 # import libs
 import logging
-from typing import List, Optional, Dict, Mapping
+from collections.abc import Mapping, Sequence
+from typing import List, Optional, Dict
+
 from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, ComponentAmounts
+from pythermodb_settings.utils import to_amounts
 from pycuc import convert_from_to
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
+
+
+# SECTION: Type aliases
+Number = float | int
+ScalarValue = Number | CustomProp
+ComponentValues = Mapping[str, ScalarValue] | Sequence[ScalarValue]
+
+
+# SECTION: Internal helpers
+
+
+def _scalar(value: ScalarValue, name: str, output_unit: str | None = None) -> float:
+    """Convert a scalar numeric or CustomProp value to float."""
+    if isinstance(value, CustomProp):
+        value_ = value.value
+        unit_ = value.unit
+        if output_unit and unit_.strip().lower() != output_unit.strip().lower():
+            value_ = convert_from_to(
+                value=value_,
+                from_unit=unit_,
+                to_unit=output_unit,
+            )
+        return float(value_)
+    return float(value)
+
+
+def _dict(values: Mapping[str, ScalarValue], output_unit: str | None = None) -> dict[str, float]:
+    """Convert a numeric or CustomProp mapping to a float-valued dictionary."""
+    return to_amounts(
+        component_amounts=values,
+        output_unit=output_unit,
+        unit_conversion_fn=convert_from_to,
+    )
+
+
+def _list(values: Sequence[ScalarValue], output_unit: str | None = None) -> list[float]:
+    """Convert a numeric or CustomProp sequence to a float-valued list."""
+    # ! Strings are sequences, but they are not valid numeric component inputs.
+    if isinstance(values, (str, bytes)):
+        raise TypeError("values must be a numeric sequence, not a string.")
+    return [_scalar(value, "values", output_unit) for value in values]
+
+
+def _same_shape(a: ComponentValues, b: ComponentValues) -> None:
+    """Validate that two component collections can be paired component-wise."""
+    # SECTION: Mapping validation
+    if isinstance(a, Mapping):
+        if not isinstance(b, Mapping):
+            raise TypeError("Both component inputs must be mappings or both sequences.")
+        if set(a) != set(b):
+            raise ValueError("Input mappings must have the same component keys.")
+        return
+
+    # SECTION: Sequence validation
+    if isinstance(b, Mapping):
+        raise TypeError("Both component inputs must be mappings or both sequences.")
+    if len(a) != len(b):
+        raise ValueError("Input sequences must have the same length.")
+
+
+def _non_empty(values: ComponentValues, name: str) -> None:
+    """Validate that a component collection is not empty."""
+    if len(values) == 0:
+        raise ValueError(f"{name} cannot be empty.")
+
+
+def _non_negative(values: ComponentValues, name: str) -> None:
+    """Validate that all component values are non-negative."""
+    items = _dict(values).values() if isinstance(values, Mapping) else _list(values)
+    if any(value < 0.0 for value in items):
+        raise ValueError(f"{name} cannot contain negative values.")
+
+
+def _positive(values: ComponentValues, name: str) -> None:
+    """Validate that all component values are greater than zero."""
+    items = _dict(values).values() if isinstance(values, Mapping) else _list(values)
+    if any(value <= 0.0 for value in items):
+        raise ValueError(f"{name} values must be greater than zero.")
+
+
+def _fractions(values: ComponentValues, name: str) -> None:
+    """Validate fraction-like values on the closed interval [0, 1]."""
+    _non_empty(values, name)
+    _non_negative(values, name)
+
+    # NOTE: Normalization is not enforced here because these functions normalize
+    # the converted basis from the supplied component values.
+    items = _dict(values).values() if isinstance(values, Mapping) else _list(values)
+    if any(value > 1.0 for value in items):
+        raise ValueError(f"{name} cannot contain values greater than one.")
+
+
+def _pos(value: ScalarValue, name: str, output_unit: str | None = None) -> float:
+    """Return a scalar as float after validating it is positive."""
+    value = _scalar(value, name, output_unit)
+    if value <= 0.0:
+        raise ValueError(f"{name} must be greater than zero.")
+    return value
 
 
 def _to_J__mol(
