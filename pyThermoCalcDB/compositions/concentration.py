@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from pythermodb_settings.models import Component, ComponentKey, CustomProp
 from pythermodb_settings.utils import config_components_values
 # locals
-from .utils import ComponentAmounts, _to_amounts, _to_units, _to_volume
+from ..models import ComponentAmounts
+from ..utils.conversions import _to_amounts, _to_units, _to_volume
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)

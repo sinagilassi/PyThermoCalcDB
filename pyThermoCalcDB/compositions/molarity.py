@@ -6,7 +6,8 @@ from pythermodb_settings.utils import (
     config_components_values,
 )
 # locals
-from .utils import ComponentMoles, _to_moles, _to_units, _to_volume
+from ..models import ComponentMoles
+from ..utils.conversions import _to_moles, _to_units, _to_volume
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)

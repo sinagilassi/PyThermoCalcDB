@@ -2,13 +2,11 @@
 import logging
 from typing import List, Dict, Optional, Tuple, Any
 from pythermodb_settings.models import Component, ComponentKey
+# locals
 from pythermodb_settings.utils import (
-    find_component_by_id,
-    set_component_id,
     config_components_values,
     measure_time
 )
-# locals
 
 # NOTE: logger set
 logger = logging.getLogger(__name__)
