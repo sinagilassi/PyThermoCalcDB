@@ -1,4 +1,4 @@
-from .ref import CalcResult
+from .ref import CalcResult, ComponentAmounts, ComponentMoles
 
 
 from .component_ref import (
@@ -20,4 +20,6 @@ __all__ = [
     'ComponentHeatOfSublimation',
     'MixtureEnthalpyResult',
     'CalcResult',
+    'ComponentAmounts',
+    'ComponentMoles',
 ]
