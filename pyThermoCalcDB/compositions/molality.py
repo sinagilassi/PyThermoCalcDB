@@ -171,6 +171,11 @@ def molality1(
     List[float]
         A list of molality values for each component.
     """
+    # check
+    if solvent_mass == 0:
+        logger.error("Solvent mass cannot be zero.")
+        raise ValueError("Solvent mass cannot be zero.")
+
     return [moles / solvent_mass for moles in component_moles]
 
 
@@ -193,6 +198,11 @@ def molality2(
     Tuple[Dict[str, float], List[float]]
         A tuple containing a dictionary of component molalities and a list of molality values.
     """
+    # check
+    if solvent_mass == 0:
+        logger.error("Solvent mass cannot be zero.")
+        raise ValueError("Solvent mass cannot be zero.")
+
     # ! dict
     component_molality_dict = {
         key: value / solvent_mass for key, value in component_moles.items()
