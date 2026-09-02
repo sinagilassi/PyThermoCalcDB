@@ -1,6 +1,7 @@
 # import libs
-from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
+from pythermodb_settings.models import ComponentAmounts, ComponentMoles
+
 
 # NOTE: calc result
 
