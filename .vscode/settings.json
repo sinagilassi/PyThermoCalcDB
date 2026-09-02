@@ -8,6 +8,8 @@
         "maxiter",
         "mkeq",
         "mkeqs",
+        "molalities",
+        "multisolute",
         "Psat",
         "pyreactlab",
         "Rackett",
