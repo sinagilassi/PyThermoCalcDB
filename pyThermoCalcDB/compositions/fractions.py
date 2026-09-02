@@ -182,3 +182,13 @@ calculate_keyed_fractions = fr2
 # ! reorder & create keys
 calculate_component_fractions = fr3
 
+
+# SECTION: Mole Fraction Calculations
+calculate_mole_fractions = fr1
+calculate_keyed_mole_fractions = fr2
+calculate_component_mole_fractions = fr3
+
+# SECTION: Mass Fraction Calculations
+calculate_mass_fractions = fr1
+calculate_keyed_mass_fractions = fr2
+calculate_component_mass_fractions = fr3
