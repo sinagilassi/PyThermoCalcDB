@@ -176,6 +176,10 @@ def molarity1(
     List[float]
         A list of molarity values for each component.
     """
+    # check
+    if solution_volume == 0:
+        logger.error("Volume of the solution cannot be zero.")
+        raise ValueError("Volume of the solution cannot be zero.")
     return [moles / solution_volume for moles in component_moles]
 
 
@@ -198,6 +202,11 @@ def molarity2(
     List[float]
         A list of molarity values for each component.
     """
+    # check
+    if solution_volume == 0:
+        logger.error("Volume of the solution cannot be zero.")
+        raise ValueError("Volume of the solution cannot be zero.")
+
     # ! dict
     component_molarity_dict = {
         key: value / solution_volume for key, value in component_moles.items()
@@ -361,5 +370,3 @@ def molarity4(
     component_molarity_dict, component_molarity_list = component_molarity
 
     return component_molarity_dict, component_molarity_list
-
-
