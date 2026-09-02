@@ -1,6 +1,6 @@
 ﻿from pythermocalcdb.compositions.molarity import molarity2, molarity3, molarity4
 from pythermodb_settings.models import Component, CustomProp
-
+from rich import print
 
 components = [
     Component(name="carbon dioxide", formula="CO2", state="g"),

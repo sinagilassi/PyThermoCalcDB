@@ -1,5 +1,6 @@
 ﻿from pythermocalcdb.compositions.molality import molality2, molality3, molality4
 from pythermodb_settings.models import Component, CustomProp
+from rich import print
 
 
 components = [
