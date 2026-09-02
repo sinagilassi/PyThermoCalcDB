@@ -2,7 +2,7 @@
 import logging
 from typing import Dict, List, Optional
 from pythermodb_settings.models import ComponentAmounts, Component, ComponentKey
-from pythermodb_settings.utils import to_amounts
+from pythermodb_settings.utils import to_amounts, to_amounts_by_order
 from pycuc import convert_from_to
 # ! locals
 from ..utils.conversions import _to_molecular_weight
