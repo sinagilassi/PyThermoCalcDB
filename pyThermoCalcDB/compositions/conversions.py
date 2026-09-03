@@ -35,13 +35,9 @@ from pythermodb_settings.utils.quantity import (
     pos
 )
 # locals
+from ..utils.conversions import _resolve_unit_conversion_fn
 
-
-def _resolve_unit_conversion_fn(
-    unit_conversion_fn: UnitConversionFn | None,
-) -> UnitConversionFn:
-    """Return the provided converter or the module default converter."""
-    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+# SECTION: Unit conversion helpers
 
 
 def _dict(
@@ -243,6 +239,8 @@ def mole_fraction_to_mass_fraction(
         raise ValueError("The weighted molecular-weight sum must be positive.")
     return [x_i * mw_i / denom for x_i, mw_i in zip(x, mw)]
 
+# ! ::: Convert Mass Fraction to Mole Fraction
+
 
 def mass_fraction_to_mole_fraction(
     mass_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
@@ -350,6 +348,7 @@ def mass_fraction_to_mole_fraction(
 
 
 # SECTION: Molarity and molality conversions
+# ! ::: Convert Molarity to Molality
 def molarity_to_molality(
     molarity: ScalarValue,
     molecular_weight: ScalarValue,
@@ -394,7 +393,12 @@ def molarity_to_molality(
     b = C / (rho - C*M)
     """
     # SECTION: Validate inputs
-    c = _pos(molarity, "molarity", output_molarity_unit, unit_conversion_fn)
+    c = _pos(
+        molarity,
+        "molarity",
+        output_molarity_unit,
+        unit_conversion_fn
+    )
     mw = _pos(
         molecular_weight,
         "molecular_weight",
@@ -416,6 +420,8 @@ def molarity_to_molality(
 
     # SECTION: Calculate molality
     return c / solvent_mass
+
+# ! ::: Convert Molarity to Molality
 
 
 def molality_to_molarity(
@@ -462,7 +468,12 @@ def molality_to_molarity(
     C = b*rho / (1 + b*M)
     """
     # SECTION: Validate inputs
-    b = _pos(molality, "molality", output_molality_unit, unit_conversion_fn)
+    b = _pos(
+        molality,
+        "molality",
+        output_molality_unit,
+        unit_conversion_fn
+    )
     mw = _pos(
         molecular_weight,
         "molecular_weight",
@@ -478,6 +489,8 @@ def molality_to_molarity(
 
     # SECTION: Calculate molarity
     return b * rho / (1.0 + b * mw)
+
+# ! ::: Convert Molality to Molarity
 
 
 def molarities_to_molalities(
@@ -601,6 +614,8 @@ def molarities_to_molalities(
 
 
 # SECTION: Molality and mole fraction conversions
+
+# ! ::: Convert Molality to Mole Fraction
 def molality_to_mole_fraction(
     molalities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     solvent_molecular_weight: ScalarValue,
@@ -667,7 +682,11 @@ def molality_to_mole_fraction(
 
     # SECTION: Mapping implementation
     if isinstance(molalities, Mapping):
-        b = _dict(molalities, output_molality_unit, unit_conversion_fn)
+        b = _dict(
+            molalities,
+            output_molality_unit,
+            unit_conversion_fn
+        )
         b = _configure_component_values(
             b,
             components,
@@ -685,6 +704,8 @@ def molality_to_mole_fraction(
     b = _list(molalities, output_molality_unit, unit_conversion_fn)
     total = solvent_moles + sum(b)
     return [value / total for value in b] + [solvent_moles / total]
+
+# ! ::: Convert Mole Fraction to Molality
 
 
 def mole_fraction_to_molality(
@@ -805,6 +826,8 @@ def molarity_to_mass_fraction(
         raise ValueError("Calculated mass fraction is greater than one.")
     return result
 
+# ! ::: Convert Mass Fraction to Molarity
+
 
 def mass_fraction_to_molarity(
     mass_fraction: ScalarValue,
@@ -851,7 +874,12 @@ def mass_fraction_to_molarity(
         raise ValueError("mass_fraction must be between zero and one.")
 
     # SECTION: Calculate molarity
-    return w * _pos(solution_density, "solution_density", output_solution_density_unit, unit_conversion_fn) / _pos(
+    return w * _pos(
+        solution_density,
+        "solution_density",
+        output_solution_density_unit,
+        unit_conversion_fn
+    ) / _pos(
         molecular_weight,
         "molecular_weight",
         output_molecular_weight_unit,
@@ -860,6 +888,8 @@ def mass_fraction_to_molarity(
 
 
 # SECTION: Molality and mass fraction conversions
+
+# ! ::: Convert Molarity to Mass Fraction
 def molality_to_mass_fraction(
     molality: ScalarValue,
     molecular_weight: ScalarValue,
@@ -904,6 +934,8 @@ def molality_to_mass_fraction(
         unit_conversion_fn,
     )
     return solute_mass / (1.0 + solute_mass)
+
+# ! ::: Convert Mass Fraction to Molality
 
 
 def mass_fraction_to_molality(
@@ -952,6 +984,8 @@ def mass_fraction_to_molality(
 
 
 # SECTION: Molarity and mass concentration conversions
+
+# ! ::: Convert Molarity to Mass Concentration
 def molarity_to_mass_concentration(
     molarity: ScalarValue,
     molecular_weight: ScalarValue,
@@ -996,6 +1030,7 @@ def molarity_to_mass_concentration(
     )
 
 
+# ! ::: Convert Mass Concentration to Molarity
 def mass_concentration_to_molarity(
     mass_concentration: ScalarValue,
     molecular_weight: ScalarValue,
@@ -1041,6 +1076,7 @@ def mass_concentration_to_molarity(
 
 
 # SECTION: Percent conversions
+# ! ::: Convert Mass Fraction to Weight Percent
 def mass_fraction_to_weight_percent(mass_fraction: ScalarValue) -> float:
     """Convert mass fraction to weight percent.
 
@@ -1060,6 +1096,8 @@ def mass_fraction_to_weight_percent(mass_fraction: ScalarValue) -> float:
     if w < 0.0 or w > 1.0:
         raise ValueError("mass_fraction must be between zero and one.")
     return 100.0 * w
+
+# ! ::: Convert Weight Percent to Mass Fraction
 
 
 def weight_percent_to_mass_fraction(weight_percent: ScalarValue) -> float:
@@ -1082,6 +1120,8 @@ def weight_percent_to_mass_fraction(weight_percent: ScalarValue) -> float:
         raise ValueError("weight_percent must be between zero and 100.")
     return value / 100.0
 
+# ! ::: Convert Mole Fraction to Mole Percent
+
 
 def mole_fraction_to_mole_percent(mole_fraction: ScalarValue) -> float:
     """Convert mole fraction to mole percent.
@@ -1102,6 +1142,8 @@ def mole_fraction_to_mole_percent(mole_fraction: ScalarValue) -> float:
     if x < 0.0 or x > 1.0:
         raise ValueError("mole_fraction must be between zero and one.")
     return 100.0 * x
+
+# ! ::: Convert Mole Percent to Mole Fraction
 
 
 def mole_percent_to_mole_fraction(mole_percent: ScalarValue) -> float:
@@ -1126,6 +1168,7 @@ def mole_percent_to_mole_fraction(mole_percent: ScalarValue) -> float:
 
 
 # SECTION: ppm conversions
+# ! ::: Convert Mass Fraction to Mass-based ppm
 def mass_fraction_to_ppm(mass_fraction: ScalarValue) -> float:
     """Convert mass fraction to mass-based ppm.
 
@@ -1142,6 +1185,8 @@ def mass_fraction_to_ppm(mass_fraction: ScalarValue) -> float:
     """
     # NOTE: ppm_mass = mass_fraction * 1e6
     return mass_fraction_to_weight_percent(mass_fraction) * 10000.0
+
+# ! ::: Convert Mass-based ppm to Mass Fraction
 
 
 def ppm_mass_to_mass_fraction(ppm: ScalarValue) -> float:
@@ -1165,6 +1210,8 @@ def ppm_mass_to_mass_fraction(ppm: ScalarValue) -> float:
     return value * 1e-6
 
 
+# ! ::: Convert Mole Fraction to Mole-based ppm
+
 def mole_fraction_to_ppm(mole_fraction: ScalarValue) -> float:
     """Convert mole fraction to mole-based ppm.
 
@@ -1181,6 +1228,8 @@ def mole_fraction_to_ppm(mole_fraction: ScalarValue) -> float:
     """
     # NOTE: ppm_mole = mole_fraction * 1e6
     return mole_fraction_to_mole_percent(mole_fraction) * 10000.0
+
+# ! ::: Convert Mole-based ppm to Mole Fraction
 
 
 def ppm_mole_to_mole_fraction(ppm: ScalarValue) -> float:
@@ -1205,6 +1254,8 @@ def ppm_mole_to_mole_fraction(ppm: ScalarValue) -> float:
 
 
 # SECTION: ppb conversions
+
+# ! ::: Convert Mass Fraction to Mass-based ppb
 def mass_fraction_to_ppb(mass_fraction: ScalarValue) -> float:
     """Convert mass fraction to mass-based ppb.
 
@@ -1221,6 +1272,8 @@ def mass_fraction_to_ppb(mass_fraction: ScalarValue) -> float:
     """
     # NOTE: ppb_mass = mass_fraction * 1e9
     return mass_fraction_to_weight_percent(mass_fraction) * 10000000.0
+
+# ! ::: Convert Mass-based ppb to Mass Fraction
 
 
 def ppb_mass_to_mass_fraction(ppb: ScalarValue) -> float:
@@ -1243,6 +1296,8 @@ def ppb_mass_to_mass_fraction(ppb: ScalarValue) -> float:
         raise ValueError("ppb must be non-negative.")
     return value * 1e-9
 
+# ! ::: Convert Mole Fraction to Mole-based ppb
+
 
 def mole_fraction_to_ppb(mole_fraction: ScalarValue) -> float:
     """Convert mole fraction to mole-based ppb.
@@ -1260,6 +1315,8 @@ def mole_fraction_to_ppb(mole_fraction: ScalarValue) -> float:
     """
     # NOTE: ppb_mole = mole_fraction * 1e9
     return mole_fraction_to_mole_percent(mole_fraction) * 10000000.0
+
+# ! ::: Convert Mole-based ppb to Mole Fraction
 
 
 def ppb_mole_to_mole_fraction(ppb: ScalarValue) -> float:
