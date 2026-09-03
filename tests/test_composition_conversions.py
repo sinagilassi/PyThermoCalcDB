@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from pythermodb_settings.models import CustomProp
+from pythermodb_settings.models import Component, CustomProp
 
 from pythermocalcdb.compositions.conversions import (
     mass_concentration_to_molarity,
@@ -109,6 +109,19 @@ class TestCompositionConversions(unittest.TestCase):
             output_solution_density_unit="kg/L",
         )
         self.assertTrue(math.isclose(result, 0.05729411764705882, rel_tol=1e-12))
+
+    def test_component_mapping_orders_conversion_results(self):
+        components = [
+            Component(name="ethanol", formula="C2H6O", state="l"),
+            Component(name="water", formula="H2O", state="l"),
+        ]
+        result = mole_fraction_to_mass_fraction(
+            {"water": 0.5, "ethanol": 0.5},
+            {"water": 18.015, "ethanol": 46.07},
+            components=components,
+            component_key="Formula",
+        )
+        self.assertEqual(list(result), ["C2H6O", "H2O"])
 
 
     def test_custom_prop_values_are_used_as_is_without_output_units(self):
