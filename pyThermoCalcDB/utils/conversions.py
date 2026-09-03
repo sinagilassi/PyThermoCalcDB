@@ -2,111 +2,48 @@
 import logging
 from collections.abc import Mapping, Sequence
 from typing import List, Optional, Dict
-
-from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, ComponentAmounts
-from pythermodb_settings.utils import to_amounts
+# locals
+from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, UnitConversionFn
+from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar
 from pycuc import convert_from_to
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-# SECTION: Type aliases
-Number = float | int
-ScalarValue = Number | CustomProp
-ComponentValues = Mapping[str, ScalarValue] | Sequence[ScalarValue]
+# SECTION: Unit conversion function resolver
+def _resolve_unit_conversion_fn(
+    unit_conversion_fn: UnitConversionFn | None,
+) -> UnitConversionFn:
+    """Return the provided converter or the module default converter."""
+    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
 
+
+# SECTION: Unit handling helpers
+
+# ! ::: Helper function to split unit string into individual units
+
+
+def _to_units(unit: str) -> List[str]:
+    # NOTE: validation
+    if not unit or not isinstance(unit, str):
+        raise ValueError("Invalid unit string provided.")
+
+    # NOTE: only support units separated by '/'
+    if '/' not in unit:
+        raise ValueError("Unit string must contain '/' to separate units.")
+
+    # NOTE: more than one '/'
+    if unit.count('/') != 1:
+        raise ValueError(
+            "Unit string must contain exactly one '/' to separate units."
+        )
+
+    # NOTE: split the unit string by '/' to get individual units
+    return [unit_.strip() for unit_ in unit.strip().split('/')]
 
 # SECTION: Internal helpers
-
-
-def _scalar(value: ScalarValue, name: str, output_unit: str | None = None) -> float:
-    """Convert a scalar numeric or CustomProp value to float."""
-    if isinstance(value, CustomProp):
-        value_ = value.value
-        unit_ = value.unit
-        if output_unit and unit_.strip().lower() != output_unit.strip().lower():
-            value_ = convert_from_to(
-                value=value_,
-                from_unit=unit_,
-                to_unit=output_unit,
-            )
-        return float(value_)
-    return float(value)
-
-
-def _dict(values: Mapping[str, ScalarValue], output_unit: str | None = None) -> dict[str, float]:
-    """Convert a numeric or CustomProp mapping to a float-valued dictionary."""
-    return to_amounts(
-        component_amounts=values,
-        output_unit=output_unit,
-        unit_conversion_fn=convert_from_to,
-    )
-
-
-def _list(values: Sequence[ScalarValue], output_unit: str | None = None) -> list[float]:
-    """Convert a numeric or CustomProp sequence to a float-valued list."""
-    # ! Strings are sequences, but they are not valid numeric component inputs.
-    if isinstance(values, (str, bytes)):
-        raise TypeError("values must be a numeric sequence, not a string.")
-    return [_scalar(value, "values", output_unit) for value in values]
-
-
-def _same_shape(a: ComponentValues, b: ComponentValues) -> None:
-    """Validate that two component collections can be paired component-wise."""
-    # SECTION: Mapping validation
-    if isinstance(a, Mapping):
-        if not isinstance(b, Mapping):
-            raise TypeError("Both component inputs must be mappings or both sequences.")
-        if set(a) != set(b):
-            raise ValueError("Input mappings must have the same component keys.")
-        return
-
-    # SECTION: Sequence validation
-    if isinstance(b, Mapping):
-        raise TypeError("Both component inputs must be mappings or both sequences.")
-    if len(a) != len(b):
-        raise ValueError("Input sequences must have the same length.")
-
-
-def _non_empty(values: ComponentValues, name: str) -> None:
-    """Validate that a component collection is not empty."""
-    if len(values) == 0:
-        raise ValueError(f"{name} cannot be empty.")
-
-
-def _non_negative(values: ComponentValues, name: str) -> None:
-    """Validate that all component values are non-negative."""
-    items = _dict(values).values() if isinstance(values, Mapping) else _list(values)
-    if any(value < 0.0 for value in items):
-        raise ValueError(f"{name} cannot contain negative values.")
-
-
-def _positive(values: ComponentValues, name: str) -> None:
-    """Validate that all component values are greater than zero."""
-    items = _dict(values).values() if isinstance(values, Mapping) else _list(values)
-    if any(value <= 0.0 for value in items):
-        raise ValueError(f"{name} values must be greater than zero.")
-
-
-def _fractions(values: ComponentValues, name: str) -> None:
-    """Validate fraction-like values on the closed interval [0, 1]."""
-    _non_empty(values, name)
-    _non_negative(values, name)
-
-    # NOTE: Normalization is not enforced here because these functions normalize
-    # the converted basis from the supplied component values.
-    items = _dict(values).values() if isinstance(values, Mapping) else _list(values)
-    if any(value > 1.0 for value in items):
-        raise ValueError(f"{name} cannot contain values greater than one.")
-
-
-def _pos(value: ScalarValue, name: str, output_unit: str | None = None) -> float:
-    """Return a scalar as float after validating it is positive."""
-    value = _scalar(value, name, output_unit)
-    if value <= 0.0:
-        raise ValueError(f"{name} must be greater than zero.")
-    return value
+# ! ::: Convert energy value to J/mol
 
 
 def _to_J__mol(
@@ -140,6 +77,8 @@ def _to_J__mol(
         logger.error(f"Error converting energy to J/mol: {e}")
         raise
 
+# ! ::: Convert temperature value to K
+
 
 def _to_kelvin(temperature: Temperature) -> float:
     """Return temperature value in K."""
@@ -152,6 +91,8 @@ def _to_kelvin(temperature: Temperature) -> float:
             to_unit="K"
         )
     return float(T_value)
+
+# ! ::: Convert energy value to g/mol
 
 
 def to_g_mol(
@@ -186,128 +127,11 @@ def to_g_mol(
         return None
 
 
-# ! ::: Helper function to split unit string into individual units
-def _to_units(unit: str) -> List[str]:
-    # NOTE: validation
-    if not unit or not isinstance(unit, str):
-        raise ValueError("Invalid unit string provided.")
-
-    # NOTE: only support units separated by '/'
-    if '/' not in unit:
-        raise ValueError("Unit string must contain '/' to separate units.")
-
-    # NOTE: more than one '/'
-    if unit.count('/') != 1:
-        raise ValueError(
-            "Unit string must contain exactly one '/' to separate units."
-        )
-
-    # NOTE: split the unit string by '/' to get individual units
-    return [unit_.strip() for unit_ in unit.strip().split('/')]
-
-# ! ::: Check if units match
-
-
-def _same_unit(
-        unit: str,
-        expected_unit: str
-) -> bool:
-    return unit.strip().lower() == expected_unit.strip().lower()
-
-
-# ! ::: Check if all CustomProp values have the expected unit
-def _all_valid_units(
-        values: Dict[str, CustomProp],
-        expected_unit: str
-) -> bool:
-    if not values:
-        return True
-
-    all_units = list(set([value.unit for value in values.values()]))
-
-    # NOTE: more than one unique unit
-    if len(all_units) > 1:
-        return False
-
-    # NOTE: check if the single unit matches the expected unit
-    return _same_unit(all_units[0], expected_unit)
-
-
-# ! ::: Convert a CustomProp/numeric mapping to scalar values
-def _to_custom_props_mapping(
-        values: Mapping[str, CustomProp | float | int],
-        output_unit: Optional[str] = None
-) -> Dict[str, float]:
-    converted_values: dict[str, float] = {}
-
-    custom_prop_values = {
-        key: value
-        for key, value in values.items()
-        if isinstance(value, CustomProp)
-    }
-
-    # SECTION: Check all CustomProp values already use the output unit
-    unit_valid = False
-
-    # NOTE: check
-    if output_unit is not None and len(custom_prop_values) == len(values):
-        unit_valid = _all_valid_units(custom_prop_values, output_unit)
-
-    # NOTE: expected unit
-    if unit_valid is True:
-        converted_values = {
-            key: float(value.value) for key, value in custom_prop_values.items()
-        }
-
-        return converted_values
-
-    # SECTION: Convert values to the desired output unit
-    for key, value in values.items():
-        if isinstance(value, CustomProp):
-            # NOTE: set
-            val_ = value.value
-            unit_ = value.unit
-
-            # ! to output unit
-            if output_unit and not _same_unit(unit_, output_unit):
-                val_ = convert_from_to(val_, unit_, output_unit)
-
-            # NOTE: set
-            converted_values[key] = float(val_)
-        else:
-            converted_values[key] = float(value)
-
-    return converted_values
-
-
-# ! ::: Convert component amounts to the requested output unit
-def _to_amounts(
-        component_amounts: ComponentAmounts,
-        output_unit: Optional[str] = None
-) -> Dict[str, float]:
-    """
-    Convert a dictionary of component amounts to float values.
-
-    Parameters
-    ----------
-    component_amounts : ComponentAmounts
-        A dictionary mapping component names to amounts. Numeric values are assumed to already be in output_unit.
-    output_unit : str, optional
-        The unit to which CustomProp component amounts should be converted. Default is None.
-
-    Returns
-    -------
-    Dict[str, float]
-        A dictionary mapping component names to their respective amounts as floats.
-    """
-    return _to_custom_props_mapping(component_amounts, output_unit)
-
 # ! ::: Convert component moles to the requested output unit
-
-
 def _to_moles(
         component_moles: ComponentMoles,
-        output_unit: Optional[str] = None
+        output_unit: Optional[str] = None,
+        unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Dict[str, float]:
     """
     Convert a dictionary of component moles to float values.
@@ -324,27 +148,19 @@ def _to_moles(
     Dict[str, float]
         A dictionary mapping component names to their respective moles as floats.
     """
-    return _to_custom_props_mapping(component_moles, output_unit)
-
-
-# ! ::: Convert a CustomProp scalar to the requested output unit
-def _to_custom_prop_scalar(
-        prop: CustomProp,
-        output_unit: Optional[str] = None
-) -> float:
-    val_ = prop.value
-    unit_ = prop.unit
-
-    if output_unit and not _same_unit(unit_, output_unit):
-        val_ = convert_from_to(val_, unit_, output_unit)
-
-    return float(val_)
+    # NOTE: resolver
+    return to_custom_props_mapping(
+        values=component_moles,
+        to_unit=output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
+    )
 
 
 # ! ::: Convert to desired volume unit
 def _to_volume(
         solution_volume: CustomProp,
-        output_unit: Optional[str] = None
+        output_unit: Optional[str] = None,
+        unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> float:
     """
     Convert a solution volume defined as a CustomProp object to a float value in the desired unit.
@@ -361,13 +177,18 @@ def _to_volume(
     float
         The solution volume in the desired unit as a float.
     """
-    return _to_custom_prop_scalar(solution_volume, output_unit)
+    return to_custom_prop_scalar(
+        prop=solution_volume,
+        output_unit=output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
+    )
 
 
 # ! ::: Convert to desired mass unit
 def _to_mass(
         solvent_mass: CustomProp,
-        output_unit: Optional[str] = None
+        output_unit: Optional[str] = None,
+        unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> float:
     """
     Convert a solvent mass defined as a CustomProp object to a float value in the desired unit.
@@ -384,14 +205,19 @@ def _to_mass(
     float
         The solvent mass in the desired unit as a float.
     """
-    return _to_custom_prop_scalar(solvent_mass, output_unit)
+    return to_custom_prop_scalar(
+        prop=solvent_mass,
+        output_unit=output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
+    )
 
 # ! ::: COnvert to desired molecular weight unit
 
 
 def _to_molecular_weight(
         molecular_weight: CustomProp,
-        output_unit: Optional[str] = None
+        output_unit: Optional[str] = None,
+        unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> float:
     """
     Convert a molecular weight defined as a CustomProp object to a float value in the desired unit.
@@ -408,4 +234,8 @@ def _to_molecular_weight(
     float
         The molecular weight in the desired unit as a float.
     """
-    return _to_custom_prop_scalar(molecular_weight, output_unit)
+    return to_custom_prop_scalar(
+        prop=molecular_weight,
+        output_unit=output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
+    )

@@ -9,14 +9,10 @@ from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.quantity import to_dict, to_list
 from pythermodb_settings.utils.validators import fractions, non_negative, positive, same_shape
-
+# locals
+from ..utils.conversions import _resolve_unit_conversion_fn
 
 # SECTION: Internal helpers
-def _resolve_unit_conversion_fn(
-    unit_conversion_fn: UnitConversionFn | None,
-) -> UnitConversionFn:
-    """Return the provided converter or the module default converter."""
-    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
 
 
 def _configure_component_values(

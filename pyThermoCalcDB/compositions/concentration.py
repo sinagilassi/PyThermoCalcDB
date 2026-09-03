@@ -1,11 +1,11 @@
 # import libs
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-from pythermodb_settings.models import Component, ComponentKey, CustomProp
-from pythermodb_settings.utils import config_components_values
+from pythermodb_settings.models import Component, ComponentKey, CustomProp, UnitConversionFn
+from pythermodb_settings.utils import config_components_values, to_amounts
 # locals
 from ..models import ComponentAmounts
-from ..utils.conversions import _to_amounts, _to_units, _to_volume
+from ..utils.conversions import _to_units, _to_volume, _resolve_unit_conversion_fn
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -78,6 +78,7 @@ def concentration_amount_volume_3(
     component_amounts: ComponentAmounts,
     solution_volume: CustomProp,
     output_unit: str = 'kg/m^3',
+    unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Tuple[Dict[str, float], List[float]]:
     """
     Calculate the concentration of each component in a solution given component amounts and solution volume as a CustomProp.
@@ -90,6 +91,8 @@ def concentration_amount_volume_3(
         The volume of the solution as a CustomProp object.
     output_unit : str, optional
         The unit for the output concentration values. Defaults to 'kg/m^3'.
+    unit_conversion_fn : UnitConversionFn, optional
+        The function to use for unit conversion. Defaults to None. Then it will use the default conversion function `pycuc.convert_from_to`.
 
     Returns
     -------
@@ -103,15 +106,17 @@ def concentration_amount_volume_3(
     volume_unit = units_[1]
 
     # NOTE: component amounts
-    component_amounts_dict: Dict[str, float] = _to_amounts(
+    component_amounts_dict: Dict[str, float] = to_amounts(
         component_amounts=component_amounts,
-        output_unit=amount_unit
+        output_unit=amount_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
     # NOTE: solution volume unit should match output unit denominator
     solution_volume_scalar = _to_volume(
         solution_volume=solution_volume,
-        output_unit=volume_unit
+        output_unit=volume_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
     # SECTION: calculate concentration for each component
@@ -134,6 +139,7 @@ def concentration_amount_volume_4(
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
+    unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Optional[Tuple[Dict[str, float], List[float]]]:
     """
     Calculate the concentration of each component in a solution given component amounts and solution volume as a CustomProp. The component concentration list and dictionary will be ordered according to the components list if sort_by_components_order is True.
@@ -154,6 +160,8 @@ def concentration_amount_volume_4(
         Whether the component mapping should be case sensitive, by default True.
     sort_by_components_order : bool, optional
         Whether to sort the component concentrations by the order of components, by default True.
+    unit_conversion_fn : UnitConversionFn, optional
+        The function to use for unit conversion. Defaults to None. Then it will use the default conversion function `pycuc.convert_from_to`.
 
     Returns
     -------
@@ -168,15 +176,17 @@ def concentration_amount_volume_4(
 
     # SECTION: convert component amounts if they are CustomProp objects
     # ! component amounts
-    component_amounts_dict = _to_amounts(
+    component_amounts_dict = to_amounts(
         component_amounts=component_amounts,
-        output_unit=amount_unit
+        output_unit=amount_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
     # ! volume
     solution_volume_scalar = _to_volume(
         solution_volume=solution_volume,
-        output_unit=volume_unit
+        output_unit=volume_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
     # SECTION: get component values
@@ -242,11 +252,13 @@ def mass_concentration3(
     component_mass: ComponentAmounts,
     solution_volume: CustomProp,
     output_unit: str = 'kg/m^3',
+    unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Tuple[Dict[str, float], List[float]]:
     return concentration_amount_volume_3(
         component_amounts=component_mass,
         solution_volume=solution_volume,
         output_unit=output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
 
@@ -258,6 +270,7 @@ def mass_concentration4(
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
+    unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Optional[Tuple[Dict[str, float], List[float]]]:
     return concentration_amount_volume_4(
         component_amounts=component_mass,
@@ -267,6 +280,7 @@ def mass_concentration4(
         component_key=component_key,
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
 
@@ -295,11 +309,13 @@ def molar_concentration3(
     component_moles: ComponentAmounts,
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
+    unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Tuple[Dict[str, float], List[float]]:
     return concentration_amount_volume_3(
         component_amounts=component_moles,
         solution_volume=solution_volume,
         output_unit=output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
 
@@ -311,6 +327,7 @@ def molar_concentration4(
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
+    unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Optional[Tuple[Dict[str, float], List[float]]]:
     return concentration_amount_volume_4(
         component_amounts=component_moles,
@@ -320,6 +337,7 @@ def molar_concentration4(
         component_key=component_key,
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
     )
 
 
