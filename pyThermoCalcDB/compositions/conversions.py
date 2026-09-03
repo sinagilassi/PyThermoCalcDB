@@ -15,21 +15,125 @@ dictionaries of floats, or lists of floats.
 """
 
 from collections.abc import Mapping, Sequence
-
-from pythermodb_settings.models import CustomProp
-
-from ..utils.conversions import (
-    ScalarValue,
-    _dict,
-    _fractions,
-    _list,
-    _non_empty,
-    _non_negative,
-    _pos,
-    _positive,
-    _same_shape,
-    _scalar,
+from typing import Optional, List
+from pycuc import convert_from_to
+# >> pythermodb-settings
+from pythermodb_settings.models import CustomProp, ScalarValue, Component, ComponentKey
+from pythermodb_settings.utils import config_components_values
+from pythermodb_settings.models.units import UnitConversionFn
+from pythermodb_settings.utils.validators import (
+    non_empty,
+    fractions,
+    positive,
+    non_negative,
+    same_shape
 )
+from pythermodb_settings.utils.quantity import (
+    to_dict,
+    to_list,
+    to_scalar,
+    pos
+)
+# locals
+
+
+def _resolve_unit_conversion_fn(
+    unit_conversion_fn: UnitConversionFn | None,
+) -> UnitConversionFn:
+    """Return the provided converter or the module default converter."""
+    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+
+
+def _dict(
+    values: Mapping[str, float | int | CustomProp],
+    output_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> dict[str, float]:
+    return to_dict(
+        values,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+
+
+def _list(
+    values: Sequence[float | int | CustomProp],
+    output_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> list[float]:
+    return to_list(
+        values,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+
+
+def _scalar(
+    value: ScalarValue,
+    name: str,
+    output_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    return to_scalar(
+        value,
+        name,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+
+
+def _pos(
+    value: ScalarValue,
+    name: str,
+    output_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    return pos(
+        value,
+        name,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+
+
+_non_empty = non_empty
+_fractions = fractions
+_positive = positive
+_non_negative = non_negative
+_same_shape = same_shape
+
+
+def _configure_component_values(
+    values: Mapping[str, float],
+    components: Optional[List[Component]],
+    component_key: Optional[ComponentKey],
+    case_sensitive: bool,
+    sort_by_components_order: bool,
+    name: str,
+) -> dict[str, float]:
+    """Remap and order mapping values using component metadata when requested."""
+    # ! If no component key is provided, return the original values as a dictionary.
+    if component_key is None:
+        return dict(values)
+
+    if not components:
+        raise ValueError(
+            f"component_key is provided but components is empty for {name}."
+        )
+
+    component_values = config_components_values(
+        values=dict(values),
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    if component_values is None:
+        raise ValueError(f"Failed to configure {name} component values.")
+
+    component_values_dict, _ = component_values
+    return component_values_dict
+
 
 # SECTION: Mole fraction and mass fraction conversions
 
@@ -40,6 +144,11 @@ def mole_fraction_to_mass_fraction(
     mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
 ) -> dict[str, float] | list[float]:
     """Convert component mole fractions to mass fractions.
 
@@ -56,6 +165,21 @@ def mole_fraction_to_mass_fraction(
     output_molecular_weight_unit : str, optional
         Unit used to normalize ``molecular_weights`` before calculation. Leave as ``None`` to use input values as-is. Leave as
         ``None`` when all molecular weights are already numerically consistent.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
+    components : list[Component], optional
+        Components used to remap and order mapping-input results when
+        ``component_key`` is provided.
+    component_key : ComponentKey, optional
+        Component identifier format for remapping mapping-input keys. When
+        ``None``, original mapping keys and insertion order are preserved.
+    case_sensitive : bool, optional
+        Whether component ID matching is case-sensitive. Defaults to ``True``.
+    sort_by_components_order : bool, optional
+        Whether mapping results should follow the order of ``components``.
+        Defaults to ``True``.
 
     Returns
     -------
@@ -69,14 +193,34 @@ def mole_fraction_to_mass_fraction(
     w_i = x_i*M_i / sum_j(x_j*M_j)
     """
     # SECTION: Validate inputs
-    _fractions(mole_fractions, "mole_fractions")
-    _positive(molecular_weights, "molecular_weights")
-    _same_shape(mole_fractions, molecular_weights)
+    fractions(mole_fractions, "mole_fractions")
+    positive(molecular_weights, "molecular_weights")
+    same_shape(mole_fractions, molecular_weights)
 
     # SECTION: Mapping implementation
     if isinstance(mole_fractions, Mapping) and isinstance(molecular_weights, Mapping):
         x = _dict(mole_fractions)
-        mw = _dict(molecular_weights, output_molecular_weight_unit)
+        mw = _dict(
+            molecular_weights,
+            output_molecular_weight_unit,
+            unit_conversion_fn
+        )
+        x = _configure_component_values(
+            x,
+            components,
+            component_key,
+            case_sensitive,
+            sort_by_components_order,
+            "mole_fractions",
+        )
+        mw = _configure_component_values(
+            mw,
+            components,
+            component_key,
+            case_sensitive,
+            sort_by_components_order,
+            "molecular_weights",
+        )
         denom = sum(x[key] * mw[key] for key in x)
         if denom <= 0.0:
             raise ValueError(
@@ -89,7 +233,11 @@ def mole_fraction_to_mass_fraction(
 
     # SECTION: Sequence implementation
     x = _list(mole_fractions)
-    mw = _list(molecular_weights, output_molecular_weight_unit)
+    mw = _list(
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn
+    )
     denom = sum(x_i * mw_i for x_i, mw_i in zip(x, mw))
     if denom <= 0.0:
         raise ValueError("The weighted molecular-weight sum must be positive.")
@@ -100,6 +248,11 @@ def mass_fraction_to_mole_fraction(
     mass_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
 ) -> dict[str, float] | list[float]:
     """Convert component mass fractions to mole fractions.
 
@@ -116,6 +269,21 @@ def mass_fraction_to_mole_fraction(
     output_molecular_weight_unit : str, optional
         Unit used to normalize ``molecular_weights`` before calculation. Leave as ``None`` to use input values as-is. Leave as
         ``None`` when all molecular weights are already numerically consistent.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
+    components : list[Component], optional
+        Components used to remap and order mapping-input results when
+        ``component_key`` is provided.
+    component_key : ComponentKey, optional
+        Component identifier format for remapping mapping-input keys. When
+        ``None``, original mapping keys and insertion order are preserved.
+    case_sensitive : bool, optional
+        Whether component ID matching is case-sensitive. Defaults to ``True``.
+    sort_by_components_order : bool, optional
+        Whether mapping results should follow the order of ``components``.
+        Defaults to ``True``.
 
     Returns
     -------
@@ -136,7 +304,27 @@ def mass_fraction_to_mole_fraction(
     # SECTION: Mapping implementation
     if isinstance(mass_fractions, Mapping) and isinstance(molecular_weights, Mapping):
         w = _dict(mass_fractions)
-        mw = _dict(molecular_weights, output_molecular_weight_unit)
+        mw = _dict(
+            molecular_weights,
+            output_molecular_weight_unit,
+            unit_conversion_fn
+        )
+        w = _configure_component_values(
+            w,
+            components,
+            component_key,
+            case_sensitive,
+            sort_by_components_order,
+            "mass_fractions",
+        )
+        mw = _configure_component_values(
+            mw,
+            components,
+            component_key,
+            case_sensitive,
+            sort_by_components_order,
+            "molecular_weights",
+        )
         denom = sum(w[key] / mw[key] for key in w)
         if denom <= 0.0:
             raise ValueError(
@@ -149,7 +337,11 @@ def mass_fraction_to_mole_fraction(
 
     # SECTION: Sequence implementation
     w = _list(mass_fractions)
-    mw = _list(molecular_weights, output_molecular_weight_unit)
+    mw = _list(
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn
+    )
     denom = sum(w_i / mw_i for w_i, mw_i in zip(w, mw))
     if denom <= 0.0:
         raise ValueError(
@@ -165,6 +357,7 @@ def molarity_to_molality(
     output_molarity_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
     output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert single-solute molarity to molality.
 
@@ -185,6 +378,10 @@ def molarity_to_molality(
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
     output_solution_density_unit : str, optional
         Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -197,9 +394,19 @@ def molarity_to_molality(
     b = C / (rho - C*M)
     """
     # SECTION: Validate inputs
-    c = _pos(molarity, "molarity", output_molarity_unit)
-    mw = _pos(molecular_weight, "molecular_weight", output_molecular_weight_unit)
-    rho = _pos(solution_density, "solution_density", output_solution_density_unit)
+    c = _pos(molarity, "molarity", output_molarity_unit, unit_conversion_fn)
+    mw = _pos(
+        molecular_weight,
+        "molecular_weight",
+        output_molecular_weight_unit,
+        unit_conversion_fn
+    )
+    rho = _pos(
+        solution_density,
+        "solution_density",
+        output_solution_density_unit,
+        unit_conversion_fn
+    )
 
     # ! The solvent mass on a 1-volume basis must remain positive.
     solvent_mass = rho - c * mw
@@ -218,6 +425,7 @@ def molality_to_molarity(
     output_molality_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
     output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert single-solute molality to molarity.
 
@@ -238,6 +446,10 @@ def molality_to_molarity(
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
     output_solution_density_unit : str, optional
         Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -250,9 +462,19 @@ def molality_to_molarity(
     C = b*rho / (1 + b*M)
     """
     # SECTION: Validate inputs
-    b = _pos(molality, "molality", output_molality_unit)
-    mw = _pos(molecular_weight, "molecular_weight", output_molecular_weight_unit)
-    rho = _pos(solution_density, "solution_density", output_solution_density_unit)
+    b = _pos(molality, "molality", output_molality_unit, unit_conversion_fn)
+    mw = _pos(
+        molecular_weight,
+        "molecular_weight",
+        output_molecular_weight_unit,
+        unit_conversion_fn
+    )
+    rho = _pos(
+        solution_density,
+        "solution_density",
+        output_solution_density_unit,
+        unit_conversion_fn
+    )
 
     # SECTION: Calculate molarity
     return b * rho / (1.0 + b * mw)
@@ -265,6 +487,11 @@ def molarities_to_molalities(
     output_molarity_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
     output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
 ) -> dict[str, float] | list[float]:
     """Convert multisolute molarities to molalities.
 
@@ -286,6 +513,21 @@ def molarities_to_molalities(
         Unit used to normalize ``molecular_weights`` before calculation. Leave as ``None`` to use input values as-is.
     output_solution_density_unit : str, optional
         Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
+    components : list[Component], optional
+        Components used to remap and order mapping-input results when
+        ``component_key`` is provided.
+    component_key : ComponentKey, optional
+        Component identifier format for remapping mapping-input keys. When
+        ``None``, original mapping keys and insertion order are preserved.
+    case_sensitive : bool, optional
+        Whether component ID matching is case-sensitive. Defaults to ``True``.
+    sort_by_components_order : bool, optional
+        Whether mapping results should follow the order of ``components``.
+        Defaults to ``True``.
 
     Returns
     -------
@@ -303,12 +545,37 @@ def molarities_to_molalities(
     _non_negative(molarities, "molarities")
     _positive(molecular_weights, "molecular_weights")
     _same_shape(molarities, molecular_weights)
-    rho = _pos(solution_density, "solution_density", output_solution_density_unit)
+    rho = _pos(
+        solution_density,
+        "solution_density",
+        output_solution_density_unit,
+        unit_conversion_fn
+    )
 
     # SECTION: Mapping implementation
     if isinstance(molarities, Mapping) and isinstance(molecular_weights, Mapping):
-        c = _dict(molarities, output_molarity_unit)
-        mw = _dict(molecular_weights, output_molecular_weight_unit)
+        c = _dict(molarities, output_molarity_unit, unit_conversion_fn)
+        mw = _dict(
+            molecular_weights,
+            output_molecular_weight_unit,
+            unit_conversion_fn
+        )
+        c = _configure_component_values(
+            c,
+            components,
+            component_key,
+            case_sensitive,
+            sort_by_components_order,
+            "molarities",
+        )
+        mw = _configure_component_values(
+            mw,
+            components,
+            component_key,
+            case_sensitive,
+            sort_by_components_order,
+            "molecular_weights",
+        )
         solvent_mass = rho - sum(c[key] * mw[key] for key in c)
         if solvent_mass <= 0.0:
             raise ValueError(
@@ -320,8 +587,12 @@ def molarities_to_molalities(
             "Both component inputs must be mappings or both sequences.")
 
     # SECTION: Sequence implementation
-    c = _list(molarities, output_molarity_unit)
-    mw = _list(molecular_weights, output_molecular_weight_unit)
+    c = _list(molarities, output_molarity_unit, unit_conversion_fn)
+    mw = _list(
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn
+    )
     solvent_mass = rho - sum(c_i * mw_i for c_i, mw_i in zip(c, mw))
     if solvent_mass <= 0.0:
         raise ValueError(
@@ -336,6 +607,11 @@ def molality_to_mole_fraction(
     solvent_key: str = "solvent",
     output_molality_unit: str | None = None,
     output_solvent_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
 ) -> dict[str, float] | list[float]:
     """Convert solute molalities to mole fractions, including solvent.
 
@@ -353,6 +629,21 @@ def molality_to_mole_fraction(
         Unit used to normalize ``molalities`` before calculation. Leave as ``None`` to use input values as-is.
     output_solvent_molecular_weight_unit : str, optional
         Unit used to normalize ``solvent_molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
+    components : list[Component], optional
+        Components used to remap and order mapping-input results when
+        ``component_key`` is provided.
+    component_key : ComponentKey, optional
+        Component identifier format for remapping mapping-input keys. When
+        ``None``, original mapping keys and insertion order are preserved.
+    case_sensitive : bool, optional
+        Whether component ID matching is case-sensitive. Defaults to ``True``.
+    sort_by_components_order : bool, optional
+        Whether mapping results should follow the order of ``components``.
+        Defaults to ``True``.
 
     Returns
     -------
@@ -371,18 +662,27 @@ def molality_to_mole_fraction(
         solvent_molecular_weight,
         "solvent_molecular_weight",
         output_solvent_molecular_weight_unit,
+        unit_conversion_fn,
     )
 
     # SECTION: Mapping implementation
     if isinstance(molalities, Mapping):
-        b = _dict(molalities, output_molality_unit)
+        b = _dict(molalities, output_molality_unit, unit_conversion_fn)
+        b = _configure_component_values(
+            b,
+            components,
+            component_key,
+            case_sensitive,
+            sort_by_components_order,
+            "molalities",
+        )
         total = solvent_moles + sum(b.values())
         res = {key: value / total for key, value in b.items()}
         res[solvent_key] = solvent_moles / total
         return res
 
     # SECTION: Sequence implementation
-    b = _list(molalities, output_molality_unit)
+    b = _list(molalities, output_molality_unit, unit_conversion_fn)
     total = solvent_moles + sum(b)
     return [value / total for value in b] + [solvent_moles / total]
 
@@ -392,6 +692,7 @@ def mole_fraction_to_molality(
     solvent_mole_fraction: ScalarValue,
     solvent_molecular_weight: ScalarValue,
     output_solvent_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert a solute mole fraction to molality.
 
@@ -407,6 +708,10 @@ def mole_fraction_to_molality(
         ``output_solvent_molecular_weight_unit`` when it is provided.
     output_solvent_molecular_weight_unit : str, optional
         Unit used to normalize ``solvent_molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -425,6 +730,7 @@ def mole_fraction_to_molality(
         solvent_molecular_weight,
         "solvent_molecular_weight",
         output_solvent_molecular_weight_unit,
+        unit_conversion_fn,
     )
 
     # ! Solvent fraction must be positive because it appears in the denominator.
@@ -446,6 +752,7 @@ def molarity_to_mass_fraction(
     output_molarity_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
     output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert single-solute molarity to mass fraction.
 
@@ -466,6 +773,10 @@ def molarity_to_mass_fraction(
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
     output_solution_density_unit : str, optional
         Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -478,13 +789,18 @@ def molarity_to_mass_fraction(
     w_i = C_i*M_i / rho
     """
     # SECTION: Calculate and validate result
-    result = _pos(molarity, "molarity", output_molarity_unit) * _pos(
+    result = _pos(molarity, "molarity", output_molarity_unit, unit_conversion_fn) * _pos(
         molecular_weight,
         "molecular_weight",
         output_molecular_weight_unit,
+        unit_conversion_fn,
     )
-    result = result / _pos(solution_density,
-                           "solution_density", output_solution_density_unit)
+    result = result / _pos(
+        solution_density,
+        "solution_density",
+        output_solution_density_unit,
+        unit_conversion_fn
+    )
     if result > 1.0:
         raise ValueError("Calculated mass fraction is greater than one.")
     return result
@@ -496,6 +812,7 @@ def mass_fraction_to_molarity(
     molecular_weight: ScalarValue,
     output_solution_density_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert single-solute mass fraction to molarity.
 
@@ -513,6 +830,10 @@ def mass_fraction_to_molarity(
         Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
     output_molecular_weight_unit : str, optional
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -530,10 +851,11 @@ def mass_fraction_to_molarity(
         raise ValueError("mass_fraction must be between zero and one.")
 
     # SECTION: Calculate molarity
-    return w * _pos(solution_density, "solution_density", output_solution_density_unit) / _pos(
+    return w * _pos(solution_density, "solution_density", output_solution_density_unit, unit_conversion_fn) / _pos(
         molecular_weight,
         "molecular_weight",
         output_molecular_weight_unit,
+        unit_conversion_fn,
     )
 
 
@@ -543,6 +865,7 @@ def molality_to_mass_fraction(
     molecular_weight: ScalarValue,
     output_molality_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert single-solute molality to mass fraction.
 
@@ -558,6 +881,10 @@ def molality_to_mass_fraction(
         Unit used to normalize ``molality`` before calculation. Leave as ``None`` to use the input value as-is.
     output_molecular_weight_unit : str, optional
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -570,10 +897,11 @@ def molality_to_mass_fraction(
     w_i = b_i*M_i / (1 + b_i*M_i)
     """
     # SECTION: Calculate from a 1 kg solvent basis
-    solute_mass = _pos(molality, "molality", output_molality_unit) * _pos(
+    solute_mass = _pos(molality, "molality", output_molality_unit, unit_conversion_fn) * _pos(
         molecular_weight,
         "molecular_weight",
         output_molecular_weight_unit,
+        unit_conversion_fn,
     )
     return solute_mass / (1.0 + solute_mass)
 
@@ -582,6 +910,7 @@ def mass_fraction_to_molality(
     mass_fraction: ScalarValue,
     molecular_weight: ScalarValue,
     output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert single-solute mass fraction to molality.
 
@@ -594,6 +923,10 @@ def mass_fraction_to_molality(
         ``output_molecular_weight_unit`` when it is provided.
     output_molecular_weight_unit : str, optional
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -614,7 +947,7 @@ def mass_fraction_to_molality(
     # SECTION: Calculate molality
     return w / (
         _pos(molecular_weight, "molecular_weight",
-             output_molecular_weight_unit) * (1.0 - w)
+             output_molecular_weight_unit, unit_conversion_fn) * (1.0 - w)
     )
 
 
@@ -624,6 +957,7 @@ def molarity_to_mass_concentration(
     molecular_weight: ScalarValue,
     output_molarity_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert molarity to mass concentration.
 
@@ -639,6 +973,10 @@ def molarity_to_mass_concentration(
         Unit used to normalize ``molarity`` before calculation. Leave as ``None`` to use the input value as-is.
     output_molecular_weight_unit : str, optional
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -650,10 +988,11 @@ def molarity_to_mass_concentration(
     Equation defines as:
     c_m,i = C_i*M_i
     """
-    return _pos(molarity, "molarity", output_molarity_unit) * _pos(
+    return _pos(molarity, "molarity", output_molarity_unit, unit_conversion_fn) * _pos(
         molecular_weight,
         "molecular_weight",
         output_molecular_weight_unit,
+        unit_conversion_fn,
     )
 
 
@@ -662,6 +1001,7 @@ def mass_concentration_to_molarity(
     molecular_weight: ScalarValue,
     output_mass_concentration_unit: str | None = None,
     output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Convert mass concentration to molarity.
 
@@ -677,6 +1017,10 @@ def mass_concentration_to_molarity(
         Unit used to normalize ``mass_concentration`` before calculation. Leave as ``None`` to use the input value as-is.
     output_molecular_weight_unit : str, optional
         Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
+    unit_conversion_fn : UnitConversionFn, optional
+        Function used to convert ``CustomProp`` values when a matching
+        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
+        when ``None``.
 
     Returns
     -------
@@ -688,10 +1032,11 @@ def mass_concentration_to_molarity(
     Equation defines as:
     C_i = c_m,i / M_i
     """
-    return _pos(mass_concentration, "mass_concentration", output_mass_concentration_unit) / _pos(
+    return _pos(mass_concentration, "mass_concentration", output_mass_concentration_unit, unit_conversion_fn) / _pos(
         molecular_weight,
         "molecular_weight",
         output_molecular_weight_unit,
+        unit_conversion_fn,
     )
 
 
@@ -966,4 +1311,3 @@ __all__ = [
     "mole_fraction_to_ppb",
     "ppb_mole_to_mole_fraction",
 ]
-
