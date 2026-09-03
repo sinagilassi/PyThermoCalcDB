@@ -138,3 +138,128 @@ def rackett(
     except Exception as e:
         logger.error(f"Error in rackett calculation: {e}")
         return None
+
+
+# SECTION: Ideal-gas and reciprocal-density helpers
+
+def calc_ideal_gas_density(
+        pressure: Pressure,
+        molecular_weight: CustomProp,
+        temperature: Temperature,
+        universal_gas_constant: float = 8.31446261815324,
+        output_unit: str = "kg/m3",
+) -> Optional[CustomProp]:
+    """Calculate ideal-gas density from pressure, molecular weight, and temperature.
+
+    Parameters
+    ----------
+    pressure : Pressure
+        Gas pressure. Converted to Pa before calculation.
+    molecular_weight : CustomProp
+        Molecular weight. Converted to kg/mol before calculation.
+    temperature : Temperature
+        Gas temperature. Converted to K before calculation.
+    universal_gas_constant : float, optional
+        Gas constant in J/mol/K. Defaults to 8.31446261815324.
+    output_unit : str, optional
+        Desired density unit. Defaults to kg/m3.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Ideal-gas density or None if conversion/calculation fails.
+
+    Notes
+    -----
+    Equation
+        `rho = P*M / (R*T)`
+    """
+    try:
+        # SECTION: Validate and normalize inputs
+        if pressure.value <= 0 or temperature.value <= 0 or molecular_weight.value <= 0:
+            logger.warning(
+                "Pressure, temperature, and molecular weight must be positive.")
+            return None
+
+        p_value = pressure.value
+        if pressure.unit != "Pa":
+            p_value = pycuc.convert_from_to(p_value, pressure.unit, "Pa")
+
+        t_value = temperature.value
+        if temperature.unit != "K":
+            t_value = pycuc.convert_from_to(t_value, temperature.unit, "K")
+
+        mw_value = float(molecular_weight.value)
+        if molecular_weight.unit != "kg/mol":
+            mw_value = pycuc.convert_from_to(
+                mw_value, molecular_weight.unit, "kg/mol")
+
+        # SECTION: Calculate ideal-gas density
+        density_value = p_value * mw_value / (universal_gas_constant * t_value)
+        density_unit = "kg/m3"
+        if output_unit != density_unit:
+            density_value = pycuc.convert_from_to(
+                density_value, density_unit, output_unit)
+            density_unit = output_unit
+
+        return CustomProp(value=density_value, unit=density_unit)
+    except Exception as e:
+        logger.error(f"Error in ideal gas density calculation: {e}")
+        return None
+
+
+def calc_ideal_gas_molar_volume(
+        temperature: Temperature,
+        pressure: Pressure,
+        universal_gas_constant: float = 8.31446261815324,
+        output_unit: str = "m3/mol",
+) -> Optional[CustomProp]:
+    """Calculate ideal-gas molar volume from temperature and pressure.
+
+    Parameters
+    ----------
+    temperature : Temperature
+        Gas temperature. Converted to K before calculation.
+    pressure : Pressure
+        Gas pressure. Converted to Pa before calculation.
+    universal_gas_constant : float, optional
+        Gas constant in J/mol/K. Defaults to 8.31446261815324.
+    output_unit : str, optional
+        Desired molar-volume unit. Defaults to m3/mol.
+
+    Returns
+    -------
+    Optional[CustomProp]
+        Ideal-gas molar volume or None if conversion/calculation fails.
+
+    Notes
+    -----
+    Equation
+        `V_m = R*T / P`
+    """
+    try:
+        # SECTION: Validate and normalize inputs
+        if pressure.value <= 0 or temperature.value <= 0:
+            logger.warning("Pressure and temperature must be positive.")
+            return None
+
+        p_value = pressure.value
+        if pressure.unit != "Pa":
+            p_value = pycuc.convert_from_to(p_value, pressure.unit, "Pa")
+
+        t_value = temperature.value
+        if temperature.unit != "K":
+            t_value = pycuc.convert_from_to(t_value, temperature.unit, "K")
+
+        # SECTION: Calculate ideal-gas molar volume
+        volume_value = universal_gas_constant * t_value / p_value
+        volume_unit = "m3/mol"
+        if output_unit != volume_unit:
+            volume_value = pycuc.convert_from_to(
+                volume_value, volume_unit, output_unit)
+            volume_unit = output_unit
+
+        return CustomProp(value=volume_value, unit=volume_unit)
+    except Exception as e:
+        logger.error(f"Error in ideal gas molar volume calculation: {e}")
+        return None
