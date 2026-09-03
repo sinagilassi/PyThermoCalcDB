@@ -8,6 +8,17 @@ from .fractions import (
     calculate_component_fractions,
 )
 
+# NOTE: electrolyte primitives
+from .ionic_strength import (
+    calc_ionic_strength_molality,
+    calc_ionic_strength_molarity,
+    calc_charge_balance,
+    check_electroneutrality,
+)
+
+# NOTE: equivalent concentration
+from .normality import calc_normality
+
 # NOTE: composition conversions
 from .conversions import (
     mole_fraction_to_mass_fraction,
@@ -44,6 +55,11 @@ __all__ = [
     "calculate_fractions",
     "calculate_keyed_fractions",
     "calculate_component_fractions",
+    "calc_ionic_strength_molality",
+    "calc_ionic_strength_molarity",
+    "calc_charge_balance",
+    "check_electroneutrality",
+    "calc_normality",
     "mole_fraction_to_mass_fraction",
     "mass_fraction_to_mole_fraction",
     "molarity_to_molality",

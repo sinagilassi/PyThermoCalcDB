@@ -636,3 +636,174 @@ def Cp_IG(
     logger.error(
         f"Unknown Cp_IG method: {method}. Allowed: 'NASA7', 'NASA9', 'SHOMATE'")
     return None
+
+# SECTION: Ideal-gas Cp/Cv relationships
+
+def _hc_positive_scalar(
+        value,
+        name: str,
+        output_unit: str | None = None,
+        unit_conversion_fn=None,
+) -> float:
+    """Convert scalar input to a positive float, optionally normalizing units."""
+    # NOTE: Import locally to keep legacy heat-capacity imports stable.
+    from pythermodb_settings.utils.quantity import pos
+    from ..utils.conversions import _resolve_unit_conversion_fn
+
+    return pos(
+        value,
+        name,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+
+
+def calc_ideal_gas_cv_from_cp(
+        cp,
+        gas_constant: float = 8.31446261815324,
+        output_heat_capacity_unit: str | None = None,
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate ideal-gas constant-volume heat capacity from ``Cp``.
+
+    Parameters
+    ----------
+    cp : float | int | CustomProp
+        Ideal-gas constant-pressure heat capacity. Numeric values are assumed
+        to already use ``output_heat_capacity_unit`` when provided.
+    gas_constant : float, optional
+        Gas constant on the same molar heat-capacity basis as ``cp``. Defaults
+        to ``8.31446261815324`` J/mol/K.
+    output_heat_capacity_unit : str, optional
+        Unit used to normalize ``cp`` when it is supplied as ``CustomProp``.
+    unit_conversion_fn : callable, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+
+    Returns
+    -------
+    float
+        Ideal-gas ``Cv`` on the same heat-capacity basis as ``cp`` and ``R``.
+
+    Notes
+    -----
+    Equation: ``Cv = Cp - R``. This relation applies to ideal gases on a molar
+    basis with a gas constant in matching units.
+
+    Raises
+    ------
+    ValueError
+        If ``cp`` or ``gas_constant`` is not positive, or if ``Cp - R <= 0``.
+    """
+    # SECTION: Normalize inputs
+    cp_value = _hc_positive_scalar(
+        cp,
+        "cp",
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+    )
+    r_value = _hc_positive_scalar(gas_constant, "gas_constant")
+
+    # SECTION: Calculate Cv
+    cv_value = cp_value - r_value
+    if cv_value <= 0.0:
+        raise ValueError("calculated cv must be greater than zero; cp must be greater than R.")
+    return cv_value
+
+
+def calc_ideal_gas_cp_from_cv(
+        cv,
+        gas_constant: float = 8.31446261815324,
+        output_heat_capacity_unit: str | None = None,
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate ideal-gas constant-pressure heat capacity from ``Cv``.
+
+    Parameters
+    ----------
+    cv : float | int | CustomProp
+        Ideal-gas constant-volume heat capacity. Numeric values are assumed to
+        already use ``output_heat_capacity_unit`` when provided.
+    gas_constant : float, optional
+        Gas constant on the same molar heat-capacity basis as ``cv``. Defaults
+        to ``8.31446261815324`` J/mol/K.
+    output_heat_capacity_unit : str, optional
+        Unit used to normalize ``cv`` when it is supplied as ``CustomProp``.
+    unit_conversion_fn : callable, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+
+    Returns
+    -------
+    float
+        Ideal-gas ``Cp`` on the same heat-capacity basis as ``cv`` and ``R``.
+
+    Notes
+    -----
+    Equation: ``Cp = Cv + R``. This relation applies to ideal gases on a molar
+    basis with a gas constant in matching units.
+    """
+    # SECTION: Normalize inputs
+    cv_value = _hc_positive_scalar(
+        cv,
+        "cv",
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+    )
+    r_value = _hc_positive_scalar(gas_constant, "gas_constant")
+
+    # SECTION: Calculate Cp
+    return cv_value + r_value
+
+
+# SECTION: Heat-capacity ratio
+
+def calc_heat_capacity_ratio(
+        cp,
+        cv,
+        output_heat_capacity_unit: str | None = None,
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate the heat-capacity ratio.
+
+    Parameters
+    ----------
+    cp : float | int | CustomProp
+        Constant-pressure heat capacity.
+    cv : float | int | CustomProp
+        Constant-volume heat capacity.
+    output_heat_capacity_unit : str, optional
+        Unit used to normalize ``cp`` and ``cv`` when supplied as ``CustomProp``.
+    unit_conversion_fn : callable, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+
+    Returns
+    -------
+    float
+        Dimensionless heat-capacity ratio ``gamma = Cp/Cv``.
+
+    Notes
+    -----
+    Also called ``kappa`` or the isentropic exponent. The public name avoids
+    the ambiguous symbol ``k``.
+
+    Raises
+    ------
+    ValueError
+        If ``cp`` or ``cv`` is not positive.
+    """
+    # SECTION: Normalize inputs
+    cp_value = _hc_positive_scalar(
+        cp,
+        "cp",
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+    )
+    cv_value = _hc_positive_scalar(
+        cv,
+        "cv",
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+    )
+
+    # SECTION: Calculate heat-capacity ratio
+    return cp_value / cv_value
+

@@ -1,207 +1,300 @@
+"""Mixture molecular-weight rules."""
+
 # import libs
-import logging
-from typing import Dict, List, Optional
-from pythermodb_settings.models import ComponentAmounts, Component, ComponentKey
-from pythermodb_settings.utils import to_amounts, to_amounts_by_order
-from pycuc import convert_from_to
-# ! locals
-from ..utils.conversions import _to_molecular_weight
+from collections.abc import Mapping, Sequence
+from typing import Optional, List
+
+# >> pythermodb-settings
+from pythermodb_settings.models import CustomProp, Component, ComponentKey
+from pythermodb_settings.models.units import UnitConversionFn
+from pythermodb_settings.utils import config_components_values
+from pythermodb_settings.utils.quantity import to_dict, to_list
+from pythermodb_settings.utils.validators import fractions, positive, same_shape
+# locals
+from ..utils.conversions import _resolve_unit_conversion_fn
 
 
-# NOTE: logger setup
-logger = logging.getLogger(__name__)
+# SECTION: Internal helpers
 
+def _configure_component_values(
+    values: Mapping[str, float],
+    components: Optional[List[Component]],
+    component_key: Optional[ComponentKey],
+    case_sensitive: bool,
+    sort_by_components_order: bool,
+    name: str,
+) -> dict[str, float]:
+    """Remap and order mapping values using component metadata when requested."""
+    # ! When no component key is requested, preserve caller mapping keys/order.
+    if component_key is None:
+        return dict(values)
 
-# ! Mixture Molecular Weight
-def calc_mixture_molecular_weight_1(
-        component_mole_fractions: List[float],
-        component_molecular_weights: List[float],
-        input_unit: Optional[str] = None,
-        output_unit: Optional[str] = None,
-) -> float:
-    """Calculate a mixture molecular weight from mole fractions and weights.
-
-    Parameters
-    ----------
-    component_mole_fractions : list of float
-        Mole fractions for the components.
-    component_molecular_weights : list of float
-        Molecular weights for the components.
-    input_unit : str, optional
-        Unit of the molecular weights, if conversion is needed.
-    output_unit : str, optional
-        Desired unit for the returned molecular weight.
-
-    Returns
-    -------
-    float
-        The mixture molecular weight, optionally converted to ``output_unit``.
-    """
-    mw_mix = sum(
-        x * y for x, y in zip(component_mole_fractions, component_molecular_weights)
-    )
-
-    # >> check if conversion is needed
-    if input_unit and output_unit:
-        mw_mix = convert_from_to(
-            value=mw_mix,
-            from_unit=input_unit,
-            to_unit=output_unit
+    # NOTE: Component metadata is required only for key remapping.
+    if not components:
+        raise ValueError(
+            f"component_key is provided but components is empty for {name}."
         )
 
-    return mw_mix
+    # SECTION: Remap values through pythermodb-settings utilities
+    component_values = config_components_values(
+        values=dict(values),
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    if component_values is None:
+        raise ValueError(f"Failed to configure {name} component values.")
 
-# ! Mixture Molecular Weight with desired output unit
+    # NOTE: config_components_values returns both dict and ordered list.
+    component_values_dict, _ = component_values
+    return component_values_dict
 
 
-def calc_mixture_molecular_weight_2(
-        component_mole_fractions: ComponentAmounts,
-        component_molecular_weights: ComponentAmounts,
-        output_unit: str = "g/mol"
-):
-    """Calculate a mixture molecular weight from keyed component amounts.
+# SECTION: Mole-fraction basis
+
+def calc_mixture_molecular_weight_from_mole_fractions(
+    mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate mixture molecular weight from mole fractions.
 
     Parameters
     ----------
-    component_mole_fractions : ComponentAmounts
-        Keyed mole fractions for the components.
-    component_molecular_weights : ComponentAmounts
-        Keyed molecular weights for the components.
-    output_unit : str, optional
-        Unit to which the molecular weights are converted.
+    mole_fractions : mapping or sequence of float | int | CustomProp
+        Component mole fractions. Fractions must be non-negative and valid
+        according to the shared ``fractions`` validator.
+    molecular_weights : mapping or sequence of float | int | CustomProp
+        Component molecular weights. Values must be positive. ``CustomProp``
+        values are converted to ``output_molecular_weight_unit`` when provided.
+    output_molecular_weight_unit : str, optional
+        Unit used to normalize molecular weights before calculation.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+    components : list[Component], optional
+        Component metadata used for mapping-key remapping when
+        ``component_key`` is provided.
+    component_key : ComponentKey, optional
+        Component identifier format used for mapping inputs.
+    case_sensitive : bool, optional
+        Whether component matching is case-sensitive.
+    sort_by_components_order : bool, optional
+        Whether mapping values should follow ``components`` order.
 
     Returns
     -------
     float
-        The mixture molecular weight in ``output_unit``.
+        Mixture molecular weight in the normalized molecular-weight unit.
+
+    Notes
+    -----
+    Equation: ``M_mix = sum_i(x_i*M_i)``. No silent fraction normalization is
+    performed beyond the shared package validator behavior.
     """
-    # SECTION: Convert component amounts and molecular weights to float values
-    # >>> mole fraction
-    component_mole_fractions_float = to_amounts(component_mole_fractions)
-    # >>> molecular weight
-    component_molecular_weights_float = to_amounts(
-        component_amounts=component_molecular_weights,
-        output_unit=output_unit,
-        unit_conversion_fn=convert_from_to
+    # SECTION: Validate inputs
+    fractions(mole_fractions, "mole_fractions")
+    positive(molecular_weights, "molecular_weights")
+    same_shape(mole_fractions, molecular_weights)
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    # SECTION: Mapping implementation
+    if isinstance(mole_fractions, Mapping) and isinstance(molecular_weights, Mapping):
+        x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
+        mw = to_dict(
+            molecular_weights,
+            output_molecular_weight_unit,
+            unit_conversion_fn=conversion_fn,
+        )
+        x = _configure_component_values(
+            x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions"
+        )
+        mw = _configure_component_values(
+            mw, components, component_key, case_sensitive, sort_by_components_order, "molecular_weights"
+        )
+        return sum(x[key] * mw[key] for key in x)
+
+    # ! Mixed mapping/sequence input is ambiguous.
+    if isinstance(mole_fractions, Mapping) or isinstance(molecular_weights, Mapping):
+        raise TypeError("Both component inputs must be mappings or both sequences.")
+
+    # SECTION: Sequence implementation
+    x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
+    mw = to_list(
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn=conversion_fn,
     )
-
-    return sum(
-        component_mole_fractions_float[key] *
-        component_molecular_weights_float[key]
-        for key in component_mole_fractions_float
-    )
+    return sum(x_i * mw_i for x_i, mw_i in zip(x, mw))
 
 
-# SECTION: Mixture molecular weight from mass fractions
-# ! Mixture Molecular Weight with mass-fraction basis
+# SECTION: Mass-fraction basis
 
-def calc_mixture_molecular_weight_from_mass_fractions_1(
-        component_mass_fractions: List[float],
-        component_molecular_weights: List[float],
-        input_unit: Optional[str] = None,
-        output_unit: Optional[str] = None,
+def calc_mixture_molecular_weight_from_mass_fractions(
+    mass_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
 ) -> float:
     """Calculate mixture molecular weight from mass fractions.
 
     Parameters
     ----------
-    component_mass_fractions : list of float
-        Component mass fractions.
-    component_molecular_weights : list of float
-        Component molecular weights.
-    input_unit : str, optional
-        Unit of molecular weights, if conversion is needed.
-    output_unit : str, optional
-        Desired unit for the returned molecular weight.
+    mass_fractions : mapping or sequence of float | int | CustomProp
+        Component mass fractions. Fractions must be non-negative and valid
+        according to the shared ``fractions`` validator.
+    molecular_weights : mapping or sequence of float | int | CustomProp
+        Component molecular weights. Values must be positive. ``CustomProp``
+        values are converted to ``output_molecular_weight_unit`` when provided.
+    output_molecular_weight_unit : str, optional
+        Unit used to normalize molecular weights before calculation.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+    components : list[Component], optional
+        Component metadata used for mapping-key remapping when
+        ``component_key`` is provided.
+    component_key : ComponentKey, optional
+        Component identifier format used for mapping inputs.
+    case_sensitive : bool, optional
+        Whether component matching is case-sensitive.
+    sort_by_components_order : bool, optional
+        Whether mapping values should follow ``components`` order.
 
     Returns
     -------
     float
-        Mixture molecular weight.
+        Mixture molecular weight in the normalized molecular-weight unit.
 
     Notes
     -----
-    # NOTE: Equation
-    M_mix = 1 / sum_i(w_i/M_i)
+    Equation: ``M_mix = 1/sum_i(w_i/M_i)``. No silent fraction normalization is
+    performed beyond the shared package validator behavior.
+
+    Raises
+    ------
+    TypeError
+        If one component input is a mapping and the other is a sequence.
+    ValueError
+        If fractions, molecular weights, keys, or lengths are invalid.
     """
-    # SECTION: Validate input
-    if len(component_mass_fractions) != len(component_molecular_weights):
-        raise ValueError("Mass fractions and molecular weights must have the same length.")
-    if any(value < 0 for value in component_mass_fractions):
-        raise ValueError("Mass fractions cannot contain negative values.")
-    if any(value <= 0 for value in component_molecular_weights):
-        raise ValueError("Molecular weights must be positive.")
+    # SECTION: Validate inputs
+    fractions(mass_fractions, "mass_fractions")
+    positive(molecular_weights, "molecular_weights")
+    same_shape(mass_fractions, molecular_weights)
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
 
-    # SECTION: Calculate mixture molecular weight
-    denominator = sum(
-        w / mw for w, mw in zip(component_mass_fractions, component_molecular_weights)
-    )
-    if denominator <= 0:
-        raise ValueError("The reciprocal molecular-weight sum must be positive.")
-    mw_mix = 1.0 / denominator
-
-    # NOTE: Convert the result only when both source and target units are supplied.
-    if input_unit and output_unit:
-        mw_mix = convert_from_to(
-            value=mw_mix,
-            from_unit=input_unit,
-            to_unit=output_unit,
+    # SECTION: Mapping implementation
+    if isinstance(mass_fractions, Mapping) and isinstance(molecular_weights, Mapping):
+        w = to_dict(mass_fractions, unit_conversion_fn=conversion_fn)
+        mw = to_dict(
+            molecular_weights,
+            output_molecular_weight_unit,
+            unit_conversion_fn=conversion_fn,
         )
+        w = _configure_component_values(
+            w, components, component_key, case_sensitive, sort_by_components_order, "mass_fractions"
+        )
+        mw = _configure_component_values(
+            mw, components, component_key, case_sensitive, sort_by_components_order, "molecular_weights"
+        )
+        denominator = sum(w[key] / mw[key] for key in w)
+    elif isinstance(mass_fractions, Mapping) or isinstance(molecular_weights, Mapping):
+        # ! Mixed mapping/sequence input is ambiguous.
+        raise TypeError("Both component inputs must be mappings or both sequences.")
+    else:
+        # SECTION: Sequence implementation
+        w = to_list(mass_fractions, unit_conversion_fn=conversion_fn)
+        mw = to_list(
+            molecular_weights,
+            output_molecular_weight_unit,
+            unit_conversion_fn=conversion_fn,
+        )
+        denominator = sum(w_i / mw_i for w_i, mw_i in zip(w, mw))
 
-    return mw_mix
-
-
-def calc_mixture_molecular_weight_from_mass_fractions_2(
-        component_mass_fractions: ComponentAmounts,
-        component_molecular_weights: ComponentAmounts,
-        output_unit: str = "g/mol",
-) -> float:
-    """Calculate mixture molecular weight from keyed mass fractions.
-
-    Parameters
-    ----------
-    component_mass_fractions : ComponentAmounts
-        Keyed component mass fractions.
-    component_molecular_weights : ComponentAmounts
-        Keyed component molecular weights.
-    output_unit : str, optional
-        Unit to which molecular weights are converted.
-
-    Returns
-    -------
-    float
-        Mixture molecular weight in ``output_unit``.
-
-    Notes
-    -----
-    # NOTE: Equation
-    M_mix = 1 / sum_i(w_i/M_i)
-    """
-    # SECTION: Convert values to floats
-    component_mass_fractions_float = to_amounts(component_mass_fractions)
-    component_molecular_weights_float = to_amounts(
-        component_amounts=component_molecular_weights,
-        output_unit=output_unit,
-        unit_conversion_fn=convert_from_to,
-    )
-
-    # SECTION: Validate input
-    if set(component_mass_fractions_float) != set(component_molecular_weights_float):
-        raise ValueError("Mass fractions and molecular weights must have the same component keys.")
-    if any(value < 0 for value in component_mass_fractions_float.values()):
-        raise ValueError("Mass fractions cannot contain negative values.")
-    if any(value <= 0 for value in component_molecular_weights_float.values()):
-        raise ValueError("Molecular weights must be positive.")
-
-    # SECTION: Calculate mixture molecular weight
-    denominator = sum(
-        component_mass_fractions_float[key] / component_molecular_weights_float[key]
-        for key in component_mass_fractions_float
-    )
-    if denominator <= 0:
+    # NOTE: A zero denominator means all supplied fractions are zero.
+    if denominator <= 0.0:
         raise ValueError("The reciprocal molecular-weight sum must be positive.")
     return 1.0 / denominator
 
 
-# SECTION: Aliases
-calc_mixture_molecular_weight_from_mass_fractions = calc_mixture_molecular_weight_from_mass_fractions_1
+# SECTION: Legacy compatibility wrappers
+
+def calc_mixture_molecular_weight_1(
+    component_mole_fractions,
+    component_molecular_weights,
+    input_unit: str | None = None,
+    output_unit: str | None = None,
+) -> float:
+    """Compatibility wrapper for the original list-based mole-fraction API."""
+    # NOTE: Original API converted the final mixture MW when both units were set.
+    result = calc_mixture_molecular_weight_from_mole_fractions(
+        component_mole_fractions,
+        component_molecular_weights,
+    )
+    if input_unit and output_unit:
+        return _resolve_unit_conversion_fn(None)(result, input_unit, output_unit)
+    return result
+
+
+def calc_mixture_molecular_weight_2(
+    component_mole_fractions,
+    component_molecular_weights,
+    output_unit: str = "g/mol",
+) -> float:
+    """Compatibility wrapper for the original keyed mole-fraction API."""
+    return calc_mixture_molecular_weight_from_mole_fractions(
+        component_mole_fractions,
+        component_molecular_weights,
+        output_molecular_weight_unit=output_unit,
+    )
+
+
+def calc_mixture_molecular_weight_from_mass_fractions_1(
+    component_mass_fractions,
+    component_molecular_weights,
+    input_unit: str | None = None,
+    output_unit: str | None = None,
+) -> float:
+    """Compatibility wrapper for the original list-based mass-fraction API."""
+    # NOTE: Original API converted the final mixture MW when both units were set.
+    result = calc_mixture_molecular_weight_from_mass_fractions(
+        component_mass_fractions,
+        component_molecular_weights,
+    )
+    if input_unit and output_unit:
+        return _resolve_unit_conversion_fn(None)(result, input_unit, output_unit)
+    return result
+
+
+def calc_mixture_molecular_weight_from_mass_fractions_2(
+    component_mass_fractions,
+    component_molecular_weights,
+    output_unit: str = "g/mol",
+) -> float:
+    """Compatibility wrapper for the original keyed mass-fraction API."""
+    return calc_mixture_molecular_weight_from_mass_fractions(
+        component_mass_fractions,
+        component_molecular_weights,
+        output_molecular_weight_unit=output_unit,
+    )
+
+
+# SECTION: Public exports
+__all__ = [
+    "calc_mixture_molecular_weight_from_mole_fractions",
+    "calc_mixture_molecular_weight_from_mass_fractions",
+    "calc_mixture_molecular_weight_1",
+    "calc_mixture_molecular_weight_2",
+    "calc_mixture_molecular_weight_from_mass_fractions_1",
+    "calc_mixture_molecular_weight_from_mass_fractions_2",
+]
+
