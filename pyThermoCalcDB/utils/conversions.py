@@ -2,10 +2,11 @@
 import logging
 from collections.abc import Mapping, Sequence
 from typing import List, Optional, Dict
-# locals
+from pythermodb_settings.models import ScalarValue
 from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, UnitConversionFn
-from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar
+from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar, pos, to_scalar
 from pycuc import convert_from_to
+# locals
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -238,4 +239,36 @@ def _to_molecular_weight(
         prop=molecular_weight,
         output_unit=output_unit,
         unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
+    )
+
+# SECTION: Internal helpers
+
+
+def _scalar(
+    value: ScalarValue,
+    name: str,
+    output_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Convert a scalar input to float, optionally normalizing units."""
+    return to_scalar(
+        value,
+        name,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+
+
+def _pos(
+    value: ScalarValue,
+    name: str,
+    output_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Convert a scalar input to a positive float, optionally normalizing units."""
+    return pos(
+        value,
+        name,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
     )
