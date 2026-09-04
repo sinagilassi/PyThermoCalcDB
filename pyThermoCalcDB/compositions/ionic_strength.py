@@ -1,6 +1,7 @@
 """Electrolyte composition primitives."""
 
 # import libs
+import logging
 from collections.abc import Mapping, Sequence
 from typing import Optional, List
 
@@ -9,12 +10,16 @@ from pythermodb_settings.models import CustomProp, Component, ComponentKey
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.quantity import to_dict, to_list
+from pythermodb_settings.utils.components import extract_components_values
 from pythermodb_settings.utils.validators import non_negative, same_shape
 # locals
 from ..utils.conversions import _resolve_unit_conversion_fn
 
+# NOTE: setup logger
+logger = logging.getLogger(__name__)
 
 # SECTION: Internal helpers
+
 
 def _configure_component_values(
     values: Mapping[str, float],
@@ -182,23 +187,66 @@ def calc_ionic_strength_molality(
 
 
 def calc_ionic_strength_molality_2(
-    molalities: Mapping[str, float | int | CustomProp],
+    molalities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     components: List[Component],
     output_molality_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
 ):
-    # SECTION: build a dictionary of charge for components
-    # molarities_normalized = config_components_values(
-    #     values=molalities,
-    #     components=components,
-    #     component_key=component_key,
-    #     case_sensitive=case_sensitive,
-    #     sort_by_components_order=sort_by_components_order,
-    # )
-    pass
+    # SECTION: normalize molalities
+    if isinstance(molalities, Sequence):
+        # ? to list
+        molarities_list = to_list(
+            values=list(molalities),
+            output_unit=output_molality_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        )
+    elif isinstance(molalities, Mapping):
+        # ? mapping to dict
+        molalities_dict = dict(molalities)
+
+        # ! >>> Normalize molalities according to component metadata
+        molarities = config_components_values(
+            values=molalities_dict,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=True,
+        )
+        # >> check
+        if molarities is None:
+            logger.warning("Normalized molarities is None.")
+            return None
+        # >> unpack
+        _, molarities_list = molarities
+
+    # NOTE: build charge dictionary for components
+    charges = extract_components_values(
+        attribute_name='net_charge',
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+    )
+    # >> check
+    if charges is None:
+        logger.warning("Extracted charges is None.")
+        return None
+
+    # >>> unpack
+    _, charges_list = charges
+
+    # SECTION: calculate ionic strength
+    return _ionic_strength(
+        concentrations=molarities_list,
+        charges=charges_list,
+        output_concentration_unit=output_molality_unit,
+        unit_conversion_fn=unit_conversion_fn,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=True,
+    )
 
 
 # ! ::: Calculate molarity-based ionic strength
@@ -405,6 +453,7 @@ def check_electroneutrality(
 # SECTION: Public exports
 __all__ = [
     "calc_ionic_strength_molality",
+    "calc_ionic_strength_molality_2",
     "calc_ionic_strength_molarity",
     "calc_charge_balance",
     "check_electroneutrality",
