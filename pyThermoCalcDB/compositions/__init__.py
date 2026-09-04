@@ -11,6 +11,7 @@ from .fractions import (
 # NOTE: electrolyte primitives
 from .ionic_strength import (
     calc_ionic_strength_molality,
+    calc_ionic_strength_molality_2,
     calc_ionic_strength_molarity,
     calc_charge_balance,
     check_electroneutrality,
@@ -56,6 +57,7 @@ __all__ = [
     "calculate_keyed_fractions",
     "calculate_component_fractions",
     "calc_ionic_strength_molality",
+    "calc_ionic_strength_molality_2",
     "calc_ionic_strength_molarity",
     "calc_charge_balance",
     "check_electroneutrality",
