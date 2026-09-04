@@ -6,52 +6,15 @@ intensive properties using explicitly supplied amount or mass.
 """
 
 # import libs
-from pycuc import convert_from_to
 from pythermodb_settings.models import ScalarValue
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils.quantity import pos, to_scalar
-
-
-# SECTION: Internal helpers
-def _resolve_unit_conversion_fn(
-    unit_conversion_fn: UnitConversionFn | None,
-) -> UnitConversionFn:
-    """Return the provided converter or the module default converter."""
-    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
-
-
-def _scalar(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a scalar input to float, optionally normalizing units."""
-    return to_scalar(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _pos(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a scalar input to a positive float, optionally normalizing units."""
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
+# locals
+from ..utils.conversions import _scalar, _pos
 
 
 # SECTION: Molar extensive/intensive conversions
 
+# ! ::: Conversions between molar and total properties
 def molar_property_to_total(
     moles: ScalarValue,
     molar_property: ScalarValue,
@@ -93,6 +56,8 @@ def molar_property_to_total(
         unit_conversion_fn,
     )
     return n * y_molar
+
+# ! ::: Conversions between total and molar properties
 
 
 def total_to_molar_property(
@@ -140,6 +105,7 @@ def total_to_molar_property(
 
 # SECTION: Mass extensive/intensive conversions
 
+# ! ::: Conversions between mass-specific and total properties
 def specific_property_to_total(
     mass: ScalarValue,
     specific_property: ScalarValue,
@@ -181,6 +147,8 @@ def specific_property_to_total(
         unit_conversion_fn,
     )
     return mass_value * y_specific
+
+# ! ::: Conversions between total and mass-specific properties
 
 
 def total_to_specific_property(

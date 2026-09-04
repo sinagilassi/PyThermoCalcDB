@@ -11,51 +11,13 @@ they are converted with ``pycuc.convert_from_to`` before calculation.
 """
 
 # import libs
-from pycuc import convert_from_to
 from pythermodb_settings.models import ScalarValue
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils.quantity import pos, to_scalar
-
-
-# SECTION: Internal helpers
-def _resolve_unit_conversion_fn(
-    unit_conversion_fn: UnitConversionFn | None,
-) -> UnitConversionFn:
-    """Return the provided converter or the module default converter."""
-    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
-
-
-def _scalar(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a scalar input to float, optionally normalizing units."""
-    return to_scalar(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _pos(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a scalar input to a positive float, optionally normalizing units."""
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
+# locals
+from ..utils.conversions import _scalar, _pos
 
 # SECTION: Molar and mass-specific property conversions
+
 
 def molar_to_mass_specific(
     molar_property: ScalarValue,
