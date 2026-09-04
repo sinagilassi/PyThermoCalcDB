@@ -16,7 +16,6 @@ dictionaries of floats, or lists of floats.
 
 from collections.abc import Mapping, Sequence
 from typing import Optional, List
-from pycuc import convert_from_to
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp, ScalarValue, Component, ComponentKey
 from pythermodb_settings.utils import config_components_values
