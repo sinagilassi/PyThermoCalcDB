@@ -3,6 +3,7 @@
         "brentq",
         "coeffs",
         "dataequation",
+        "electroneutrality",
         "embedeed",
         "fprime",
         "maxiter",
