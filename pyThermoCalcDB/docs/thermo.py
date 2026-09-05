@@ -10,11 +10,11 @@ from pythermodb_settings.models import (
     ComponentKey,
     CustomProperty
 )
+from pythermodb_settings.utils import measure_time
 from pyThermoLinkDB.thermo import Source
 import pycuc
 # local
 from ..configs.constants import T_298_K
-from ..utils.tools import measure_time
 from ..utils.component_tools import map_state_to_phase
 from ..core.hsg_properties import HSGProperties
 from ..core.hsg_mixture import HSGMixture
