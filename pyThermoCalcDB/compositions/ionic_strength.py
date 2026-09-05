@@ -6,59 +6,20 @@ from collections.abc import Mapping, Sequence
 from typing import Optional, List
 
 # >> pythermodb-settings
-from pythermodb_settings.models import CustomProp, Component, ComponentKey
+from pythermodb_settings.models import CustomProp, Component, ComponentKey, AnnotatedValue
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.quantity import to_dict, to_list
 from pythermodb_settings.utils.components import extract_components_values
 from pythermodb_settings.utils.validators import non_negative, same_shape
 # locals
-from ..utils.conversions import _resolve_unit_conversion_fn
+from ..utils.conversions import _resolve_unit_conversion_fn, _configure_component_values, _validate_same_keys
+from ..utils.tools import to_annotated_value, get_unit
 
 # NOTE: setup logger
 logger = logging.getLogger(__name__)
 
 # SECTION: Internal helpers
-
-
-def _configure_component_values(
-    values: Mapping[str, float],
-    components: Optional[List[Component]],
-    component_key: Optional[ComponentKey],
-    case_sensitive: bool,
-    sort_by_components_order: bool,
-    name: str,
-) -> dict[str, float]:
-    """Remap and order mapping values using component metadata when requested."""
-    # ! When no component key is requested, preserve caller mapping keys/order.
-    if component_key is None:
-        return dict(values)
-
-    # NOTE: Component metadata is required only for key remapping.
-    if not components:
-        raise ValueError(
-            f"component_key is provided but components is empty for {name}.")
-
-    # SECTION: Remap values through pythermodb-settings utilities
-    component_values = config_components_values(
-        values=dict(values),
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order,
-    )
-    if component_values is None:
-        raise ValueError(f"Failed to configure {name} component values.")
-    component_values_dict, _ = component_values
-    return component_values_dict
-
-
-def _validate_same_keys(left: Mapping[str, float], right: Mapping[str, float]) -> None:
-    """Validate matching component keys."""
-    # ? Mismatched keys usually indicate a missing concentration or charge.
-    if set(left) != set(right):
-        raise ValueError(
-            "concentrations and charges must have the same component keys.")
 
 
 # ! ::: Ionic strength
@@ -73,14 +34,27 @@ def _ionic_strength(
     case_sensitive: bool,
     sort_by_components_order: bool,
 ) -> float:
-    """Calculate ionic strength from a supplied concentration basis."""
+    """Calculate ionic strength from a supplied concentration basis.
+
+    Notes
+    -----
+    The ion charge ``z_i`` is dimensionless, so the calculated ionic strength
+    has the same unit as the normalized concentration values. For molality input
+    this is the normalized molality unit; for molarity input this is the
+    normalized molarity unit. If no output concentration unit is supplied, the
+    returned float follows the numeric basis of the supplied values.
+    """
     # SECTION: Validate inputs
     non_negative(concentrations, "concentrations")
     same_shape(concentrations, charges)
     conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
 
     # SECTION: Mapping implementation
-    if isinstance(concentrations, Mapping) and isinstance(charges, Mapping):
+    if (
+        isinstance(concentrations, Mapping) and
+        isinstance(charges, Mapping)
+    ):
+        # ! Convert concentrations and charges to dictionaries with normalized units
         c = to_dict(
             concentrations,
             output_concentration_unit,
@@ -90,6 +64,8 @@ def _ionic_strength(
             charges,
             unit_conversion_fn=conversion_fn
         )
+
+        # ! Configure component values using metadata to dictionary
         c = _configure_component_values(
             c,
             components,
@@ -106,7 +82,11 @@ def _ionic_strength(
             sort_by_components_order,
             "charges"
         )
+
+        # validate dicts
         _validate_same_keys(c, z)
+
+        # calculate ionic strength
         return 0.5 * sum(c[key] * z[key] ** 2 for key in c)
 
     # ! Mixed mapping/sequence input is ambiguous.
@@ -129,7 +109,7 @@ def _ionic_strength(
 
 # ! ::: Calculate molality-based ionic strength
 
-def calc_ionic_strength_molality(
+def _calc_ionic_strength_molality(
     molalities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     charges: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_molality_unit: str | None = None,
@@ -164,12 +144,18 @@ def calc_ionic_strength_molality(
     Returns
     -------
     float
-        Molality-based ionic strength on the normalized molality basis.
+        Molality-based ionic strength on the normalized molality basis. Because
+        charge is dimensionless, the return unit is the normalized molality
+        unit, for example ``mol/kg`` or the unit selected by
+        ``output_molality_unit``. If no unit is supplied, the returned float
+        follows the numeric basis of ``molalities``.
 
     Notes
     -----
     Equation: ``I_m = 0.5*sum_i(m_i*z_i**2)``. The sum is over the species
     supplied by the caller; no dissociation/speciation assumptions are made.
+    The squared charge term is dimensionless, so the result keeps the same unit
+    as ``m_i`` after optional normalization.
     """
     # NOTE: No speciation or dissociation assumptions are made here.
     return _ionic_strength(
@@ -183,6 +169,101 @@ def calc_ionic_strength_molality(
         sort_by_components_order,
     )
 
+# ! ::: return AnnotatedValue
+
+
+def calc_ionic_strength_molality(
+    molalities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    charges: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    output_molality_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+    name: str = "ionic_strength",
+    description: str = "Molality-based ionic strength on the normalized molality basis.",
+    symbol: str = "I_m",
+) -> AnnotatedValue:
+    """Calculate molality-based ionic strength.
+
+        Parameters
+        ----------
+        molalities : mapping or sequence of float | int | CustomProp
+            Species molalities. Values must be non-negative.
+        charges : mapping or sequence of float | int | CustomProp
+            Species charges. Neutral species may be supplied with charge zero.
+        output_molality_unit : str, optional
+            Unit used to normalize molalities when supplied as ``CustomProp``.
+        unit_conversion_fn : UnitConversionFn, optional
+            Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+        components : list[Component], optional
+            Component metadata used for mapping-key remapping when
+            ``component_key`` is provided.
+        component_key : ComponentKey, optional
+            Component identifier format used for mapping inputs.
+        case_sensitive : bool, optional
+            Whether component matching is case-sensitive.
+        sort_by_components_order : bool, optional
+            Whether mapping values should follow ``components`` order.
+        name : str, optional
+            Name of the property.
+        description : str, optional
+            Description of the property.
+        symbol : str, optional
+            Symbol representing the property.
+
+        Returns
+        -------
+        AnnotatedValue
+            Molality-based ionic strength on the normalized molality basis. Because
+            charge is dimensionless, the return unit is the normalized molality
+            unit, for example ``mol/kg`` or the unit selected by
+            ``output_molality_unit``. If no unit is supplied, the return will have the same unit as the input molalities.
+
+        Notes
+        -----
+        Equation:
+
+            I_m = 0.5*sum_i(m_i*z_i**2)
+
+        The sum is over the species
+        supplied by the caller; no dissociation/speciation assumptions are made.
+        The squared charge term is dimensionless, so the result keeps the same unit
+        as ``m_i`` after optional normalization.
+    """
+    # NOTE: Calculate the ionic strength based on molality using the helper function.
+    res = _calc_ionic_strength_molality(
+        molalities=molalities,
+        charges=charges,
+        output_molality_unit=output_molality_unit,
+        unit_conversion_fn=unit_conversion_fn,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+
+    # NOTE: set return unit
+    get_unit_res = get_unit(
+        identifier="molalities",
+        data=molalities
+    )
+    # >> unit
+    unit = str(
+        get_unit_res["unit"]
+    ) if get_unit_res["unit"] is not None else output_molality_unit
+
+    # res contains the calculated ionic strength value
+    return to_annotated_value(
+        name=name,
+        description=description,
+        value=res,
+        unit=unit,
+        symbol=symbol,
+    )
+
+
 # ! ::: Molarity-based ionic strength using Component metadata
 
 
@@ -193,11 +274,54 @@ def calc_ionic_strength_molality_2(
     unit_conversion_fn: UnitConversionFn | None = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
-):
+    name: str = "ionic_strength",
+    description: str = "Molality-based ionic strength on the normalized molality basis.",
+    symbol: str = "I_m",
+) -> AnnotatedValue:
+    """
+    Calculate molality-based ionic strength using component metadata.
+
+    Parameters
+    ----------
+    molalities : Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp]
+        Molalities of the species.
+    components : list[Component]
+        Component metadata used for mapping-key remapping.
+    output_molality_unit : str, optional
+        Unit used to normalize molalities when supplied as ``CustomProp``.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+    component_key : ComponentKey, optional
+        Component identifier format used for mapping inputs.
+    case_sensitive : bool, optional
+        Whether component matching is case-sensitive.
+    name : str, optional
+        Name of the returned annotated value. Defaults to ``"ionic_strength"``.
+    description : str, optional
+        Description of the returned annotated value. Defaults to
+        ``"Molality-based ionic strength on the normalized molality basis."``.
+    symbol : str, optional
+        Symbol representing the ionic strength. Defaults to ``"I_m"``.
+
+    Returns
+    -------
+    AnnotatedValue
+        Molality-based ionic strength on the normalized molality basis. The
+        ``unit`` field is ``output_molality_unit`` when supplied; otherwise it
+        is the string ``"None"`` because no explicit unit normalization was
+        requested.
+
+    Notes
+    -----
+    Component charges are read from ``Component.net_charge`` and treated as
+    dimensionless. The calculated value therefore has the same unit as the
+    normalized molalities used in the calculation. No dissociation/speciation
+    assumptions are made beyond the species represented by ``components``.
+    """
     # SECTION: normalize molalities
     if isinstance(molalities, Sequence):
         # ? to list
-        molarities_list = to_list(
+        molalities_list = to_list(
             values=list(molalities),
             output_unit=output_molality_unit,
             unit_conversion_fn=unit_conversion_fn,
@@ -207,7 +331,7 @@ def calc_ionic_strength_molality_2(
         molalities_dict = dict(molalities)
 
         # ! >>> Normalize molalities according to component metadata
-        molarities = config_components_values(
+        normalized_molalities = config_components_values(
             values=molalities_dict,
             components=components,
             component_key=component_key,
@@ -215,11 +339,11 @@ def calc_ionic_strength_molality_2(
             sort_by_components_order=True,
         )
         # >> check
-        if molarities is None:
-            logger.warning("Normalized molarities is None.")
-            return None
+        if normalized_molalities is None:
+            raise ValueError(
+                "Failed to normalize molalities component values.")
         # >> unpack
-        _, molarities_list = molarities
+        _, molalities_list = normalized_molalities
 
     # NOTE: build charge dictionary for components
     charges = extract_components_values(
@@ -230,15 +354,14 @@ def calc_ionic_strength_molality_2(
     )
     # >> check
     if charges is None:
-        logger.warning("Extracted charges is None.")
-        return None
+        raise ValueError("Failed to extract component charges.")
 
     # >>> unpack
     _, charges_list = charges
 
     # SECTION: calculate ionic strength
-    return _ionic_strength(
-        concentrations=molarities_list,
+    res = _ionic_strength(
+        concentrations=molalities_list,
         charges=charges_list,
         output_concentration_unit=output_molality_unit,
         unit_conversion_fn=unit_conversion_fn,
@@ -246,6 +369,15 @@ def calc_ionic_strength_molality_2(
         component_key=component_key,
         case_sensitive=case_sensitive,
         sort_by_components_order=True,
+    )
+
+    # res
+    return to_annotated_value(
+        name=name,
+        description=description,
+        value=res,
+        unit=output_molality_unit if output_molality_unit is not None else 'None',
+        symbol=symbol,
     )
 
 
@@ -261,7 +393,10 @@ def calc_ionic_strength_molarity(
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> float:
+    name: str = "ionic_strength",
+    description: str = "Molarity-based ionic strength on the normalized molarity basis.",
+    symbol: str = "I",
+) -> AnnotatedValue:
     """Calculate molarity-based ionic strength.
 
     Parameters
@@ -283,19 +418,31 @@ def calc_ionic_strength_molarity(
         Whether component matching is case-sensitive.
     sort_by_components_order : bool, optional
         Whether mapping values should follow ``components`` order.
+    name : str, optional
+        Name of the returned annotated value. Defaults to ``"ionic_strength"``.
+    description : str, optional
+        Description of the returned annotated value. Defaults to
+        ``"Molarity-based ionic strength on the normalized molarity basis."``.
+    symbol : str, optional
+        Symbol representing the ionic strength. Defaults to ``"I"``.
 
     Returns
     -------
-    float
-        Molarity-based ionic strength on the normalized molarity basis.
+    AnnotatedValue
+        Molarity-based ionic strength on the normalized molarity basis. Because
+        charge is dimensionless, the return unit is the normalized molarity
+        unit, for example ``mol/L`` or the unit selected by
+        ``output_molarity_unit``. If no unit is supplied, the returned AnnotatedValue
+        follows the numeric basis of ``molarities``.
 
     Notes
     -----
     Equation: ``I_c = 0.5*sum_i(c_i*z_i**2)``. Neutral species with ``z = 0``
-    automatically contribute zero.
+    automatically contribute zero. The squared charge term is dimensionless, so
+    the result keeps the same unit as ``c_i`` after optional normalization.
     """
     # NOTE: Neutral species with z = 0 automatically contribute zero.
-    return _ionic_strength(
+    res = _ionic_strength(
         molarities,
         charges,
         output_molarity_unit,
@@ -304,6 +451,15 @@ def calc_ionic_strength_molarity(
         component_key,
         case_sensitive,
         sort_by_components_order,
+    )
+
+    # ! to AnnotatedValue
+    return to_annotated_value(
+        value=res,
+        unit=output_molarity_unit,
+        name=name,
+        description=description,
+        symbol=symbol,
     )
 
 
@@ -318,7 +474,10 @@ def calc_charge_balance(
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> float:
+    name: str = "charge_balance",
+    description: str = "Charge-balance residual on the normalized concentration basis.",
+    symbol: str = "ChBa_RES"
+) -> AnnotatedValue:
     """Calculate charge-balance residual.
 
     Parameters
@@ -342,13 +501,19 @@ def calc_charge_balance(
 
     Returns
     -------
-    float
+    AnnotatedValue
         Charge-balance residual ``sum_i(z_i*c_i)``. A neutral bulk solution has
-        a residual of zero within numerical tolerance.
+        a residual of zero within numerical tolerance. Because charge is
+        dimensionless, the residual has the same unit as the normalized
+        concentration values selected by ``output_concentration_unit``. If no
+        unit is supplied, the returned AnnotatedValue follows the numeric basis of
+        ``concentrations``.
 
     Notes
     -----
-    This helper does not adjust concentrations to impose electroneutrality.
+    This helper does not adjust concentrations to impose electroneutrality. It
+    only sums signed charge concentration, so its unit is inherited from
+    ``c_i`` after optional normalization.
     """
     # SECTION: Validate inputs
     non_negative(concentrations, "concentrations")
@@ -367,7 +532,18 @@ def calc_charge_balance(
             z, components, component_key, case_sensitive, sort_by_components_order, "charges"
         )
         _validate_same_keys(c, z)
-        return sum(z[key] * c[key] for key in c)
+        res_ = sum(z[key] * c[key] for key in c)
+        # Ensure the result is a float before creating AnnotatedValue
+        res_ = float(res_)
+
+        # res
+        return to_annotated_value(
+            value=res_,
+            unit=output_concentration_unit,
+            name=name,
+            description=description,
+            symbol=symbol,
+        )
 
     # ! Mixed mapping/sequence input is ambiguous.
     if isinstance(concentrations, Mapping) or isinstance(charges, Mapping):
@@ -381,7 +557,17 @@ def calc_charge_balance(
     if len(c) != len(z):
         raise ValueError(
             "concentrations and charges must have the same length.")
-    return sum(z_i * c_i for c_i, z_i in zip(c, z))
+    res_ = sum(z_i * c_i for c_i, z_i in zip(c, z))
+    res_ = float(res_)
+
+    # res
+    return to_annotated_value(
+        value=res_,
+        unit=output_concentration_unit,
+        name=name,
+        description=description,
+        symbol=symbol,
+    )
 
 
 # SECTION: Electroneutrality check
@@ -396,7 +582,10 @@ def check_electroneutrality(
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> bool:
+    name: str = "electroneutrality",
+    description: str = "Electroneutrality check based on the charge-balance residual.",
+    symbol: str = "ElNe",
+) -> AnnotatedValue:
     """Check whether a composition is electrically neutral.
 
     Parameters
@@ -420,34 +609,54 @@ def check_electroneutrality(
         Whether component matching is case-sensitive.
     sort_by_components_order : bool, optional
         Whether mapping values should follow ``components`` order.
+    name : str, optional
+        Name of the returned AnnotatedValue.
+    description : str, optional
+        Description of the returned AnnotatedValue.
+    symbol : str, optional
+        Symbol representing the returned AnnotatedValue.
 
     Returns
     -------
     bool
-        ``True`` when ``abs(sum_i(z_i*c_i)) <= tolerance``.
+        ``True`` when ``abs(sum_i(z_i*c_i)) <= tolerance``. The boolean return
+        value has no unit.
 
     Notes
     -----
     This is only a diagnostic helper. It does not modify concentrations or
-    solve a speciation/electroneutrality problem.
+    solve a speciation/electroneutrality problem. The charge-balance residual
+    compared against ``tolerance`` has the same unit as the normalized
+    concentration values, so ``tolerance`` should be provided on that same
+    concentration basis.
     """
     # SECTION: Validate tolerance
     if tolerance < 0.0:
         raise ValueError("tolerance must be non-negative.")
 
     # SECTION: Calculate and compare charge-balance residual
-    return abs(
-        calc_charge_balance(
-            concentrations,
-            charges,
-            output_concentration_unit,
-            unit_conversion_fn,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-        )
+    res_ = calc_charge_balance(
+        concentrations,
+        charges,
+        output_concentration_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+    res_ = abs(
+        res_.value
     ) <= tolerance
+
+    # return
+    return to_annotated_value(
+        value=res_,
+        unit=None,
+        name=name,
+        description=description,
+        symbol=symbol,
+    )
 
 
 # SECTION: Public exports
