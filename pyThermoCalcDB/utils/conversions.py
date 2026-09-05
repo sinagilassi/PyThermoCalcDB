@@ -1,9 +1,9 @@
 # import libs
 import logging
-from collections.abc import Mapping, Sequence
-from typing import List, Optional, Dict
-from pythermodb_settings.models import ScalarValue
-from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, UnitConversionFn
+from collections.abc import Mapping
+from typing import List, Optional, Dict, Any
+from pythermodb_settings.utils import config_components_values
+from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, UnitConversionFn, Component, ComponentKey, ScalarValue
 from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar, pos, to_scalar
 from pycuc import convert_from_to
 # locals
@@ -272,3 +272,59 @@ def _pos(
         output_unit,
         unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
     )
+
+# ! ::: Configure component values with name
+
+
+def _configure_component_values(
+    values: Dict[str, Any] | Mapping[str, Any],
+    components: Optional[List[Component]],
+    component_key: Optional[ComponentKey],
+    case_sensitive: bool,
+    sort_by_components_order: bool,
+    name: str,
+) -> dict[str, float]:
+    """Remap and order mapping values using component metadata when requested.
+
+    Notes
+    -----
+    This helper does not change value units. Any unit normalization must happen
+    before values are passed here.
+    """
+    # ! When no component key is requested, preserve caller mapping keys/order.
+    if component_key is None:
+        return dict(values)
+
+    # NOTE: Component metadata is required only for key remapping.
+    if not components:
+        raise ValueError(
+            f"component_key is provided but components is empty for {name}.")
+
+    # SECTION: Remap values through pythermodb-settings utilities
+    component_values = config_components_values(
+        values=values,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    if component_values is None:
+        raise ValueError(f"Failed to configure {name} component values.")
+    component_values_dict, _ = component_values
+    return component_values_dict
+
+# ! ::: Validate matching component keys
+
+
+def _validate_same_keys(left: Mapping[str, float], right: Mapping[str, float]) -> None:
+    """Validate matching component keys.
+
+    Notes
+    -----
+    This helper performs only key validation and returns ``None``. It has no
+    calculated value or return unit.
+    """
+    # ? Mismatched keys usually indicate a missing concentration or charge.
+    if set(left) != set(right):
+        raise ValueError(
+            "concentrations and charges must have the same component keys.")
