@@ -2,6 +2,7 @@
 from rich import print
 from pythermodb_settings.models import Component
 from pythermocalcdb.compositions import (
+    _calc_ionic_strength_molality,
     calc_ionic_strength_molality,
     calc_ionic_strength_molality_2
 )
@@ -44,18 +45,22 @@ calcium = Component(
 # component list
 component_list = [sodium, chloride, calcium]
 
+# NOTE: return float
+ionic_strength = _calc_ionic_strength_molality(molalities, charges)
 
+print(f"Molality-based ionic strength (float): {ionic_strength} mol/kg")
+
+# NOTE: return AnnotatedValue
 ionic_strength = calc_ionic_strength_molality(molalities, charges)
 
-print(f"Molality-based ionic strength: {ionic_strength:.3f} mol/kg")
-assert ionic_strength == 0.2
+print(f"Molality-based ionic strength: {ionic_strength} mol/kg")
 
-# Ionic strength using the alternative molality calculation method:
+# NOTE: return AnnotatedValue using the alternative molality calculation method
 ionic_strength_2 = calc_ionic_strength_molality_2(
     molality_list,
     component_list
 )
 
 print(
-    f"Molality-based ionic strength (method 2): {ionic_strength_2:.3f} mol/kg")
-assert ionic_strength_2 == 0.2
+    f"Molality-based ionic strength (method 2): {ionic_strength_2} mol/kg"
+)
