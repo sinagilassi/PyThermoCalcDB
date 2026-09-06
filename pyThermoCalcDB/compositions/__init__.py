@@ -8,6 +8,15 @@ from .fractions import (
     calculate_component_fractions,
 )
 
+# NOTE: molarity
+from .molarity import (
+    calc_molarities,
+    calc_keyed_molarities,
+    calc_keyed_molarities_with_units,
+    calc_comp_molarities_with_units,
+    calc_comp_molarities_with_units_annotated,
+)
+
 # NOTE: electrolyte primitives
 from .ionic_strength import (
     _calc_ionic_strength_molality_v1,
