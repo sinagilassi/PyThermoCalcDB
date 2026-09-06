@@ -1,4 +1,8 @@
-﻿from pythermocalcdb.compositions.molarity import molarity2, molarity3, molarity4
+from pythermocalcdb.compositions.molarity import (
+    calculate_component_molarities,
+    calculate_keyed_molarities,
+    calculate_keyed_molarities_with_units,
+)
 from pythermodb_settings.models import Component, CustomProp
 from rich import print
 
@@ -10,7 +14,7 @@ components = [
 
 # NOTE: Basic dictionary input with numeric solution volume.
 raw_moles = {"A": 2.0, "B": 3.0}
-raw_molarity_dict, raw_molarity_list = molarity2(
+raw_molarity_dict, raw_molarity_list = calculate_keyed_molarities(
     component_moles=raw_moles,
     solution_volume=10.0,
 )
@@ -28,9 +32,11 @@ custom_moles = {
     "B": CustomProp(value=3.0, unit="mol"),
 }
 solution_volume = CustomProp(value=10.0, unit="L")
-custom_volume_molarity_dict, custom_volume_molarity_list = molarity3(
-    component_moles=custom_moles,
-    solution_volume=solution_volume,
+custom_volume_molarity_dict, custom_volume_molarity_list = (
+    calculate_keyed_molarities_with_units(
+        component_moles=custom_moles,
+        solution_volume=solution_volume,
+    )
 )
 
 print("Raw molarity with CustomProp moles and volume:")
@@ -40,15 +46,6 @@ print(custom_volume_molarity_list)
 assert custom_volume_molarity_dict == raw_molarity_dict
 assert custom_volume_molarity_list == raw_molarity_list
 
-# NOTE: Numeric mole values still work and are assumed to be in the output mole unit.
-numeric_molarity3_dict, numeric_molarity3_list = molarity3(
-    component_moles=raw_moles,
-    solution_volume=solution_volume,
-)
-
-assert numeric_molarity3_dict == raw_molarity_dict
-assert numeric_molarity3_list == raw_molarity_list
-
 # NOTE: Input values are intentionally not in component order.
 component_moles = {
     "oxygen": CustomProp(value=2.0, unit="mol"),
@@ -56,7 +53,7 @@ component_moles = {
     "methane": CustomProp(value=1.0, unit="mol"),
 }
 
-component_molarity = molarity4(
+component_molarity = calculate_component_molarities(
     component_moles=component_moles,
     solution_volume=CustomProp(value=2.0, unit="L"),
     components=components,
@@ -82,9 +79,9 @@ assert component_molarity_dict == {
 }
 assert component_molarity_list == [0.5, 0.5, 1.0]
 
-# NOTE: With component_key=None and components=None, molarity4 uses raw keys.
-raw_molarity4 = molarity4(
-    component_moles=raw_moles,
+# NOTE: With component_key=None and components=None, unit-aware component molarity uses raw keys.
+raw_molarity4 = calculate_component_molarities(
+    component_moles=custom_moles,
     solution_volume=solution_volume,
     components=None,
 )
@@ -94,7 +91,7 @@ if raw_molarity4 is None:
 
 raw_molarity4_dict, raw_molarity4_list = raw_molarity4
 
-print("Raw molarity4 values:")
+print("Raw component molarity with units:")
 print(raw_molarity4_dict)
 print(raw_molarity4_list)
 
