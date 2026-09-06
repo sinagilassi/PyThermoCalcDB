@@ -5,12 +5,12 @@ from pythermodb_settings.models import CustomProp
 from pythermocalcdb.compositions.conversions import (
     mass_concentration_to_molarity,
     mass_fraction_to_molarity,
+    mapping_mole_fraction_to_mass_fraction_with_units,
     molality_to_mass_fraction,
     molality_to_molarity,
     molarity_to_mass_concentration,
     molarity_to_mass_fraction,
     molarity_to_molality,
-    mole_fraction_to_mass_fraction,
 )
 
 
@@ -20,7 +20,7 @@ molecular_weights = {
     "ethanol": CustomProp(value=46.07, unit="g/mol"),
 }
 
-mass_fractions = mole_fraction_to_mass_fraction(
+mass_fractions = mapping_mole_fraction_to_mass_fraction_with_units(
     mole_fractions={"water": 0.5, "ethanol": 0.5},
     molecular_weights=molecular_weights,
     output_molecular_weight_unit="kg/mol",

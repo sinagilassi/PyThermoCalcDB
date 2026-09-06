@@ -3,10 +3,10 @@ from rich import print
 from pythermodb_settings.models import Component
 
 from pythermocalcdb.compositions.conversions import (
-    mass_fraction_to_mole_fraction,
-    molality_to_mole_fraction,
-    molarities_to_molalities,
-    mole_fraction_to_mass_fraction,
+    mapping_mass_fraction_to_mole_fraction,
+    mapping_molality_to_mole_fraction,
+    mapping_molarities_to_molalities,
+    mapping_mole_fraction_to_mass_fraction,
 )
 
 
@@ -29,7 +29,7 @@ molecular_weights = {
     "methane": 0.01604,
 }
 
-mass_fractions = mole_fraction_to_mass_fraction(
+mass_fractions = mapping_mole_fraction_to_mass_fraction(
     mole_fractions=mole_fractions,
     molecular_weights=molecular_weights,
     components=components,
@@ -39,7 +39,7 @@ print("Mole fraction to mass fraction by formula:")
 print(mass_fractions)
 # print(list(mass_fractions.values()))
 
-mole_fractions_from_mass = mass_fraction_to_mole_fraction(
+mole_fractions_from_mass = mapping_mass_fraction_to_mole_fraction(
     mass_fractions=mass_fractions,
     molecular_weights={
         "CO2": 0.04401,
@@ -58,7 +58,7 @@ molarities = {
     "carbon dioxide": 0.25,
     "methane": 0.15,
 }
-molalities = molarities_to_molalities(
+molalities = mapping_molarities_to_molalities(
     molarities=molarities,
     molecular_weights=molecular_weights,
     solution_density=1.10,
@@ -69,7 +69,7 @@ print("Molarities to molalities by formula:")
 print(molalities)
 # print(list(molalities.values()))
 
-mole_fractions_with_solvent = molality_to_mole_fraction(
+mole_fractions_with_solvent = mapping_molality_to_mole_fraction(
     molalities=molalities,
     solvent_molecular_weight=0.01801528,
     solvent_key="H2O",
@@ -81,7 +81,7 @@ print(mole_fractions_with_solvent)
 # print(list(mole_fractions_with_solvent.values()))
 
 # NOTE: Without component_key, mapping output keeps the input mapping keys and order.
-plain_order = molality_to_mole_fraction(
+plain_order = mapping_molality_to_mole_fraction(
     molalities={"oxygen": 0.10, "carbon dioxide": 0.25, "methane": 0.15},
     solvent_molecular_weight=0.01801528,
 )

@@ -3,7 +3,6 @@ from rich import print
 from pythermocalcdb.compositions.conversions import (
     mass_concentration_to_molarity,
     mass_fraction_to_molality,
-    mass_fraction_to_mole_fraction,
     mass_fraction_to_ppm,
     mass_fraction_to_weight_percent,
     molality_to_molarity,
@@ -11,10 +10,11 @@ from pythermocalcdb.compositions.conversions import (
     molarity_to_mass_concentration,
     molarity_to_mass_fraction,
     molarity_to_molality,
-    mole_fraction_to_mass_fraction,
     mole_fraction_to_molality,
     mole_fraction_to_mole_percent,
     ppm_mass_to_mass_fraction,
+    sequence_mass_fraction_to_mole_fraction,
+    sequence_mole_fraction_to_mass_fraction,
     weight_percent_to_mass_fraction,
 )
 
@@ -22,14 +22,14 @@ from pythermocalcdb.compositions.conversions import (
 # NOTE: Sequence inputs return lists in the same order as the input sequence.
 mole_fractions = [0.5, 0.5]
 molecular_weights = [0.018015, 0.04607]  # kg/mol
-mass_fractions = mole_fraction_to_mass_fraction(
+mass_fractions = sequence_mole_fraction_to_mass_fraction(
     mole_fractions,
     molecular_weights,
 )
 print("Mole fraction to mass fraction:")
 print(mass_fractions)
 
-mole_fractions_round_trip = mass_fraction_to_mole_fraction(
+mole_fractions_round_trip = sequence_mass_fraction_to_mole_fraction(
     mass_fractions,
     molecular_weights,
 )
