@@ -1,9 +1,13 @@
+from typing import List, Dict
 from pythermocalcdb.compositions.molarity import (
-    calc_molarities,
-    calc_keyed_molarities,
-    calc_keyed_molarities_with_units,
-    calc_comp_molarities_with_units,
-    calc_comp_molarities_with_units_annotated,
+    _calc_molarities_from_sequence,
+    calc_molarities_from_sequence,
+    _calc_molarities_from_mapping,
+    calc_molarities_from_mapping,
+    _calc_molarities_from_props,
+    calc_molarities_from_props,
+    _calc_component_molarities_from_props,
+    calc_component_molarities_from_props,
 )
 from pythermodb_settings.models import Component, CustomProp, AnnotatedValue
 from rich import print
@@ -16,17 +20,41 @@ components = [
 
 # NOTE: Basic dictionary input with numeric solution volume.
 raw_moles = {"A": 2.0, "B": 3.0}
-raw_molarity_dict, raw_molarity_list = calc_keyed_molarities(
+raw_moles_list = list(raw_moles.values())
+
+# ! from mapping
+raw_molarity_dict: AnnotatedValue[Dict[str, float]] = calc_molarities_from_mapping(
     component_moles=raw_moles,
     solution_volume=10.0,
 )
-
-print("Raw molarity with numeric volume:")
+print(f"[blue]Raw molarity from mapping using AnnotatedValue:[/blue]")
 print(raw_molarity_dict)
+
+# ! from mapping normal return
+raw_molarity_dict_normal = _calc_molarities_from_mapping(
+    component_moles=raw_moles,
+    solution_volume=10.0,
+)
+print(f"[yellow]Raw molarity from mapping normal return:[/yellow]")
+print(raw_molarity_dict_normal)
+
+# ! from sequence
+raw_molarity_list: AnnotatedValue[List[float]] = calc_molarities_from_sequence(
+    component_moles=raw_moles_list,
+    solution_volume=10.0,
+)
+print(f"[blue]Raw molarity from sequence using AnnotatedValue:[/blue]")
 print(raw_molarity_list)
 
-assert raw_molarity_dict == {"A": 0.2, "B": 0.3}
-assert raw_molarity_list == [0.2, 0.3]
+# ! from sequence normal return
+
+raw_molarity_list_normal = _calc_molarities_from_sequence(
+    component_moles=raw_moles_list,
+    solution_volume=10.0,
+)
+print(f"[yellow]Raw molarity from sequence normal return:[/yellow]")
+print(raw_molarity_list_normal)
+
 
 # NOTE: Raw dictionary input with CustomProp mole values and CustomProp volume.
 custom_moles = {
@@ -34,19 +62,24 @@ custom_moles = {
     "B": CustomProp(value=3.0, unit="mol"),
 }
 solution_volume = CustomProp(value=10.0, unit="L")
-custom_volume_molarity_dict, custom_volume_molarity_list = (
-    calc_keyed_molarities_with_units(
-        component_moles=custom_moles,
-        solution_volume=solution_volume,
-    )
+
+custom_volume_molarity: Dict[str, float] = _calc_molarities_from_props(
+    component_moles=custom_moles,
+    solution_volume=solution_volume,
+    output_unit="mol/L",
+)
+print(f"[green]Raw molarity with CustomProp moles and volume using normal return:[/green]")
+print(custom_volume_molarity)
+
+# ! annotated
+custom_volume_molarity_dict: AnnotatedValue[Dict[str, float]] = calc_molarities_from_props(
+    component_moles=custom_moles,
+    solution_volume=solution_volume,
 )
 
-print("Raw molarity with CustomProp moles and volume:")
-print(custom_volume_molarity_dict)
-print(custom_volume_molarity_list)
 
-assert custom_volume_molarity_dict == raw_molarity_dict
-assert custom_volume_molarity_list == raw_molarity_list
+print(f"[lime]Raw molarity with CustomProp moles and volume using AnnotatedValue:[/lime]")
+print(custom_volume_molarity_dict)
 
 # NOTE: Input values are intentionally not in component order.
 component_moles = {
@@ -55,7 +88,7 @@ component_moles = {
     "methane": CustomProp(value=1.0, unit="mol"),
 }
 
-component_molarity = calc_comp_molarities_with_units(
+component_molarity = _calc_component_molarities_from_props(
     component_moles=component_moles,
     solution_volume=CustomProp(value=2.0, unit="L"),
     components=components,
@@ -67,22 +100,10 @@ component_molarity = calc_comp_molarities_with_units(
 if component_molarity is None:
     raise RuntimeError("Failed to calculate component molarity.")
 
-component_molarity_dict, component_molarity_list = component_molarity
-
-print("Component molarity keyed by formula-state:")
-print(component_molarity_dict)
-print("Component molarity in component order:")
-print(component_molarity_list)
-
-assert component_molarity_dict == {
-    "CO2-g": 0.5,
-    "CH4-g": 0.5,
-    "O2-g": 1.0,
-}
-assert component_molarity_list == [0.5, 0.5, 1.0]
+print(component_molarity)
 
 # NOTE: With component_key=None and components=None, unit-aware component molarity uses raw keys.
-raw_molarity4 = calc_comp_molarities_with_units(
+raw_molarity4 = calc_component_molarities_from_props(
     component_moles=custom_moles,
     solution_volume=solution_volume,
     components=None,
@@ -91,17 +112,11 @@ raw_molarity4 = calc_comp_molarities_with_units(
 if raw_molarity4 is None:
     raise RuntimeError("Failed to calculate raw molarity.")
 
-raw_molarity4_dict, raw_molarity4_list = raw_molarity4
+print(raw_molarity4)
 
-print("Raw component molarity with units:")
-print(raw_molarity4_dict)
-print(raw_molarity4_list)
-
-assert raw_molarity4_dict == raw_molarity_dict
-assert raw_molarity4_list == raw_molarity_list
 
 # NOTE: Annotated component molarity
-raw_molarity5: AnnotatedValue | None = calc_comp_molarities_with_units_annotated(
+raw_molarity5: AnnotatedValue | None = calc_component_molarities_from_props(
     component_moles=component_moles,
     solution_volume=CustomProp(value=2.0, unit="L"),
     components=components,
@@ -115,3 +130,21 @@ if raw_molarity5 is None:
 
 print("Annotated component molarity with units:")
 print(raw_molarity5)
+
+# ! output unit
+raw_molarity6: AnnotatedValue | None = calc_component_molarities_from_props(
+    component_moles=component_moles,
+    solution_volume=CustomProp(value=2.0, unit="L"),
+    output_unit="kmol/L",
+    components=components,
+    component_key="Formula-State",
+    case_sensitive=False,
+    sort_by_components_order=True,
+)
+
+if raw_molarity6 is None:
+    raise RuntimeError(
+        "Failed to calculate annotated component molarity with output unit.")
+
+print("Annotated component molarity with output unit:")
+print(raw_molarity6)
