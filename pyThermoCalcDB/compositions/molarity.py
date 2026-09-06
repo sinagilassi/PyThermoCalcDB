@@ -4,17 +4,17 @@ from typing import Any, Dict, List, Optional, Tuple
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
 from pythermodb_settings.utils import (
     config_components_values,
+    to_annotated_value,
 )
 # locals
 from ..utils.conversions import _to_moles, _to_units, _to_volume
-
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
 # ! ::: Molarity [m_i]
 
-def molarity1(
+def _molarity_1(
         component_moles: List[float],
         solution_volume: float,
 ) -> List[float]:
@@ -40,7 +40,7 @@ def molarity1(
     return [moles / solution_volume for moles in component_moles]
 
 
-def molarity2(
+def _molarity_2(
     component_moles: Dict[str, float | int],
     solution_volume: float,
 ) -> Tuple[Dict[str, float], List[float]]:
@@ -75,7 +75,7 @@ def molarity2(
 
 
 # ! ::: Molarity [m_i] with solution volume as CustomProp
-def molarity3(
+def _molarity_3(
     component_moles: Dict[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
@@ -124,7 +124,7 @@ def molarity3(
     )
 
     # SECTION: calculate molarity for each component
-    component_molarity = molarity2(
+    component_molarity = _molarity_2(
         component_moles=component_moles_dict,
         solution_volume=solution_volume_scalar,
     )
@@ -136,7 +136,7 @@ def molarity3(
 # ! ::: Molarity [m_i] with component ID mapping and sorting
 
 
-def molarity4(
+def _molarity_4(
     component_moles: Dict[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
@@ -219,7 +219,7 @@ def molarity4(
         component_values_dict = component_moles_dict
 
     # SECTION: calculate molarity for each component
-    component_molarity = molarity2(
+    component_molarity = _molarity_2(
         component_moles=component_values_dict,
         solution_volume=solution_volume_scalar,
     )
@@ -228,8 +228,10 @@ def molarity4(
 
     return component_molarity_dict, component_molarity_list
 
+# SECTION: Annotated component molarity calculation
 
-def molarity5(
+
+def _molarity_4_annotated(
     component_moles: Dict[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
@@ -237,10 +239,11 @@ def molarity5(
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
+    *,
     name: str = "component_molarities",
     description: str = "Molarity of each component in the solution",
     symbol: str = "",
-) -> Optional[AnnotatedValue[Dict[str, float]]]:
+) -> AnnotatedValue[Dict[str, float]] | None:
     """
     Calculate the molarity of each component in a solution given the component moles and the solution volume as a CustomProp. The default
     volume unit is litre (L). The component molarity list and dictionary will be ordered according to the components list if sort_by_components_order is True.
@@ -264,11 +267,11 @@ def molarity5(
 
     Returns
     -------
-    AnnotatedValue[Dict[str, float]]
+    AnnotatedValue[Dict[str, float]] | None
         An AnnotatedValue object containing a dictionary of component molarities, or None if the calculation could not be performed.
     """
     # NOTE: calculate component molarities
-    res = molarity4(
+    res = _molarity_4(
         component_moles=component_moles,
         solution_volume=solution_volume,
         output_unit=output_unit,
@@ -284,32 +287,27 @@ def molarity5(
     # >>> unpack
     component_molarity_dict, _ = res
 
-    return AnnotatedValue(
+    return to_annotated_value(
         value=component_molarity_dict,
         name=name,
         unit=output_unit,
         description=description,
-        symbol=symbol
+        symbol=symbol,
     )
 
 
 # SECTION: Aliases
 # ! list
-calculate_molarities = molarity1
-calc_molarities = molarity1
+calc_molarities = _molarity_1
 
 # ! dict
-calculate_keyed_molarities = molarity2
-calc_keyed_molarities = molarity2
+calc_keyed_molarities = _molarity_2
 
 # ! unit-aware dict
-calculate_keyed_molarities_with_units = molarity3
-calc_keyed_molarities_with_units = molarity3
+calc_keyed_molarities_with_units = _molarity_3
 
 # ! component mapping
-calculate_component_molarities = molarity4
-calc_component_molarities = molarity4
+calc_comp_molarities_with_units = _molarity_4
 
 # ! annotated value
-calculate_component_molarities_annotated = molarity5
-calc_component_molarities_annotated = molarity5
+calc_comp_molarities_with_units_annotated = _molarity_4_annotated
