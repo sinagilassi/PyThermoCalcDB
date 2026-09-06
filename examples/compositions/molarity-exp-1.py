@@ -1,9 +1,11 @@
 from pythermocalcdb.compositions.molarity import (
-    calculate_component_molarities,
-    calculate_keyed_molarities,
-    calculate_keyed_molarities_with_units,
+    calc_molarities,
+    calc_keyed_molarities,
+    calc_keyed_molarities_with_units,
+    calc_comp_molarities_with_units,
+    calc_comp_molarities_with_units_annotated,
 )
-from pythermodb_settings.models import Component, CustomProp
+from pythermodb_settings.models import Component, CustomProp, AnnotatedValue
 from rich import print
 
 components = [
@@ -14,7 +16,7 @@ components = [
 
 # NOTE: Basic dictionary input with numeric solution volume.
 raw_moles = {"A": 2.0, "B": 3.0}
-raw_molarity_dict, raw_molarity_list = calculate_keyed_molarities(
+raw_molarity_dict, raw_molarity_list = calc_keyed_molarities(
     component_moles=raw_moles,
     solution_volume=10.0,
 )
@@ -33,7 +35,7 @@ custom_moles = {
 }
 solution_volume = CustomProp(value=10.0, unit="L")
 custom_volume_molarity_dict, custom_volume_molarity_list = (
-    calculate_keyed_molarities_with_units(
+    calc_keyed_molarities_with_units(
         component_moles=custom_moles,
         solution_volume=solution_volume,
     )
@@ -53,7 +55,7 @@ component_moles = {
     "methane": CustomProp(value=1.0, unit="mol"),
 }
 
-component_molarity = calculate_component_molarities(
+component_molarity = calc_comp_molarities_with_units(
     component_moles=component_moles,
     solution_volume=CustomProp(value=2.0, unit="L"),
     components=components,
@@ -80,7 +82,7 @@ assert component_molarity_dict == {
 assert component_molarity_list == [0.5, 0.5, 1.0]
 
 # NOTE: With component_key=None and components=None, unit-aware component molarity uses raw keys.
-raw_molarity4 = calculate_component_molarities(
+raw_molarity4 = calc_comp_molarities_with_units(
     component_moles=custom_moles,
     solution_volume=solution_volume,
     components=None,
@@ -97,3 +99,19 @@ print(raw_molarity4_list)
 
 assert raw_molarity4_dict == raw_molarity_dict
 assert raw_molarity4_list == raw_molarity_list
+
+# NOTE: Annotated component molarity
+raw_molarity5: AnnotatedValue | None = calc_comp_molarities_with_units_annotated(
+    component_moles=component_moles,
+    solution_volume=CustomProp(value=2.0, unit="L"),
+    components=components,
+    component_key="Formula-State",
+    case_sensitive=False,
+    sort_by_components_order=True,
+)
+
+if raw_molarity5 is None:
+    raise RuntimeError("Failed to calculate annotated component molarity.")
+
+print("Annotated component molarity with units:")
+print(raw_molarity5)
