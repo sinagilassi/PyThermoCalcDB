@@ -1,11 +1,13 @@
 ﻿# import libs
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Mapping, Sequence
+from typing import Any, Optional
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
 from pythermodb_settings.utils import (
     config_components_values,
     to_annotated_value,
 )
+from pythermodb_settings.decorators import annotated_value
 # locals
 from ..utils.conversions import _to_moles, _to_units, _to_volume
 # NOTE: logger setup
@@ -15,22 +17,22 @@ logger = logging.getLogger(__name__)
 # ! ::: Molarity [m_i]
 
 def _molarity_1(
-        component_moles: List[float],
+        component_moles: Sequence[float],
         solution_volume: float,
-) -> List[float]:
+) -> list[float]:
     """
     Calculate the molarity of each component in a solution given the component moles and the solution volume.
 
     Parameters
     ----------
-    component_moles : List[float]
-        A list of moles for each component.
+    component_moles : Sequence[float]
+        A sequence of moles for each component.
     solution_volume : float
         The volume of the solution.
 
     Returns
     -------
-    List[float]
+    list[float]
         A list of molarity values for each component.
     """
     # check
@@ -39,25 +41,49 @@ def _molarity_1(
         raise ValueError("Volume of the solution cannot be zero.")
     return [moles / solution_volume for moles in component_moles]
 
+# *** for annotated
 
+
+def _molarity_1_annotated(
+        component_moles: Sequence[float],
+        solution_volume: float,
+        *,
+        name: str = "molarity",
+        description: str = "Calculate the molarity of each component in a solution.",
+        unit: str = "",
+        symbol: str = ""
+) -> AnnotatedValue[list[float]]:
+    return to_annotated_value(
+        _molarity_1(
+            component_moles=component_moles,
+            solution_volume=solution_volume
+        ),
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol
+    )
+
+
+# NOTE: mapping
 def _molarity_2(
-    component_moles: Dict[str, float | int],
+    component_moles: Mapping[str, float | int],
     solution_volume: float,
-) -> Tuple[Dict[str, float], List[float]]:
+) -> dict[str, float]:
     """
     Calculate the molarity of each component in a solution given the component moles and the solution volume.
 
     Parameters
     ----------
-    component_moles : Dict[str, float | int]
-        A dictionary mapping component names to their respective moles.
+    component_moles : Mapping[str, float | int]
+        A mapping of component names to their respective moles.
     solution_volume : float
         The volume of the solution.
 
     Returns
     -------
-    List[float]
-        A list of molarity values for each component.
+    dict[str, float]
+        A dictionary mapping component names to their respective molarity values.
     """
     # check
     if solution_volume == 0:
@@ -68,26 +94,48 @@ def _molarity_2(
     component_molarity_dict = {
         key: value / solution_volume for key, value in component_moles.items()
     }
-    # ! list
-    component_molarity_list = list(component_molarity_dict.values())
 
-    return component_molarity_dict, component_molarity_list
+    return component_molarity_dict
 
+# *** annotated for mapping
+
+
+def _molarity_2_annotated(
+        component_moles: Mapping[str, float | int],
+        solution_volume: float,
+        *,
+        name: str = "molarity",
+        description: str = "Calculate the molarity of each component in a solution.",
+        unit: str = "",
+        symbol: str = ""
+) -> AnnotatedValue[dict[str, float]]:
+    return to_annotated_value(
+        _molarity_2(
+            component_moles=component_moles,
+            solution_volume=solution_volume
+        ),
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol
+    )
 
 # ! ::: Molarity [m_i] with solution volume as CustomProp
+
+
 def _molarity_3(
-    component_moles: Dict[str, CustomProp],
+    component_moles: Mapping[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
-) -> Tuple[Dict[str, float], List[float]]:
+) -> dict[str, float]:
     """
     Calculate the molarity of each component in a solution given the component moles and the solution volume as a CustomProp. The default
     volume unit is litre (L).
 
     Parameters
     ----------
-    component_moles : Dict[str, CustomProp]
-        A dictionary mapping component names to their respective mole amounts.
+    component_moles : Mapping[str, CustomProp]
+        A mapping of component names to their respective mole amounts.
     solution_volume : CustomProp
         The volume of the solution as a CustomProp object.
     output_unit : str, optional
@@ -95,8 +143,8 @@ def _molarity_3(
 
     Returns
     -------
-    Tuple[Dict[str, float], List[float]]
-        A tuple containing a dictionary of component molarities and a list of molarity values.
+    dict[str, float]
+        A dictionary mapping component names to their respective molarity values.
 
     Notes
     -----
@@ -111,7 +159,7 @@ def _molarity_3(
 
     # NOTE: component moles
     # ! convert component moles to the specified unit if necessary
-    component_moles_dict: Dict[str, float] = _to_moles(
+    component_moles_dict: dict[str, float] = _to_moles(
         component_moles=component_moles,
         output_unit=mole_unit
     )
@@ -124,41 +172,61 @@ def _molarity_3(
     )
 
     # SECTION: calculate molarity for each component
-    component_molarity = _molarity_2(
+    return _molarity_2(
         component_moles=component_moles_dict,
         solution_volume=solution_volume_scalar,
     )
-    # unpack the result
-    component_molarity_dict, component_molarity_list = component_molarity
 
-    return component_molarity_dict, component_molarity_list
+# *** annotated for mapping with custom properties
+
+
+def _molarity_3_annotated(
+    component_moles: Mapping[str, CustomProp],
+    solution_volume: CustomProp,
+    output_unit: str = 'mol/L',
+    *,
+    name: str = "molarity",
+    description: str = "Calculate the molarity of each component in a solution.",
+    symbol: str = ""
+) -> AnnotatedValue[dict[str, float]]:
+    return to_annotated_value(
+        _molarity_3(
+            component_moles=component_moles,
+            solution_volume=solution_volume,
+            output_unit=output_unit
+        ),
+        name=name,
+        description=description,
+        unit=output_unit,
+        symbol=symbol
+    )
 
 # ! ::: Molarity [m_i] with component ID mapping and sorting
 
 
 def _molarity_4(
-    component_moles: Dict[str, CustomProp],
+    component_moles: Mapping[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
-    components: Optional[List[Component]] = None,
+    components: Optional[Sequence[Component]] = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> Optional[Tuple[Dict[str, float], List[float]]]:
+) -> dict[str, float]:
     """
     Calculate the molarity of each component in a solution given the component moles and the solution volume as a CustomProp. The default
     volume unit is litre (L). The component molarity list and dictionary will be ordered according to the components list if sort_by_components_order is True.
 
     Parameters
     ----------
-    component_moles : Dict[str, CustomProp]
-        A dictionary mapping component names to CustomProp objects representing the moles.
+    component_moles : Mapping[str, CustomProp]
+        A mapping of component names to CustomProp objects representing the moles.
     solution_volume : CustomProp
         The volume of the solution as a CustomProp object.
     output_unit : str, optional
         The unit for the output molarity values. Defaults to 'mol/L'.
-    components : Optional[List[Component]], optional
-        A list of Component objects to map the component moles to, by default None.
+    components : Optional[Sequence[Component]], optional
+        A sequence of Component objects to map the component moles to, by default None.
     component_key : Optional[ComponentKey], optional
         The key to use for mapping component moles to components, by default None.
     case_sensitive : bool, optional
@@ -168,9 +236,8 @@ def _molarity_4(
 
     Returns
     -------
-    Optional[Tuple[Dict[str, float], List[float]]]
-        A tuple containing a dictionary of component molarities and a list of molarity values, or None if the calculation could not be performed.
-
+    dict[str, float]
+        A dictionary mapping component names to their respective molarity values, or None if the calculation could not be performed.
     """
     # SECTION: Unit validation
     units_ = _to_units(output_unit)
@@ -194,24 +261,31 @@ def _molarity_4(
     # SECTION: get component values
     if component_key is not None:
         if not components:
-            logger.warning(
-                "Component key is provided but components list is empty.")
-            return None
+            logger.error(
+                "Component key is provided but components list is empty."
+            )
+            raise ValueError(
+                "Component key is provided but components list is empty."
+            )
 
-        component_values: Tuple[
-            Dict[str, Any],
-            List[Any]
+        component_values: tuple[
+            dict[str, Any],
+            list[Any]
         ] | None = config_components_values(
             values=component_moles_dict,
-            components=components,
+            components=list(components),
             component_key=component_key,
             case_sensitive=case_sensitive,
             sort_by_components_order=sort_by_components_order
         )
         # >> check
         if component_values is None:
-            logger.warning("Failed to configure component values")
-            return None
+            logger.error(
+                "Failed to configure component values."
+            )
+            raise ValueError(
+                "Failed to configure component values."
+            )
 
         # unpack
         component_values_dict, _ = component_values
@@ -219,58 +293,27 @@ def _molarity_4(
         component_values_dict = component_moles_dict
 
     # SECTION: calculate molarity for each component
-    component_molarity = _molarity_2(
+    return _molarity_2(
         component_moles=component_values_dict,
         solution_volume=solution_volume_scalar,
     )
-    # unpack
-    component_molarity_dict, component_molarity_list = component_molarity
 
-    return component_molarity_dict, component_molarity_list
-
-# SECTION: Annotated component molarity calculation
+# *** annotated for component mapping with custom properties
 
 
 def _molarity_4_annotated(
-    component_moles: Dict[str, CustomProp],
-    solution_volume: CustomProp,
-    output_unit: str = 'mol/L',
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-    *,
-    name: str = "component_molarities",
-    description: str = "Molarity of each component in the solution",
-    symbol: str = "",
-) -> AnnotatedValue[Dict[str, float]] | None:
-    """
-    Calculate the molarity of each component in a solution given the component moles and the solution volume as a CustomProp. The default
-    volume unit is litre (L). The component molarity list and dictionary will be ordered according to the components list if sort_by_components_order is True.
-
-    Parameters
-    ----------
-    component_moles : Dict[str, CustomProp]
-        A dictionary mapping component names to CustomProp objects representing the moles.
-    solution_volume : CustomProp
-        The volume of the solution as a CustomProp object.
-    output_unit : str, optional
-        The unit for the output molarity values. Defaults to 'mol/L'.
-    components : Optional[List[Component]], optional
-        A list of Component objects to map the component moles to, by default None.
-    component_key : Optional[ComponentKey], optional
-        The key to use for mapping component moles to components, by default None.
-    case_sensitive : bool, optional
-        Whether the component mapping should be case sensitive, by default True.
-    sort_by_components_order : bool, optional
-        Whether to sort the component molarities by the order of components, by default True.
-
-    Returns
-    -------
-    AnnotatedValue[Dict[str, float]] | None
-        An AnnotatedValue object containing a dictionary of component molarities, or None if the calculation could not be performed.
-    """
-    # NOTE: calculate component molarities
+    component_moles: Mapping[str, CustomProp],
+        solution_volume: CustomProp,
+        output_unit: str = 'mol/L',
+        components: Optional[Sequence[Component]] = None,
+        component_key: Optional[ComponentKey] = None,
+        case_sensitive: bool = True,
+        sort_by_components_order: bool = True,
+        *,
+        name: str = "molarity",
+        description: str = "Calculate the molarity of each component in a solution.",
+        symbol: str = "",
+) -> AnnotatedValue[dict[str, float]]:
     res = _molarity_4(
         component_moles=component_moles,
         solution_volume=solution_volume,
@@ -278,36 +321,49 @@ def _molarity_4_annotated(
         components=components,
         component_key=component_key,
         case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order,
+        sort_by_components_order=sort_by_components_order
     )
-    # >> check
-    if res is None:
-        return None
 
-    # >>> unpack
-    component_molarity_dict, _ = res
-
+    # convert the result to an annotated value
     return to_annotated_value(
-        value=component_molarity_dict,
+        value=res,
         name=name,
-        unit=output_unit,
         description=description,
-        symbol=symbol,
+        unit=output_unit,
+        symbol=symbol
     )
 
 
 # SECTION: Aliases
 # ! list
-calc_molarities = _molarity_1
+_calc_molarities_from_sequence = _molarity_1
+# >> molarities
+calc_molarities_from_sequence = _molarity_1_annotated
 
 # ! dict
-calc_keyed_molarities = _molarity_2
+_calc_molarities_from_mapping = _molarity_2
+# >> molarities from mapping
+calc_molarities_from_mapping = _molarity_2_annotated
 
 # ! unit-aware dict
-calc_keyed_molarities_with_units = _molarity_3
+_calc_molarities_from_props = _molarity_3
+# >> molarities with units
+calc_molarities_from_props = _molarity_3_annotated
 
 # ! component mapping
-calc_comp_molarities_with_units = _molarity_4
+_calc_component_molarities_from_props = _molarity_4
+# >> component molarities
+calc_component_molarities_from_props = _molarity_4_annotated
 
-# ! annotated value
-calc_comp_molarities_with_units_annotated = _molarity_4_annotated
+
+# all
+__all__ = [
+    "_calc_molarities_from_sequence",
+    "calc_molarities_from_sequence",
+    "_calc_molarities_from_mapping",
+    "calc_molarities_from_mapping",
+    "_calc_molarities_from_props",
+    "calc_molarities_from_props",
+    "_calc_component_molarities_from_props",
+    "calc_component_molarities_from_props",
+]
