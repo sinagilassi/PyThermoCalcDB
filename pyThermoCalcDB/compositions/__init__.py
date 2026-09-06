@@ -10,11 +10,14 @@ from .fractions import (
 
 # NOTE: molarity
 from .molarity import (
-    calc_molarities,
-    calc_keyed_molarities,
-    calc_keyed_molarities_with_units,
-    calc_comp_molarities_with_units,
-    calc_comp_molarities_with_units_annotated,
+    _calc_molarities_from_sequence,
+    calc_molarities_from_sequence,
+    _calc_molarities_from_mapping,
+    calc_molarities_from_mapping,
+    _calc_molarities_from_props,
+    calc_molarities_from_props,
+    _calc_component_molarities_from_props,
+    calc_component_molarities_from_props,
 )
 
 # NOTE: electrolyte primitives
@@ -146,4 +149,13 @@ __all__ = [
     "ppb_mass_to_mass_fraction",
     "mole_fraction_to_ppb",
     "ppb_mole_to_mole_fraction",
+    # molarity
+    "calc_molarities_from_sequence",
+    "calc_molarities_from_mapping",
+    "calc_molarities_from_props",
+    "calc_component_molarities_from_props",
+    "_calc_molarities_from_sequence",
+    "_calc_molarities_from_mapping",
+    "_calc_molarities_from_props",
+    "_calc_component_molarities_from_props",
 ]
