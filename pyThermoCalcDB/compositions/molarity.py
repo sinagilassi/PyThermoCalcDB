@@ -7,7 +7,6 @@ from pythermodb_settings.utils import (
     config_components_values,
     to_annotated_value,
 )
-from pythermodb_settings.decorators import annotated_value
 # locals
 from ..utils.conversions import _to_moles, _to_units, _to_volume
 # NOTE: logger setup
