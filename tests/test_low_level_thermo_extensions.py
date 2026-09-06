@@ -117,10 +117,57 @@ class TestLowLevelThermoExtensions(unittest.TestCase):
         self.assertTrue(total_g < 0.0)
 
     def test_ionic_strength_and_charge_balance(self):
-        self.assertEqual(calc_ionic_strength_molality([0.1, 0.1], [1.0, -1.0]), 0.1)
-        self.assertEqual(calc_ionic_strength_molarity({"Na+": 0.1, "Cl-": 0.1}, {"Na+": 1.0, "Cl-": -1.0}), 0.1)
-        self.assertEqual(calc_charge_balance([0.1, 0.1], [1.0, -1.0]), 0.0)
-        self.assertTrue(check_electroneutrality([0.1, 0.1], [1.0, -1.0]))
+        self.assertEqual(calc_ionic_strength_molality([0.1, 0.1], [1.0, -1.0]).value, 0.1)
+        self.assertEqual(calc_ionic_strength_molarity({"Na+": 0.1, "Cl-": 0.1}, {"Na+": 1.0, "Cl-": -1.0}).value, 0.1)
+        self.assertEqual(calc_charge_balance([0.1, 0.1], [1.0, -1.0]).value, 0.0)
+        self.assertTrue(check_electroneutrality([0.1, 0.1], [1.0, -1.0]).value)
+
+    def test_ionic_strength_units_require_custom_props(self):
+        numeric_result = calc_ionic_strength_molality(
+            [0.1, 0.1],
+            [1.0, -1.0],
+            output_molality_unit="mol/kg",
+        )
+        self.assertEqual(numeric_result.value, 0.1)
+        self.assertIsNone(numeric_result.unit)
+
+    def test_ionic_strength_converts_custom_prop_units(self):
+        def convert(value, from_unit, to_unit):
+            if from_unit == "mmol/kg" and to_unit == "mol/kg":
+                return value / 1000.0
+            return value
+
+        result = calc_ionic_strength_molality(
+            [
+                CustomProp(value=100.0, unit="mmol/kg"),
+                CustomProp(value=100.0, unit="mmol/kg"),
+            ],
+            [1.0, -1.0],
+            output_molality_unit="mol/kg",
+            unit_conversion_fn=convert,
+        )
+        self.assertTrue(math.isclose(result.value, 0.1, rel_tol=1e-12))
+        self.assertEqual(result.unit, "mol/kg")
+
+    def test_ionic_strength_uses_consistent_custom_prop_input_unit(self):
+        result = calc_ionic_strength_molality(
+            [
+                CustomProp(value=0.1, unit="mol/kg"),
+                CustomProp(value=0.1, unit="mol/kg"),
+            ],
+            [1.0, -1.0],
+        )
+        self.assertEqual(result.value, 0.1)
+        self.assertEqual(result.unit, "mol/kg")
+
+        with self.assertRaises(ValueError):
+            calc_ionic_strength_molality(
+                [
+                    CustomProp(value=0.1, unit="mol/kg"),
+                    CustomProp(value=100.0, unit="mmol/kg"),
+                ],
+                [1.0, -1.0],
+            )
 
     def test_z_based_gas_properties_reduce_to_ideal_gas_at_z_one(self):
         temperature = Temperature(value=300.0, unit="K")
