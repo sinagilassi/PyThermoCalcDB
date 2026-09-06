@@ -7,6 +7,7 @@ from pythermodb_settings.utils import (
     config_components_values,
     to_annotated_value,
 )
+from pythermodb_settings.decorators import calculation_info
 # locals
 from ..utils.conversions import _to_moles, _to_units, _to_volume
 # NOTE: logger setup
@@ -239,6 +240,23 @@ def _calc_component_molarities_from_props(
 # ::: annotated for sequence
 
 
+@calculation_info(
+    name="molarity",
+    description="Calculate the molarity of each component in a solution.",
+    equation="molarity = component_moles / solution_volume",
+    inputs={
+        "component_moles": "Component moles in the solution.",
+        "solution_volume": "Volume of the solution."
+    },
+    outputs={
+        "molarity": "Molarity of each component in the solution."
+    },
+    aliases=("_calc_molarities_from_sequence",),
+    notes=(
+        "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
+        "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
+    )
+)
 def _molarity_1_annotated(
         component_moles: Sequence[float],
         solution_volume: float,
@@ -248,6 +266,28 @@ def _molarity_1_annotated(
         unit: str | None = None,
         symbol: str | None = None
 ) -> AnnotatedValue[list[float]]:
+    """Calculate annotated molarity values from a sequence of component moles.
+
+    Parameters
+    ----------
+    component_moles : Sequence[float]
+        A sequence of moles for each component.
+    solution_volume : float
+        The volume of the solution.
+    name : str, optional
+        The name stored in the annotated result. Defaults to ``"molarity"``.
+    description : str, optional
+        The description stored in the annotated result.
+    unit : str, optional
+        The unit stored in the annotated result.
+    symbol : str, optional
+        The symbol stored in the annotated result.
+
+    Returns
+    -------
+    AnnotatedValue[list[float]]
+        The calculated molarity values with metadata.
+    """
     return to_annotated_value(
         _calc_molarities_from_sequence(
             component_moles=component_moles,
@@ -262,6 +302,23 @@ def _molarity_1_annotated(
 # ::: annotated for mapping
 
 
+@calculation_info(
+    name="molarity",
+    description="Calculate the molarity of each keyed component in a solution.",
+    equation="molarity = component_moles / solution_volume",
+    inputs={
+        "component_moles": "Mapping of component identifiers to component moles in the solution.",
+        "solution_volume": "Volume of the solution."
+    },
+    outputs={
+        "molarity": "Mapping of component identifiers to molarity values."
+    },
+    aliases=("_calc_molarities_from_mapping",),
+    notes=(
+        "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
+        "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
+    )
+)
 def _molarity_2_annotated(
         component_moles: Mapping[str, float | int],
         solution_volume: float,
@@ -271,6 +328,28 @@ def _molarity_2_annotated(
         unit: str | None = None,
         symbol: str | None = None
 ) -> AnnotatedValue[dict[str, float]]:
+    """Calculate annotated molarity values from a component-mole mapping.
+
+    Parameters
+    ----------
+    component_moles : Mapping[str, float | int]
+        A mapping of component names to their respective moles.
+    solution_volume : float
+        The volume of the solution.
+    name : str, optional
+        The name stored in the annotated result. Defaults to ``"molarity"``.
+    description : str, optional
+        The description stored in the annotated result.
+    unit : str, optional
+        The unit stored in the annotated result.
+    symbol : str, optional
+        The symbol stored in the annotated result.
+
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        The calculated molarity values with metadata.
+    """
     return to_annotated_value(
         _calc_molarities_from_mapping(
             component_moles=component_moles,
@@ -285,6 +364,25 @@ def _molarity_2_annotated(
 
 # ::: annotated for mapping with custom properties
 
+
+@calculation_info(
+    name="molarity",
+    description="Calculate keyed molarity values from unit-aware component moles and solution volume.",
+    equation="molarity = component_moles / solution_volume",
+    inputs={
+        "component_moles": "Mapping of component identifiers to unit-aware component mole amounts.",
+        "solution_volume": "Unit-aware volume of the solution.",
+        "output_unit": "Molarity unit used to normalize component moles and solution volume."
+    },
+    outputs={
+        "molarity": "Mapping of component identifiers to molarity values in output_unit."
+    },
+    aliases=("_calc_molarities_from_props",),
+    notes=(
+        "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
+        "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
+    )
+)
 def _molarity_3_annotated(
     component_moles: Mapping[str, CustomProp],
     solution_volume: CustomProp,
@@ -295,6 +393,30 @@ def _molarity_3_annotated(
     unit: str | None = None,
     symbol: str | None = None
 ) -> AnnotatedValue[dict[str, float]]:
+    """Calculate annotated molarity values from unit-aware component moles.
+
+    Parameters
+    ----------
+    component_moles : Mapping[str, CustomProp]
+        A mapping of component names to their mole amounts with units.
+    solution_volume : CustomProp
+        The solution volume with units.
+    output_unit : str, optional
+        The output molarity unit. Defaults to ``"mol/L"``.
+    name : str, optional
+        The name stored in the annotated result. Defaults to ``"molarity"``.
+    description : str, optional
+        The description stored in the annotated result.
+    unit : str, optional
+        The unit stored in the annotated result. Must match ``output_unit``.
+    symbol : str, optional
+        The symbol stored in the annotated result.
+
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        The calculated molarity values with metadata.
+    """
     # SECTION: set default unit for output if not provided
     if unit is None:
         unit = output_unit
@@ -321,6 +443,26 @@ def _molarity_3_annotated(
 # ::: annotated for component mapping with custom properties
 
 
+@calculation_info(
+    name="component_molarity",
+    description="Calculate unit-aware component molarities with optional component-key remapping and ordering.",
+    equation="molarity = component_moles / solution_volume",
+    inputs={
+        "component_moles": "Mapping of component identifiers to unit-aware component mole amounts.",
+        "solution_volume": "Unit-aware volume of the solution.",
+        "output_unit": "Molarity unit used to normalize component moles and solution volume.",
+        "components": "Optional component definitions used to resolve and order component identifiers.",
+        "component_key": "Optional component key used for identifier matching."
+    },
+    outputs={
+        "component_molarity": "Mapping of resolved component identifiers to molarity values in output_unit."
+    },
+    aliases=("_calc_component_molarities_from_props",),
+    notes=(
+        "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
+        "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
+    )
+)
 def _molarity_4_annotated(
     component_moles: Mapping[str, CustomProp],
         solution_volume: CustomProp,
@@ -335,6 +477,38 @@ def _molarity_4_annotated(
         unit: str | None = None,
         symbol: str | None = None,
 ) -> AnnotatedValue[dict[str, float]]:
+    """Calculate annotated molarity values for mapped components with units.
+
+    Parameters
+    ----------
+    component_moles : Mapping[str, CustomProp]
+        A mapping of component identifiers to their mole amounts with units.
+    solution_volume : CustomProp
+        The solution volume with units.
+    output_unit : str, optional
+        The output molarity unit. Defaults to ``"mol/L"``.
+    components : Optional[Sequence[Component]], optional
+        Components used to resolve and order the component identifiers.
+    component_key : Optional[ComponentKey], optional
+        The component key used for mapping identifiers.
+    case_sensitive : bool, optional
+        Whether component identifier matching is case sensitive.
+    sort_by_components_order : bool, optional
+        Whether to order results according to ``components``.
+    name : str, optional
+        The name stored in the annotated result. Defaults to ``"molarity"``.
+    description : str, optional
+        The description stored in the annotated result.
+    unit : str, optional
+        The unit stored in the annotated result. Must match ``output_unit``.
+    symbol : str, optional
+        The symbol stored in the annotated result.
+
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        The calculated molarity values with metadata.
+    """
     # SECTION: set default unit for output if not provided
     if unit is None:
         unit = output_unit
