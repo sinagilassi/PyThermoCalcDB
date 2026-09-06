@@ -15,7 +15,7 @@ dictionaries of floats, or lists of floats.
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Optional, List
+from typing import Optional, List, cast, overload
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp, ScalarValue, Component, ComponentKey
 from pythermodb_settings.utils import config_components_values
@@ -135,7 +135,7 @@ def _configure_component_values(
 # ! mole fraction to mass fraction conversion
 
 
-def mole_fraction_to_mass_fraction(
+def _mole_fraction_to_mass_fraction(
     mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_molecular_weight_unit: str | None = None,
@@ -241,7 +241,7 @@ def mole_fraction_to_mass_fraction(
 # ! ::: Convert Mass Fraction to Mole Fraction
 
 
-def mass_fraction_to_mole_fraction(
+def _mass_fraction_to_mole_fraction(
     mass_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_molecular_weight_unit: str | None = None,
@@ -492,7 +492,7 @@ def molality_to_molarity(
 # ! ::: Convert Molality to Molarity
 
 
-def molarities_to_molalities(
+def _molarities_to_molalities(
     molarities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     solution_density: ScalarValue,
@@ -615,7 +615,7 @@ def molarities_to_molalities(
 # SECTION: Molality and mole fraction conversions
 
 # ! ::: Convert Molality to Mole Fraction
-def molality_to_mole_fraction(
+def _molality_to_mole_fraction(
     molalities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     solvent_molecular_weight: ScalarValue,
     solvent_key: str = "solvent",
@@ -1339,14 +1339,576 @@ def ppb_mole_to_mole_fraction(ppb: ScalarValue) -> float:
     return value * 1e-9
 
 
+# SECTION: Explicit input-shape aliases
+
+@overload
+def mole_fraction_to_mass_fraction(
+    mole_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    ...
+
+
+@overload
+def mole_fraction_to_mass_fraction(
+    mole_fractions: Sequence[float | int],
+    molecular_weights: Sequence[float | int],
+    components: None = None,
+    component_key: None = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> list[float]:
+    ...
+
+
+def mole_fraction_to_mass_fraction(
+    mole_fractions: Mapping[str, float | int] | Sequence[float | int],
+    molecular_weights: Mapping[str, float | int] | Sequence[float | int],
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float] | list[float]:
+    """Convert mole fractions to mass fractions using numeric inputs.
+
+    Mapping inputs return a dictionary. Sequence inputs return a list. For
+    molecular weights with units, use the corresponding ``..._with_units``
+    mapping or sequence function.
+    """
+    return _mole_fraction_to_mass_fraction(
+        mole_fractions=mole_fractions,
+        molecular_weights=molecular_weights,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+
+
+@overload
+def mass_fraction_to_mole_fraction(
+    mass_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    ...
+
+
+@overload
+def mass_fraction_to_mole_fraction(
+    mass_fractions: Sequence[float | int],
+    molecular_weights: Sequence[float | int],
+    components: None = None,
+    component_key: None = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> list[float]:
+    ...
+
+
+def mass_fraction_to_mole_fraction(
+    mass_fractions: Mapping[str, float | int] | Sequence[float | int],
+    molecular_weights: Mapping[str, float | int] | Sequence[float | int],
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float] | list[float]:
+    """Convert mass fractions to mole fractions using numeric inputs.
+
+    Mapping inputs return a dictionary. Sequence inputs return a list. For
+    molecular weights with units, use the corresponding ``..._with_units``
+    mapping or sequence function.
+    """
+    return _mass_fraction_to_mole_fraction(
+        mass_fractions=mass_fractions,
+        molecular_weights=molecular_weights,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+
+
+@overload
+def molarities_to_molalities(
+    molarities: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    solution_density: float | int,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    ...
+
+
+@overload
+def molarities_to_molalities(
+    molarities: Sequence[float | int],
+    molecular_weights: Sequence[float | int],
+    solution_density: float | int,
+    components: None = None,
+    component_key: None = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> list[float]:
+    ...
+
+
+def molarities_to_molalities(
+    molarities: Mapping[str, float | int] | Sequence[float | int],
+    molecular_weights: Mapping[str, float | int] | Sequence[float | int],
+    solution_density: float | int,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float] | list[float]:
+    """Convert multisolute molarities to molalities using numeric inputs.
+
+    Mapping inputs return a dictionary. Sequence inputs return a list. For
+    molarities, molecular weights, or density with units, use the corresponding
+    ``..._with_units`` mapping or sequence function.
+    """
+    return _molarities_to_molalities(
+        molarities=molarities,
+        molecular_weights=molecular_weights,
+        solution_density=solution_density,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+
+
+@overload
+def molality_to_mole_fraction(
+    molalities: Mapping[str, float | int],
+    solvent_molecular_weight: float | int,
+    solvent_key: str = "solvent",
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    ...
+
+
+@overload
+def molality_to_mole_fraction(
+    molalities: Sequence[float | int],
+    solvent_molecular_weight: float | int,
+    solvent_key: str = "solvent",
+    components: None = None,
+    component_key: None = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> list[float]:
+    ...
+
+
+def molality_to_mole_fraction(
+    molalities: Mapping[str, float | int] | Sequence[float | int],
+    solvent_molecular_weight: float | int,
+    solvent_key: str = "solvent",
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float] | list[float]:
+    """Convert molalities to mole fractions using numeric inputs.
+
+    Mapping inputs return a dictionary. Sequence inputs return a list. For
+    molalities or solvent molecular weight with units, use the corresponding
+    ``..._with_units`` mapping or sequence function.
+    """
+    return _molality_to_mole_fraction(
+        molalities=molalities,
+        solvent_molecular_weight=solvent_molecular_weight,
+        solvent_key=solvent_key,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+
+
+def mapping_mole_fraction_to_mass_fraction(
+    mole_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping mole fractions to mass fractions using numeric inputs."""
+    return cast(
+        dict[str, float],
+        _mole_fraction_to_mass_fraction(
+            mole_fractions=mole_fractions,
+            molecular_weights=molecular_weights,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_mole_fraction_to_mass_fraction(
+    mole_fractions: Sequence[float | int],
+    molecular_weights: Sequence[float | int],
+) -> list[float]:
+    """Convert sequence mole fractions to mass fractions using numeric inputs."""
+    return cast(
+        list[float],
+        _mole_fraction_to_mass_fraction(
+            mole_fractions=mole_fractions,
+            molecular_weights=molecular_weights,
+        ),
+    )
+
+
+def mapping_mole_fraction_to_mass_fraction_with_units(
+    mole_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping mole fractions to mass fractions with molecular-weight units."""
+    return cast(
+        dict[str, float],
+        _mole_fraction_to_mass_fraction(
+            mole_fractions=mole_fractions,
+            molecular_weights=molecular_weights,
+            output_molecular_weight_unit=output_molecular_weight_unit,
+            unit_conversion_fn=unit_conversion_fn,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_mole_fraction_to_mass_fraction_with_units(
+    mole_fractions: Sequence[float | int],
+    molecular_weights: Sequence[CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> list[float]:
+    """Convert sequence mole fractions to mass fractions with molecular-weight units."""
+    return cast(
+        list[float],
+        _mole_fraction_to_mass_fraction(
+            mole_fractions=mole_fractions,
+            molecular_weights=molecular_weights,
+            output_molecular_weight_unit=output_molecular_weight_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        ),
+    )
+
+
+def mapping_mass_fraction_to_mole_fraction(
+    mass_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping mass fractions to mole fractions using numeric inputs."""
+    return cast(
+        dict[str, float],
+        _mass_fraction_to_mole_fraction(
+            mass_fractions=mass_fractions,
+            molecular_weights=molecular_weights,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_mass_fraction_to_mole_fraction(
+    mass_fractions: Sequence[float | int],
+    molecular_weights: Sequence[float | int],
+) -> list[float]:
+    """Convert sequence mass fractions to mole fractions using numeric inputs."""
+    return cast(
+        list[float],
+        _mass_fraction_to_mole_fraction(
+            mass_fractions=mass_fractions,
+            molecular_weights=molecular_weights,
+        ),
+    )
+
+
+def mapping_mass_fraction_to_mole_fraction_with_units(
+    mass_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping mass fractions to mole fractions with molecular-weight units."""
+    return cast(
+        dict[str, float],
+        _mass_fraction_to_mole_fraction(
+            mass_fractions=mass_fractions,
+            molecular_weights=molecular_weights,
+            output_molecular_weight_unit=output_molecular_weight_unit,
+            unit_conversion_fn=unit_conversion_fn,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_mass_fraction_to_mole_fraction_with_units(
+    mass_fractions: Sequence[float | int],
+    molecular_weights: Sequence[CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> list[float]:
+    """Convert sequence mass fractions to mole fractions with molecular-weight units."""
+    return cast(
+        list[float],
+        _mass_fraction_to_mole_fraction(
+            mass_fractions=mass_fractions,
+            molecular_weights=molecular_weights,
+            output_molecular_weight_unit=output_molecular_weight_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        ),
+    )
+
+
+def mapping_molarities_to_molalities(
+    molarities: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    solution_density: float | int,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping molarities to molalities using numeric inputs."""
+    return cast(
+        dict[str, float],
+        _molarities_to_molalities(
+            molarities=molarities,
+            molecular_weights=molecular_weights,
+            solution_density=solution_density,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_molarities_to_molalities(
+    molarities: Sequence[float | int],
+    molecular_weights: Sequence[float | int],
+    solution_density: float | int,
+) -> list[float]:
+    """Convert sequence molarities to molalities using numeric inputs."""
+    return cast(
+        list[float],
+        _molarities_to_molalities(
+            molarities=molarities,
+            molecular_weights=molecular_weights,
+            solution_density=solution_density,
+        ),
+    )
+
+
+def mapping_molarities_to_molalities_with_units(
+    molarities: Mapping[str, CustomProp],
+    molecular_weights: Mapping[str, CustomProp],
+    solution_density: CustomProp,
+    output_molarity_unit: str | None = None,
+    output_molecular_weight_unit: str | None = None,
+    output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping molarities to molalities with unit-aware inputs."""
+    return cast(
+        dict[str, float],
+        _molarities_to_molalities(
+            molarities=molarities,
+            molecular_weights=molecular_weights,
+            solution_density=solution_density,
+            output_molarity_unit=output_molarity_unit,
+            output_molecular_weight_unit=output_molecular_weight_unit,
+            output_solution_density_unit=output_solution_density_unit,
+            unit_conversion_fn=unit_conversion_fn,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_molarities_to_molalities_with_units(
+    molarities: Sequence[CustomProp],
+    molecular_weights: Sequence[CustomProp],
+    solution_density: CustomProp,
+    output_molarity_unit: str | None = None,
+    output_molecular_weight_unit: str | None = None,
+    output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> list[float]:
+    """Convert sequence molarities to molalities with unit-aware inputs."""
+    return cast(
+        list[float],
+        _molarities_to_molalities(
+            molarities=molarities,
+            molecular_weights=molecular_weights,
+            solution_density=solution_density,
+            output_molarity_unit=output_molarity_unit,
+            output_molecular_weight_unit=output_molecular_weight_unit,
+            output_solution_density_unit=output_solution_density_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        ),
+    )
+
+
+def mapping_molality_to_mole_fraction(
+    molalities: Mapping[str, float | int],
+    solvent_molecular_weight: float | int,
+    solvent_key: str = "solvent",
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping molalities to mole fractions using numeric inputs."""
+    return cast(
+        dict[str, float],
+        _molality_to_mole_fraction(
+            molalities=molalities,
+            solvent_molecular_weight=solvent_molecular_weight,
+            solvent_key=solvent_key,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_molality_to_mole_fraction(
+    molalities: Sequence[float | int],
+    solvent_molecular_weight: float | int,
+) -> list[float]:
+    """Convert sequence molalities to mole fractions using numeric inputs."""
+    return cast(
+        list[float],
+        _molality_to_mole_fraction(
+            molalities=molalities,
+            solvent_molecular_weight=solvent_molecular_weight,
+        ),
+    )
+
+
+def mapping_molality_to_mole_fraction_with_units(
+    molalities: Mapping[str, CustomProp],
+    solvent_molecular_weight: CustomProp,
+    solvent_key: str = "solvent",
+    output_molality_unit: str | None = None,
+    output_solvent_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> dict[str, float]:
+    """Convert mapping molalities to mole fractions with unit-aware inputs."""
+    return cast(
+        dict[str, float],
+        _molality_to_mole_fraction(
+            molalities=molalities,
+            solvent_molecular_weight=solvent_molecular_weight,
+            solvent_key=solvent_key,
+            output_molality_unit=output_molality_unit,
+            output_solvent_molecular_weight_unit=output_solvent_molecular_weight_unit,
+            unit_conversion_fn=unit_conversion_fn,
+            components=components,
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+        ),
+    )
+
+
+def sequence_molality_to_mole_fraction_with_units(
+    molalities: Sequence[CustomProp],
+    solvent_molecular_weight: CustomProp,
+    output_molality_unit: str | None = None,
+    output_solvent_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> list[float]:
+    """Convert sequence molalities to mole fractions with unit-aware inputs."""
+    return cast(
+        list[float],
+        _molality_to_mole_fraction(
+            molalities=molalities,
+            solvent_molecular_weight=solvent_molecular_weight,
+            output_molality_unit=output_molality_unit,
+            output_solvent_molecular_weight_unit=output_solvent_molecular_weight_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        ),
+    )
+
+
 # SECTION: Public exports
 __all__ = [
     "mole_fraction_to_mass_fraction",
+    "mapping_mole_fraction_to_mass_fraction",
+    "sequence_mole_fraction_to_mass_fraction",
+    "mapping_mole_fraction_to_mass_fraction_with_units",
+    "sequence_mole_fraction_to_mass_fraction_with_units",
     "mass_fraction_to_mole_fraction",
+    "mapping_mass_fraction_to_mole_fraction",
+    "sequence_mass_fraction_to_mole_fraction",
+    "mapping_mass_fraction_to_mole_fraction_with_units",
+    "sequence_mass_fraction_to_mole_fraction_with_units",
     "molarity_to_molality",
     "molality_to_molarity",
     "molarities_to_molalities",
+    "mapping_molarities_to_molalities",
+    "sequence_molarities_to_molalities",
+    "mapping_molarities_to_molalities_with_units",
+    "sequence_molarities_to_molalities_with_units",
     "molality_to_mole_fraction",
+    "mapping_molality_to_mole_fraction",
+    "sequence_molality_to_mole_fraction",
+    "mapping_molality_to_mole_fraction_with_units",
+    "sequence_molality_to_mole_fraction_with_units",
     "mole_fraction_to_molality",
     "molarity_to_mass_fraction",
     "mass_fraction_to_molarity",
