@@ -1,7 +1,7 @@
 ﻿# import libs
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-from pythermodb_settings.models import Component, ComponentKey, CustomProp
+from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
 from pythermodb_settings.utils import (
     config_components_values,
 )
@@ -229,6 +229,70 @@ def molarity4(
     return component_molarity_dict, component_molarity_list
 
 
+def molarity5(
+    component_moles: Dict[str, CustomProp],
+    solution_volume: CustomProp,
+    output_unit: str = 'mol/L',
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+    name: str = "component_molarities",
+    description: str = "Molarity of each component in the solution",
+    symbol: str = "",
+) -> Optional[AnnotatedValue[Dict[str, float]]]:
+    """
+    Calculate the molarity of each component in a solution given the component moles and the solution volume as a CustomProp. The default
+    volume unit is litre (L). The component molarity list and dictionary will be ordered according to the components list if sort_by_components_order is True.
+
+    Parameters
+    ----------
+    component_moles : Dict[str, CustomProp]
+        A dictionary mapping component names to CustomProp objects representing the moles.
+    solution_volume : CustomProp
+        The volume of the solution as a CustomProp object.
+    output_unit : str, optional
+        The unit for the output molarity values. Defaults to 'mol/L'.
+    components : Optional[List[Component]], optional
+        A list of Component objects to map the component moles to, by default None.
+    component_key : Optional[ComponentKey], optional
+        The key to use for mapping component moles to components, by default None.
+    case_sensitive : bool, optional
+        Whether the component mapping should be case sensitive, by default True.
+    sort_by_components_order : bool, optional
+        Whether to sort the component molarities by the order of components, by default True.
+
+    Returns
+    -------
+    AnnotatedValue[Dict[str, float]]
+        An AnnotatedValue object containing a dictionary of component molarities, or None if the calculation could not be performed.
+    """
+    # NOTE: calculate component molarities
+    res = molarity4(
+        component_moles=component_moles,
+        solution_volume=solution_volume,
+        output_unit=output_unit,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    # >> check
+    if res is None:
+        return None
+
+    # >>> unpack
+    component_molarity_dict, _ = res
+
+    return AnnotatedValue(
+        value=component_molarity_dict,
+        name=name,
+        unit=output_unit,
+        description=description,
+        symbol=symbol
+    )
+
+
 # SECTION: Aliases
 # ! list
 calculate_molarities = molarity1
@@ -245,3 +309,7 @@ calc_keyed_molarities_with_units = molarity3
 # ! component mapping
 calculate_component_molarities = molarity4
 calc_component_molarities = molarity4
+
+# ! annotated value
+calculate_component_molarities_annotated = molarity5
+calc_component_molarities_annotated = molarity5
