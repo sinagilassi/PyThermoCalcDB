@@ -1,8 +1,8 @@
 # import libs
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import List, Optional, Dict, Any
-from pythermodb_settings.utils import config_components_values
+from pythermodb_settings.utils import config_components_values, get_unit
 from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, UnitConversionFn, Component, ComponentKey, ScalarValue
 from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar, pos, to_scalar
 from pycuc import convert_from_to
@@ -18,6 +18,47 @@ def _resolve_unit_conversion_fn(
 ) -> UnitConversionFn:
     """Return the provided converter or the module default converter."""
     return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+
+
+def _iter_values(
+    values: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+):
+    """Yield scalar values from mapping or sequence component input."""
+    return values.values() if isinstance(values, Mapping) else values
+
+
+def _contains_custom_prop(
+    values: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+) -> bool:
+    """Return True when component values carry explicit unit metadata."""
+    return any(isinstance(value, CustomProp) for value in _iter_values(values))
+
+
+def _resolve_result_unit(
+    identifier: str,
+    values: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    output_unit: str | None,
+) -> str | None:
+    """Resolve an annotated result unit from unit-carrying component values.
+
+    Numeric values do not carry source units, so the function cannot prove or
+    perform any conversion for them. Unit annotation is therefore managed only
+    when at least one component value is a ``CustomProp``.
+    """
+    if not _contains_custom_prop(values):
+        return None
+
+    if output_unit is not None:
+        return output_unit
+
+    unit_info = get_unit(identifier=identifier, data=values)
+    if not unit_info["consistent"]:
+        raise ValueError(
+            f"{identifier} CustomProp values must have consistent units when "
+            "no output unit is provided."
+        )
+
+    return str(unit_info["unit"]) if unit_info["unit"] is not None else None
 
 
 # SECTION: Unit handling helpers
