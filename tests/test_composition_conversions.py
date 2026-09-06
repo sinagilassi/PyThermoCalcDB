@@ -9,6 +9,10 @@ from pythermocalcdb.compositions.conversions import (
     mass_fraction_to_mole_fraction,
     mass_fraction_to_ppm,
     mass_fraction_to_weight_percent,
+    mapping_molality_to_mole_fraction,
+    mapping_molarities_to_molalities,
+    mapping_mole_fraction_to_mass_fraction,
+    mapping_mole_fraction_to_mass_fraction_with_units,
     molality_to_molarity,
     molality_to_mass_fraction,
     molality_to_mole_fraction,
@@ -22,6 +26,8 @@ from pythermocalcdb.compositions.conversions import (
     mole_fraction_to_ppb,
     ppm_mass_to_mass_fraction,
     ppb_mole_to_mole_fraction,
+    sequence_mass_fraction_to_mole_fraction,
+    sequence_mole_fraction_to_mass_fraction,
     weight_percent_to_mass_fraction,
 )
 
@@ -88,7 +94,7 @@ class TestCompositionConversions(unittest.TestCase):
         self.assertTrue(math.isclose(mole_fraction_to_mole_percent(0.25), 25.0))
 
     def test_component_amounts_with_custom_prop_molecular_weights(self):
-        result = mole_fraction_to_mass_fraction(
+        result = mapping_mole_fraction_to_mass_fraction_with_units(
             {"water": 0.5, "ethanol": 0.5},
             {
                 "water": CustomProp(value=18.015, unit="g/mol"),
@@ -98,6 +104,41 @@ class TestCompositionConversions(unittest.TestCase):
         )
         self.assertTrue(math.isclose(sum(result.values()), 1.0, rel_tol=1e-12))
         self.assertTrue(math.isclose(result["water"], 0.28111102442069125, rel_tol=1e-12))
+
+    def test_explicit_collection_conversion_names(self):
+        sequence_result = sequence_mole_fraction_to_mass_fraction(
+            [0.5, 0.5],
+            [0.018015, 0.04607],
+        )
+        self.assert_close_sequence(sequence_result, [0.28111102442069125, 0.7188889755793086])
+
+        round_trip = sequence_mass_fraction_to_mole_fraction(
+            sequence_result,
+            [0.018015, 0.04607],
+        )
+        self.assert_close_sequence(round_trip, [0.5, 0.5])
+
+        mapping_result = mapping_mole_fraction_to_mass_fraction_with_units(
+            {"water": 0.5, "ethanol": 0.5},
+            {
+                "water": CustomProp(value=18.015, unit="g/mol"),
+                "ethanol": CustomProp(value=46.07, unit="g/mol"),
+            },
+            output_molecular_weight_unit="kg/mol",
+        )
+        self.assertTrue(math.isclose(mapping_result["water"], sequence_result[0], rel_tol=1e-12))
+
+        molalities = mapping_molarities_to_molalities(
+            {"a": 1.0, "b": 0.5},
+            {"a": 0.04, "b": 0.06},
+            1.05,
+        )
+        mole_fractions = mapping_molality_to_mole_fraction(
+            molalities,
+            0.01801528,
+            solvent_key="H2O",
+        )
+        self.assertTrue(math.isclose(sum(mole_fractions.values()), 1.0, rel_tol=1e-12))
 
     def test_scalar_custom_prop_units(self):
         result = molarity_to_mass_fraction(
@@ -115,7 +156,7 @@ class TestCompositionConversions(unittest.TestCase):
             Component(name="ethanol", formula="C2H6O", state="l"),
             Component(name="water", formula="H2O", state="l"),
         ]
-        result = mole_fraction_to_mass_fraction(
+        result = mapping_mole_fraction_to_mass_fraction(
             {"water": 0.5, "ethanol": 0.5},
             {"water": 18.015, "ethanol": 46.07},
             components=components,
