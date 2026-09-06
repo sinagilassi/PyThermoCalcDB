@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from pythermodb_settings.models import Component, ComponentKey, CustomProp
 from pythermodb_settings.utils import config_components_values
 # locals
-from ..models import ComponentMoles
 from ..utils.conversions import _to_mass, _to_moles, _to_units
 
 # NOTE: logger setup
@@ -75,7 +74,7 @@ def molality2(
 
 # ! ::: Molality [mol/kg] with solvent mass as CustomProp
 def molality3(
-    component_moles: ComponentMoles,
+    component_moles: Dict[str, CustomProp],
     solvent_mass: CustomProp,
     output_unit: str = 'mol/kg',
 ) -> Tuple[Dict[str, float], List[float]]:
@@ -84,8 +83,8 @@ def molality3(
 
     Parameters
     ----------
-    component_moles : ComponentMoles
-        A dictionary mapping component names to their respective moles. Numeric values are assumed to already be in the mole unit from output_unit.
+    component_moles : Dict[str, CustomProp]
+        A dictionary mapping component names to their respective mole amounts.
     solvent_mass : CustomProp
         The solvent mass as a CustomProp object.
     output_unit : str, optional
@@ -99,7 +98,7 @@ def molality3(
     Notes
     -----
     - The solvent mass is expected to be provided as a CustomProp object. If the output_unit is not specified, it defaults to mol/kg.
-    - Numeric component mole values are assumed to already be in the mole unit from output_unit.
+    - Component mole values are expected to be CustomProp objects so their units can be converted to the mole unit from output_unit.
     """
     # SECTION: set default units for moles and mass
     units_ = _to_units(output_unit)
@@ -134,7 +133,7 @@ def molality3(
 
 # ! ::: Molality [mol/kg] with component ID mapping and sorting
 def molality4(
-    component_moles: ComponentMoles,
+    component_moles: Dict[str, CustomProp],
     solvent_mass: CustomProp,
     output_unit: str = 'mol/kg',
     components: Optional[List[Component]] = None,
@@ -147,8 +146,8 @@ def molality4(
 
     Parameters
     ----------
-    component_moles : ComponentMoles
-        A dictionary mapping component names to their respective moles or CustomProp objects representing the moles.
+    component_moles : Dict[str, CustomProp]
+        A dictionary mapping component names to CustomProp objects representing the moles.
     solvent_mass : CustomProp
         The solvent mass as a CustomProp object.
     output_unit : str, optional
@@ -222,3 +221,21 @@ def molality4(
     component_molality_dict, component_molality_list = component_molality
 
     return component_molality_dict, component_molality_list
+
+
+# SECTION: Aliases
+# ! list
+calculate_molalities = molality1
+calc_molalities = molality1
+
+# ! dict
+calculate_keyed_molalities = molality2
+calc_keyed_molalities = molality2
+
+# ! unit-aware dict
+calculate_keyed_molalities_with_units = molality3
+calc_keyed_molalities_with_units = molality3
+
+# ! component mapping
+calculate_component_molalities = molality4
+calc_component_molalities = molality4
