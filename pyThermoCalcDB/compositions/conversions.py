@@ -18,7 +18,6 @@ from collections.abc import Mapping, Sequence
 from typing import Optional, List, cast, overload
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp, ScalarValue, Component, ComponentKey
-from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.validators import (
     non_empty,
@@ -30,105 +29,14 @@ from pythermodb_settings.utils.validators import (
 from pythermodb_settings.utils.quantity import (
     to_dict,
     to_list,
-    to_scalar,
-    pos
 )
 # locals
-from ..utils.conversions import _resolve_unit_conversion_fn
-
-# SECTION: Unit conversion helpers
-
-
-def _dict(
-    values: Mapping[str, float | int | CustomProp],
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> dict[str, float]:
-    return to_dict(
-        values,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _list(
-    values: Sequence[float | int | CustomProp],
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> list[float]:
-    return to_list(
-        values,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _scalar(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    return to_scalar(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _pos(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-_non_empty = non_empty
-_fractions = fractions
-_positive = positive
-_non_negative = non_negative
-_same_shape = same_shape
-
-
-def _configure_component_values(
-    values: Mapping[str, float],
-    components: Optional[List[Component]],
-    component_key: Optional[ComponentKey],
-    case_sensitive: bool,
-    sort_by_components_order: bool,
-    name: str,
-) -> dict[str, float]:
-    """Remap and order mapping values using component metadata when requested."""
-    # ! If no component key is provided, return the original values as a dictionary.
-    if component_key is None:
-        return dict(values)
-
-    if not components:
-        raise ValueError(
-            f"component_key is provided but components is empty for {name}."
-        )
-
-    component_values = config_components_values(
-        values=dict(values),
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order,
-    )
-    if component_values is None:
-        raise ValueError(f"Failed to configure {name} component values.")
-
-    component_values_dict, _ = component_values
-    return component_values_dict
-
+from ..utils.conversions import (
+    _configure_component_values,
+    _resolve_unit_conversion_fn,
+    _pos,
+    _scalar,
+)
 
 # SECTION: Mole fraction and mass fraction conversions
 
@@ -194,11 +102,14 @@ def _mole_fraction_to_mass_fraction(
 
     # SECTION: Mapping implementation
     if isinstance(mole_fractions, Mapping) and isinstance(molecular_weights, Mapping):
-        x = _dict(mole_fractions)
-        mw = _dict(
+        x = to_dict(
+            mole_fractions,
+            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+        )
+        mw = to_dict(
             molecular_weights,
             output_molecular_weight_unit,
-            unit_conversion_fn
+            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
         )
         x = _configure_component_values(
             x,
@@ -227,11 +138,14 @@ def _mole_fraction_to_mass_fraction(
             "Both component inputs must be mappings or both sequences.")
 
     # SECTION: Sequence implementation
-    x = _list(mole_fractions)
-    mw = _list(
+    x = to_list(
+        mole_fractions,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+    mw = to_list(
         molecular_weights,
         output_molecular_weight_unit,
-        unit_conversion_fn
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
     )
     denom = sum(x_i * mw_i for x_i, mw_i in zip(x, mw))
     if denom <= 0.0:
@@ -294,17 +208,20 @@ def _mass_fraction_to_mole_fraction(
     x_i = (w_i/M_i) / sum_j(w_j/M_j)
     """
     # SECTION: Validate inputs
-    _fractions(mass_fractions, "mass_fractions")
-    _positive(molecular_weights, "molecular_weights")
-    _same_shape(mass_fractions, molecular_weights)
+    fractions(mass_fractions, "mass_fractions")
+    positive(molecular_weights, "molecular_weights")
+    same_shape(mass_fractions, molecular_weights)
 
     # SECTION: Mapping implementation
     if isinstance(mass_fractions, Mapping) and isinstance(molecular_weights, Mapping):
-        w = _dict(mass_fractions)
-        mw = _dict(
+        w = to_dict(
+            mass_fractions,
+            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+        )
+        mw = to_dict(
             molecular_weights,
             output_molecular_weight_unit,
-            unit_conversion_fn
+            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
         )
         w = _configure_component_values(
             w,
@@ -333,11 +250,14 @@ def _mass_fraction_to_mole_fraction(
             "Both component inputs must be mappings or both sequences.")
 
     # SECTION: Sequence implementation
-    w = _list(mass_fractions)
-    mw = _list(
+    w = to_list(
+        mass_fractions,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+    mw = to_list(
         molecular_weights,
         output_molecular_weight_unit,
-        unit_conversion_fn
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
     )
     denom = sum(w_i / mw_i for w_i, mw_i in zip(w, mw))
     if denom <= 0.0:
@@ -553,10 +473,10 @@ def _molarities_to_molalities(
     b_i = C_i / (rho - sum_j(C_j*M_j))
     """
     # SECTION: Validate inputs
-    _non_empty(molarities, "molarities")
-    _non_negative(molarities, "molarities")
-    _positive(molecular_weights, "molecular_weights")
-    _same_shape(molarities, molecular_weights)
+    non_empty(molarities, "molarities")
+    non_negative(molarities, "molarities")
+    positive(molecular_weights, "molecular_weights")
+    same_shape(molarities, molecular_weights)
     rho = _pos(
         solution_density,
         "solution_density",
@@ -566,11 +486,15 @@ def _molarities_to_molalities(
 
     # SECTION: Mapping implementation
     if isinstance(molarities, Mapping) and isinstance(molecular_weights, Mapping):
-        c = _dict(molarities, output_molarity_unit, unit_conversion_fn)
-        mw = _dict(
+        c = to_dict(
+            molarities,
+            output_molarity_unit,
+            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+        )
+        mw = to_dict(
             molecular_weights,
             output_molecular_weight_unit,
-            unit_conversion_fn
+            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
         )
         c = _configure_component_values(
             c,
@@ -599,11 +523,15 @@ def _molarities_to_molalities(
             "Both component inputs must be mappings or both sequences.")
 
     # SECTION: Sequence implementation
-    c = _list(molarities, output_molarity_unit, unit_conversion_fn)
-    mw = _list(
+    c = to_list(
+        molarities,
+        output_molarity_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
+    mw = to_list(
         molecular_weights,
         output_molecular_weight_unit,
-        unit_conversion_fn
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
     )
     solvent_mass = rho - sum(c_i * mw_i for c_i, mw_i in zip(c, mw))
     if solvent_mass <= 0.0:
@@ -670,8 +598,8 @@ def _molality_to_mole_fraction(
     Uses a 1 kg solvent basis, so n_solvent = 1/M_solvent.
     """
     # SECTION: Validate inputs
-    _non_empty(molalities, "molalities")
-    _non_negative(molalities, "molalities")
+    non_empty(molalities, "molalities")
+    non_negative(molalities, "molalities")
     solvent_moles = 1.0 / _pos(
         solvent_molecular_weight,
         "solvent_molecular_weight",
@@ -681,10 +609,10 @@ def _molality_to_mole_fraction(
 
     # SECTION: Mapping implementation
     if isinstance(molalities, Mapping):
-        b = _dict(
+        b = to_dict(
             molalities,
             output_molality_unit,
-            unit_conversion_fn
+            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
         )
         b = _configure_component_values(
             b,
@@ -700,7 +628,11 @@ def _molality_to_mole_fraction(
         return res
 
     # SECTION: Sequence implementation
-    b = _list(molalities, output_molality_unit, unit_conversion_fn)
+    b = to_list(
+        molalities,
+        output_molality_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
     total = solvent_moles + sum(b)
     return [value / total for value in b] + [solvent_moles / total]
 
