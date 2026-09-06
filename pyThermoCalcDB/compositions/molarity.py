@@ -6,7 +6,6 @@ from pythermodb_settings.utils import (
     config_components_values,
 )
 # locals
-from ..models import ComponentMoles
 from ..utils.conversions import _to_moles, _to_units, _to_volume
 
 # NOTE: logger setup
@@ -14,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 # ! ::: Molarity [m_i]
-
 
 def molarity1(
         component_moles: List[float],
@@ -78,7 +76,7 @@ def molarity2(
 
 # ! ::: Molarity [m_i] with solution volume as CustomProp
 def molarity3(
-    component_moles: ComponentMoles,
+    component_moles: Dict[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
 ) -> Tuple[Dict[str, float], List[float]]:
@@ -88,8 +86,8 @@ def molarity3(
 
     Parameters
     ----------
-    component_moles : ComponentMoles
-        A dictionary mapping component names to their respective moles. Numeric values are assumed to already be in the mole unit from output_unit.
+    component_moles : Dict[str, CustomProp]
+        A dictionary mapping component names to their respective mole amounts.
     solution_volume : CustomProp
         The volume of the solution as a CustomProp object.
     output_unit : str, optional
@@ -103,7 +101,7 @@ def molarity3(
     Notes
     -----
     - The solution volume is expected to be provided as a CustomProp object. If the output_unit is not specified, it defaults to mol/L.
-    - Numeric component mole values are assumed to already be in the mole unit from output_unit.
+    - Component mole values are expected to be CustomProp objects so their units can be converted to the mole unit from output_unit.
     """
     # SECTION: set default units for moles and volume
     units_ = _to_units(output_unit)
@@ -139,7 +137,7 @@ def molarity3(
 
 
 def molarity4(
-    component_moles: ComponentMoles,
+    component_moles: Dict[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
     components: Optional[List[Component]] = None,
@@ -153,8 +151,8 @@ def molarity4(
 
     Parameters
     ----------
-    component_moles : ComponentMoles
-        A dictionary mapping component names to their respective moles or CustomProp objects representing the moles.
+    component_moles : Dict[str, CustomProp]
+        A dictionary mapping component names to CustomProp objects representing the moles.
     solution_volume : CustomProp
         The volume of the solution as a CustomProp object.
     output_unit : str, optional
@@ -229,3 +227,21 @@ def molarity4(
     component_molarity_dict, component_molarity_list = component_molarity
 
     return component_molarity_dict, component_molarity_list
+
+
+# SECTION: Aliases
+# ! list
+calculate_molarities = molarity1
+calc_molarities = molarity1
+
+# ! dict
+calculate_keyed_molarities = molarity2
+calc_keyed_molarities = molarity2
+
+# ! unit-aware dict
+calculate_keyed_molarities_with_units = molarity3
+calc_keyed_molarities_with_units = molarity3
+
+# ! component mapping
+calculate_component_molarities = molarity4
+calc_component_molarities = molarity4
