@@ -2,6 +2,8 @@
 import logging
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
+import numpy as np
+from numpy.typing import NDArray
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
 from pythermodb_settings.utils import (
     config_components_values,
@@ -10,6 +12,7 @@ from pythermodb_settings.utils import (
 from pythermodb_settings.decorators import calculation_info
 # locals
 from ..utils.conversions import _to_moles, _to_units, _to_volume
+
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,50 @@ logger = logging.getLogger(__name__)
 # *** Internal deterministic calculations
 # ======================================================================
 
+# ! ::: Molarity from array-like inputs
+
+def _calc_molarities(
+    component_moles: Sequence[float | int] | NDArray[np.number],
+    solution_volume: float | int | NDArray[np.number],
+) -> NDArray[np.floating]:
+    """
+    Calculate molarities using NumPy vectorization.
+
+    Parameters
+    ----------
+    component_moles : Sequence[float | int] | NDArray[np.number]
+        Component mole amounts. May be a Python sequence or a
+        1-D/2-D NumPy array.
+    solution_volume : float | int | NDArray[np.number]
+        Solution volume. Must be a scalar or have the same shape as
+        ``component_moles``.
+
+    Returns
+    -------
+    NDArray[np.floating]
+        Molarities with the same shape as ``component_moles``.
+    """
+
+    moles = np.asarray(component_moles, dtype=float)
+    volume = np.asarray(solution_volume, dtype=float)
+
+    if moles.ndim not in (1, 2):
+        raise ValueError(
+            "component_moles must be a 1-D or 2-D array-like object."
+        )
+
+    if volume.ndim != 0 and volume.shape != moles.shape:
+        raise ValueError(
+            "solution_volume must be a scalar or have the same shape as component_moles."
+        )
+
+    if np.any(volume == 0):
+        raise ValueError("Volume of the solution cannot be zero.")
+
+    return moles / volume
+
 # ! ::: Molarity from sequence
+
 
 def _calc_molarities_from_sequence(
         component_moles: Sequence[float],
@@ -39,11 +85,12 @@ def _calc_molarities_from_sequence(
     list[float]
         A list of molarity values for each component.
     """
-    # check
-    if solution_volume == 0:
-        logger.error("Volume of the solution cannot be zero.")
-        raise ValueError("Volume of the solution cannot be zero.")
-    return [moles / solution_volume for moles in component_moles]
+    # calc
+    return _calc_molarities(
+        component_moles,
+        solution_volume
+    ).tolist()
+
 
 # ! ::: Molarity from mapping
 
@@ -67,15 +114,14 @@ def _calc_molarities_from_mapping(
     dict[str, float]
         A dictionary mapping component names to their respective molarity values.
     """
-    # check
-    if solution_volume == 0:
-        logger.error("Volume of the solution cannot be zero.")
-        raise ValueError("Volume of the solution cannot be zero.")
+    # calc
+    molarities_ = _calc_molarities(
+        component_moles=list(component_moles.values()),
+        solution_volume=solution_volume
+    )
 
-    # ! dict
-    component_molarity_dict = {
-        key: value / solution_volume for key, value in component_moles.items()
-    }
+    # to dict
+    component_molarity_dict = dict(zip(component_moles.keys(), molarities_))
 
     return component_molarity_dict
 
@@ -237,6 +283,71 @@ def _calc_component_molarities_from_props(
 # *** Public annotated API
 # ======================================================================
 
+# ::: annotated for numpy array
+
+
+@calculation_info(
+    name="molarity",
+    description="Calculate the molarity of each component in a solution.",
+    equation="molarity = component_moles / solution_volume",
+    inputs={
+        "component_moles": "Component moles in the solution.",
+        "solution_volume": "Volume of the solution."
+    },
+    outputs={
+        "molarity": "Molarity of each component in the solution."
+    },
+    aliases=("_calc_molarities",),
+    notes=(
+        "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
+        "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
+    ),
+    tags=(
+        "molarity",
+        "solution",
+        "array_like",
+        "numpy",
+        "component_moles",
+        "numeric",
+    )
+)
+def _molarity_annotated(
+        component_moles: Sequence[float | int] | NDArray[np.number],
+        solution_volume: float | int | NDArray[np.number],
+        *,
+        name: str = "molarity",
+        description: str = "Calculate the molarity of each component in a solution.",
+        unit: str | None = None,
+        symbol: str | None = None,
+) -> AnnotatedValue[NDArray[np.floating]]:
+    """Calculate annotated molarity values from array-like inputs.
+
+    Parameters
+    ----------
+    component_moles : Sequence[float | int] | NDArray[np.number]
+        Component mole amounts. May be a Python sequence or a
+        1-D/2-D NumPy array.
+    solution_volume : float | int | NDArray[np.number]
+        Solution volume.
+
+    Returns
+    -------
+    AnnotatedValue[NDArray[np.floating]]
+        Molarities with the same shape as ``component_moles``.
+    """
+    return to_annotated_value(
+        _calc_molarities(
+            component_moles=component_moles,
+            solution_volume=solution_volume
+        ),
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molarities",
+    )
+
+
 # ::: annotated for sequence
 
 
@@ -255,6 +366,13 @@ def _calc_component_molarities_from_props(
     notes=(
         "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
         "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
+    ),
+    tags=(
+        "molarity",
+        "solution",
+        "sequence",
+        "component_moles",
+        "numeric",
     )
 )
 def _molarity_1_annotated(
@@ -296,7 +414,8 @@ def _molarity_1_annotated(
         name=name,
         description=description,
         unit=unit,
-        symbol=symbol
+        symbol=symbol,
+        implementation="_calc_molarities_from_sequence"
     )
 
 # ::: annotated for mapping
@@ -317,6 +436,14 @@ def _molarity_1_annotated(
     notes=(
         "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
         "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
+    ),
+    tags=(
+        "molarity",
+        "solution",
+        "mapping",
+        "component_moles",
+        "numeric",
+        "keyed",
     )
 )
 def _molarity_2_annotated(
@@ -358,7 +485,8 @@ def _molarity_2_annotated(
         name=name,
         description=description,
         unit=unit,
-        symbol=symbol
+        symbol=symbol,
+        implementation="_calc_molarities_from_mapping"
     )
 
 
@@ -381,6 +509,15 @@ def _molarity_2_annotated(
     notes=(
         "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
         "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
+    ),
+    tags=(
+        "molarity",
+        "solution",
+        "mapping",
+        "component_moles",
+        "custom_prop",
+        "unit_conversion",
+        "keyed",
     )
 )
 def _molarity_3_annotated(
@@ -436,7 +573,8 @@ def _molarity_3_annotated(
         name=name,
         description=description,
         unit=output_unit,  # ! set output unit
-        symbol=symbol
+        symbol=symbol,
+        implementation="_calc_molarities_from_props"
     )
 
 
@@ -461,6 +599,17 @@ def _molarity_3_annotated(
     notes=(
         "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
         "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
+    ),
+    tags=(
+        "component_molarity",
+        "molarity",
+        "solution",
+        "mapping",
+        "component_moles",
+        "custom_prop",
+        "unit_conversion",
+        "component_key",
+        "component_ordering",
     )
 )
 def _molarity_4_annotated(
@@ -535,7 +684,8 @@ def _molarity_4_annotated(
         name=name,
         description=description,
         unit=output_unit,  # ! set output unit
-        symbol=symbol
+        symbol=symbol,
+        implementation="_calc_component_molarities_from_props"
     )
 
 
@@ -543,6 +693,9 @@ def _molarity_4_annotated(
 # *** Aliases
 # ======================================================================
 # >> molarities
+calc_molarities = _molarity_annotated
+
+# >> molarities from sequence
 calc_molarities_from_sequence = _molarity_1_annotated
 
 # >> molarities from mapping
@@ -557,6 +710,8 @@ calc_component_molarities_from_props = _molarity_4_annotated
 
 # all
 __all__ = [
+    "_calc_molarities",
+    "calc_molarities",
     "_calc_molarities_from_sequence",
     "calc_molarities_from_sequence",
     "_calc_molarities_from_mapping",
