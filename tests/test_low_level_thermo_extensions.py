@@ -192,7 +192,7 @@ class TestLowLevelThermoExtensions(unittest.TestCase):
         self.assertTrue(math.isclose(calc_heat_capacity_ratio(cp, cv), cp / cv, rel_tol=1e-12))
 
     def test_normality(self):
-        self.assertEqual(calc_normality(0.25, 2.0), 0.5)
+        self.assertEqual(calc_normality(0.25, 2.0).value, 0.5)
         with self.assertRaises(ValueError):
             calc_normality(0.25, 0.0)
 
