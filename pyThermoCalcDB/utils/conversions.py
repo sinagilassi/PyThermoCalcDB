@@ -67,6 +67,19 @@ def _resolve_result_unit(
 
 
 def _to_units(unit: str) -> List[str]:
+    """
+    Split a unit string into individual units.
+
+    Parameters
+    ----------
+    unit : str
+        The unit string to split, expected to contain exactly one '/'.
+
+    Returns
+    -------
+    List[str]
+        A list containing the individual units.
+    """
     # NOTE: validation
     if not unit or not isinstance(unit, str):
         raise ValueError("Invalid unit string provided.")
