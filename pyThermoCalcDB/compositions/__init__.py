@@ -22,6 +22,20 @@ from .molarity import (
     calc_component_molarities_from_props,
 )
 
+# NOTE: molality
+from .molality import (
+    _calc_molalities,
+    calc_molalities,
+    _calc_molalities_from_sequence,
+    calc_molalities_from_sequence,
+    _calc_molalities_from_mapping,
+    calc_molalities_from_mapping,
+    _calc_molalities_from_props,
+    calc_molalities_from_props,
+    _calc_component_molalities_from_props,
+    calc_component_molalities_from_props,
+)
+
 # NOTE: electrolyte primitives
 from .ionic_strength import (
     _calc_ionic_strength_molality_v1,
@@ -162,4 +176,15 @@ __all__ = [
     "_calc_molarities_from_mapping",
     "_calc_molarities_from_props",
     "_calc_component_molarities_from_props",
+    # molality
+    "_calc_molalities",
+    "calc_molalities",
+    "calc_molalities_from_sequence",
+    "calc_molalities_from_mapping",
+    "calc_molalities_from_props",
+    "calc_component_molalities_from_props",
+    "_calc_molalities_from_sequence",
+    "_calc_molalities_from_mapping",
+    "_calc_molalities_from_props",
+    "_calc_component_molalities_from_props",
 ]
