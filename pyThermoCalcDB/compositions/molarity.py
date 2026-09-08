@@ -18,10 +18,56 @@ logger = logging.getLogger(__name__)
 
 
 # ======================================================================
+# *** Helper functions
+# ======================================================================
+def _validate_moles_and_volume(
+    moles: NDArray[np.number],
+    volume: NDArray[np.number],
+) -> None:
+    """
+    Validate the shapes and values of moles and volume arrays.
+
+    Parameters
+    ----------
+    moles : NDArray[np.number]
+        Array of component moles.
+    volume : NDArray[np.number]
+        Array of solution volumes.
+
+    Raises
+    ------
+    ValueError
+        If the shapes of moles and volume are incompatible or if any volume is zero.
+    """
+    # NOTE: validate the shapes of moles and volume arrays
+    if moles.ndim == 1:
+        if volume.ndim != 0 and volume.shape != moles.shape:
+            raise ValueError(...)
+
+    elif moles.ndim == 2:
+        if volume.ndim == 1:
+            if volume.shape[0] != moles.shape[0]:
+                raise ValueError(...)
+            volume = volume[:, None]
+
+        elif volume.ndim == 2:
+            if volume.shape not in (moles.shape, (moles.shape[0], 1)):
+                raise ValueError(...)
+
+    # NOTE: volume must be finite and greater than zero
+    # REVIEW
+    if not np.all(np.isfinite(volume)):
+        raise ValueError("solution_volume must contain finite values.")
+
+    if np.any(volume <= 0):
+        raise ValueError("solution_volume must be greater than zero.")
+
+# ======================================================================
 # *** Internal deterministic calculations
 # ======================================================================
 
 # ! ::: Molarity from array-like inputs
+
 
 def _calc_molarities(
     component_moles: Sequence[float | int] | NDArray[np.number],
@@ -44,22 +90,12 @@ def _calc_molarities(
     NDArray[np.floating]
         Molarities with the same shape as ``component_moles``.
     """
-
+    # set
     moles = np.asarray(component_moles, dtype=float)
     volume = np.asarray(solution_volume, dtype=float)
 
-    if moles.ndim not in (1, 2):
-        raise ValueError(
-            "component_moles must be a 1-D or 2-D array-like object."
-        )
-
-    if volume.ndim != 0 and volume.shape != moles.shape:
-        raise ValueError(
-            "solution_volume must be a scalar or have the same shape as component_moles."
-        )
-
-    if np.any(volume == 0):
-        raise ValueError("Volume of the solution cannot be zero.")
+    # validate
+    _validate_moles_and_volume(moles, volume)
 
     return moles / volume
 
@@ -67,7 +103,7 @@ def _calc_molarities(
 
 
 def _calc_molarities_from_sequence(
-        component_moles: Sequence[float],
+        component_moles: Sequence[float | int],
         solution_volume: float,
 ) -> list[float]:
     """
@@ -75,7 +111,7 @@ def _calc_molarities_from_sequence(
 
     Parameters
     ----------
-    component_moles : Sequence[float]
+    component_moles : Sequence[float | int]
         A sequence of moles for each component.
     solution_volume : float
         The volume of the solution.
@@ -121,7 +157,9 @@ def _calc_molarities_from_mapping(
     )
 
     # to dict
-    component_molarity_dict = dict(zip(component_moles.keys(), molarities_))
+    component_molarity_dict = dict(
+        zip(component_moles.keys(), molarities_.tolist())
+    )
 
     return component_molarity_dict
 
@@ -304,10 +342,9 @@ def _calc_component_molarities_from_props(
     ),
     tags=(
         "molarity",
-        "solution",
         "array_like",
         "numpy",
-        "component_moles",
+        "component_wise",
         "numeric",
     )
 )
@@ -369,9 +406,8 @@ def _molarity_annotated(
     ),
     tags=(
         "molarity",
-        "solution",
         "sequence",
-        "component_moles",
+        "component_wise",
         "numeric",
     )
 )
@@ -438,11 +474,10 @@ def _molarity_1_annotated(
         "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
     ),
     tags=(
-        "molarity",
-        "solution",
-        "mapping",
-        "component_moles",
         "numeric",
+        "molarity",
+        "mapping",
+        "component_aware",
         "keyed",
     )
 )
@@ -512,12 +547,10 @@ def _molarity_2_annotated(
     ),
     tags=(
         "molarity",
-        "solution",
         "mapping",
-        "component_moles",
-        "custom_prop",
+        "unit_aware",
+        "component_aware",
         "unit_conversion",
-        "keyed",
     )
 )
 def _molarity_3_annotated(
@@ -603,10 +636,9 @@ def _molarity_3_annotated(
     tags=(
         "component_molarity",
         "molarity",
-        "solution",
         "mapping",
-        "component_moles",
-        "custom_prop",
+        "component_wise",
+        "unit_aware",
         "unit_conversion",
         "component_key",
         "component_ordering",
