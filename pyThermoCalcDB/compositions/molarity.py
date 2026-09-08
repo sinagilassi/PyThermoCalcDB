@@ -367,7 +367,10 @@ def _calc_component_molarities_from_props(
     outputs={
         "molarity": "Molarity of each component in the solution."
     },
-    aliases=("_calc_molarities",),
+    aliases=(
+        "molar concentration",
+        "amount concentration",
+    ),
     notes=(
         "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
         "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
@@ -431,7 +434,10 @@ def _molarity_annotated(
     outputs={
         "molarity": "Molarity of each component in the solution."
     },
-    aliases=("_calc_molarities_from_sequence",),
+    aliases=(
+        "molar concentration",
+        "amount concentration",
+    ),
     notes=(
         "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
         "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
@@ -500,7 +506,10 @@ def _molarity_1_annotated(
     outputs={
         "molarity": "Mapping of component identifiers to molarity values."
     },
-    aliases=("_calc_molarities_from_mapping",),
+    aliases=(
+        "molar concentration",
+        "amount concentration",
+    ),
     notes=(
         "Numeric inputs do not carry unit metadata, so the annotated result unit is not defined by default.",
         "Pass unit only when component_moles and solution_volume are already expressed on that molarity basis.",
@@ -572,7 +581,10 @@ def _molarity_2_annotated(
     outputs={
         "molarity": "Mapping of component identifiers to molarity values in output_unit."
     },
-    aliases=("_calc_molarities_from_props",),
+    aliases=(
+        "molar concentration",
+        "amount concentration",
+    ),
     notes=(
         "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
         "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
@@ -660,7 +672,10 @@ def _molarity_3_annotated(
     outputs={
         "component_molarity": "Mapping of resolved component identifiers to molarity values in output_unit."
     },
-    aliases=("_calc_component_molarities_from_props",),
+    aliases=(
+        "molar concentration",
+        "amount concentration",
+    ),
     notes=(
         "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
         "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
@@ -770,7 +785,6 @@ calc_molarities_from_props = _molarity_3_annotated
 
 # >> component molarities
 calc_component_molarities_from_props = _molarity_4_annotated
-
 
 # all
 __all__ = [
