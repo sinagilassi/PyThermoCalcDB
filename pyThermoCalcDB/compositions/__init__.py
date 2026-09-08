@@ -10,6 +10,8 @@ from .fractions import (
 
 # NOTE: molarity
 from .molarity import (
+    _calc_molarities,
+    calc_molarities,
     _calc_molarities_from_sequence,
     calc_molarities_from_sequence,
     _calc_molarities_from_mapping,
@@ -150,6 +152,8 @@ __all__ = [
     "mole_fraction_to_ppb",
     "ppb_mole_to_mole_fraction",
     # molarity
+    "_calc_molarities",
+    "calc_molarities",
     "calc_molarities_from_sequence",
     "calc_molarities_from_mapping",
     "calc_molarities_from_props",
