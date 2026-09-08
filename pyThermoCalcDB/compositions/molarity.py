@@ -1,7 +1,7 @@
 ﻿# import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import numpy as np
 from numpy.typing import NDArray
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 # *** Helper functions
 # ======================================================================
 def _validate_moles_and_volume(
-    moles: NDArray[np.number],
-    volume: NDArray[np.number],
-) -> None:
+    moles: NDArray[np.float64],
+    volume: NDArray[np.float64],
+) -> NDArray[np.float64]:
     """
     Validate the shapes and values of moles and volume arrays.
 
@@ -34,25 +34,55 @@ def _validate_moles_and_volume(
     volume : NDArray[np.number]
         Array of solution volumes.
 
+    Returns
+    -------
+    NDArray[np.number]
+        Validated volume array. A 1-D per-state volume for 2-D moles is
+        returned as ``(n_states, 1)`` so NumPy broadcasts across components.
+
     Raises
     ------
     ValueError
         If the shapes of moles and volume are incompatible or if any volume is zero.
     """
-    # NOTE: validate the shapes of moles and volume arrays
+    if moles.ndim not in (1, 2):
+        raise ValueError("component_moles must be a 1-D or 2-D array.")
+
+    if volume.ndim > 2:
+        raise ValueError(
+            "solution_volume must be a scalar, 1-D array, or 2-D array."
+        )
+
     if moles.ndim == 1:
-        if volume.ndim != 0 and volume.shape != moles.shape:
-            raise ValueError(...)
+        if volume.ndim not in (0, 1):
+            raise ValueError(
+                "For 1-D component_moles, solution_volume must be a scalar "
+                "or have the same shape as component_moles."
+            )
+        if volume.ndim == 1 and volume.shape != moles.shape:
+            raise ValueError(
+                "For 1-D component_moles, solution_volume must be a scalar "
+                "or have the same shape as component_moles."
+            )
 
     elif moles.ndim == 2:
-        if volume.ndim == 1:
+        if volume.ndim == 0:
+            pass
+        elif volume.ndim == 1:
             if volume.shape[0] != moles.shape[0]:
-                raise ValueError(...)
+                raise ValueError(
+                    "For 2-D component_moles, 1-D solution_volume must have "
+                    "one entry per state."
+                )
             volume = volume[:, None]
 
         elif volume.ndim == 2:
             if volume.shape not in (moles.shape, (moles.shape[0], 1)):
-                raise ValueError(...)
+                raise ValueError(
+                    "For 2-D component_moles, solution_volume must be a "
+                    "scalar, have shape (n_states,), shape (n_states, 1), "
+                    "or the same shape as component_moles."
+                )
 
     # NOTE: volume must be finite and greater than zero
     # REVIEW
@@ -61,6 +91,8 @@ def _validate_moles_and_volume(
 
     if np.any(volume <= 0):
         raise ValueError("solution_volume must be greater than zero.")
+
+    return volume
 
 # ======================================================================
 # *** Internal deterministic calculations
@@ -72,7 +104,7 @@ def _validate_moles_and_volume(
 def _calc_molarities(
     component_moles: Sequence[float | int] | NDArray[np.number],
     solution_volume: float | int | NDArray[np.number],
-) -> NDArray[np.floating]:
+) -> NDArray[np.float64]:
     """
     Calculate molarities using NumPy vectorization.
 
@@ -91,13 +123,13 @@ def _calc_molarities(
         Molarities with the same shape as ``component_moles``.
     """
     # set
-    moles = np.asarray(component_moles, dtype=float)
-    volume = np.asarray(solution_volume, dtype=float)
+    moles: NDArray[np.float64] = np.asarray(component_moles, dtype=np.float64)
+    volume: NDArray[np.float64] = np.asarray(solution_volume, dtype=np.float64)
 
     # validate
-    _validate_moles_and_volume(moles, volume)
+    volume = _validate_moles_and_volume(moles, volume)
 
-    return moles / volume
+    return cast(NDArray[np.float64], moles / volume)
 
 # ! ::: Molarity from sequence
 
