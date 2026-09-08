@@ -55,7 +55,12 @@ from .ionic_strength import (
 )
 
 # NOTE: equivalent concentration
-from .normality import calc_normality
+from .normality import (
+    _calc_normality,
+    calc_normality,
+    _calc_normality_from_props,
+    calc_normality_from_props,
+)
 
 # NOTE: composition conversions
 from .conversions import (
@@ -123,7 +128,10 @@ __all__ = [
     "calc_sequence_charge_balance",
     "calc_charge_balance",
     "check_electroneutrality",
+    "_calc_normality",
     "calc_normality",
+    "_calc_normality_from_props",
+    "calc_normality_from_props",
     "mole_fraction_to_mass_fraction",
     "mapping_mole_fraction_to_mass_fraction",
     "sequence_mole_fraction_to_mass_fraction",
