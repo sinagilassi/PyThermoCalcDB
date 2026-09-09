@@ -1,5 +1,17 @@
 # import libs
 import logging
+from collections.abc import Mapping, Sequence
+from typing import Any, Optional, cast
+import numpy as np
+from numpy.typing import NDArray
+from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
+from pythermodb_settings.utils import (
+    config_components_values,
+    to_annotated_value,
+)
+from pythermodb_settings.decorators import calculation_info
+
+# old
 from typing import Any, Dict, List, Optional, Tuple
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, UnitConversionFn
 from pythermodb_settings.utils import config_components_values, to_amounts
@@ -10,7 +22,14 @@ from ..utils.conversions import _to_units, _to_volume, _resolve_unit_conversion_
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
+# ======================================================================
+# *** Helper functions
+# ======================================================================
 
+
+# ======================================================================
+# *** Internal deterministic calculations
+# ======================================================================
 # ! ::: Concentration [amount/volume]
 def concentration_amount_volume_1(
         component_amounts: List[float],
@@ -251,7 +270,7 @@ def mass_concentration2(
 
 
 def mass_concentration3(
-    component_mass: ComponentAmounts,
+    component_mass: Mapping[str, float | int | CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'kg/m^3',
     unit_conversion_fn: Optional[UnitConversionFn] = None,
@@ -266,7 +285,7 @@ def mass_concentration3(
 
 
 def mass_concentration4(
-    component_mass: ComponentAmounts,
+    component_mass: Mapping[str, float | int | CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'kg/m^3',
     components: Optional[List[Component]] = None,
