@@ -22,25 +22,25 @@ def _validate(
     volume: NDArray[np.float64],
 ) -> NDArray[np.float64]:
     """
-    Validate the shapes and values of moles and solvent mass arrays.
+    Validate the shapes and values of component amount and solution volume arrays.
 
     Parameters
     ----------
     amount : NDArray[np.number]
-        Array of component amount.
+        Array of component amounts.
     volume : NDArray[np.number]
-        Array of solution volume.
+        Array of solution volumes.
 
     Returns
     -------
     NDArray[np.number]
-        Validated mass array. A 1-D per-state mass for 2-D moles is returned
+        Validated volume array. A 1-D per-state volume for 2-D amounts is returned
         as ``(n_states, 1)`` so NumPy broadcasts across components.
 
     Raises
     ------
     ValueError
-        If the shapes of moles and mass are incompatible or if any mass is
+        If the shapes of amounts and volumes are incompatible or if any volume is
         not finite and greater than zero.
     """
     if amount.ndim not in (1, 2):
@@ -99,6 +99,22 @@ def _calc_concentrations(
     component_amounts: Sequence[float | int] | NDArray[np.number],
     solution_volume: float | int | NDArray[np.number],
 ):
+    """
+    Calculate concentrations using NumPy vectorization.
+
+    Parameters
+    ----------
+    component_amounts : Sequence[float | int] | NDArray[np.number]
+        Component amounts. May be a Python sequence or a 1-D/2-D NumPy array.
+    solution_volume : float | int | NDArray[np.number]
+        Solution volume. Must be a scalar or have a shape compatible with
+        ``component_amounts``.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Concentrations with the same broadcasted shape as ``component_amounts``.
+    """
     # set
     moles: NDArray[np.float64] = np.asarray(
         component_amounts,
@@ -122,13 +138,13 @@ def _calc_concentrations_from_sequence(
         solution_volume: float | int,
 ) -> List[float]:
     """
-    Calculate the concentration of each component in a solution given component amounts and solution volume.
+    Calculate the concentration of each component in a solution.
 
     Parameters
     ----------
-    component_amounts : List[float]
-        A list of amounts for each component.
-    solution_volume : float
+    component_amounts : Sequence[float | int]
+        A sequence of amounts for each component.
+    solution_volume : float | int
         The volume of the solution.
 
     Returns
@@ -149,19 +165,19 @@ def _calc_concentrations_from_mapping(
     solution_volume: float | int,
 ) -> Dict[str, float]:
     """
-    Calculate the concentration of each component in a solution given component amounts and solution volume.
+    Calculate the concentration of each keyed component in a solution.
 
     Parameters
     ----------
-    component_amounts : Dict[str, float | int]
-        A dictionary mapping component names to their respective amounts.
-    solution_volume : float
+    component_amounts : Mapping[str, float | int]
+        A mapping of component names to their respective amounts.
+    solution_volume : float | int
         The volume of the solution.
 
     Returns
     -------
-    Tuple[Dict[str, float], List[float]]
-        A tuple containing a dictionary of component concentrations and a list of concentration values.
+    Dict[str, float]
+        A dictionary mapping component names to their concentration values.
     """
     # calc
     concentrations_ = _calc_concentrations(
@@ -178,23 +194,22 @@ def _calc_concentrations_from_props(
     output_unit: str,
 ) -> Dict[str, float]:
     """
-    Calculate the concentration of each component in a solution given component amounts and solution volume as a CustomProp.
+    Calculate keyed concentrations from unit-aware component amounts and solution volume.
 
     Parameters
     ----------
-    component_amounts : ComponentAmounts
-        A dictionary mapping component names to their respective amounts. Numeric values are assumed to already be in the numerator unit from output_unit.
+    component_amounts : Mapping[str, CustomProp]
+        A mapping of component names to their unit-aware amounts.
     solution_volume : CustomProp
-        The volume of the solution as a CustomProp object.
-    output_unit : str, optional
-        The unit for the output concentration values. Defaults to 'kg/m^3'.
-    unit_conversion_fn : UnitConversionFn, optional
-        The function to use for unit conversion. Defaults to None. Then it will use the default conversion function `pycuc.convert_from_to`.
+        The unit-aware volume of the solution.
+    output_unit : str
+        The unit for the output concentration values.
 
     Returns
     -------
-    Tuple[Dict[str, float], List[float]]
-        A tuple containing a dictionary of component concentrations and a list of concentration values.
+    Dict[str, float]
+        A dictionary mapping component names to concentration values in
+        ``output_unit``.
     """
     # SECTION: set default units for amount and volume
     units_ = _to_units(output_unit)
@@ -233,18 +248,19 @@ def _calc_component_concentrations_from_props(
     unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Dict[str, float]:
     """
-    Calculate the concentration of each component in a solution given component amounts and solution volume as a CustomProp. The component concentration list and dictionary will be ordered according to the components list if sort_by_components_order is True.
+    Calculate component concentrations with optional component-key remapping and ordering.
 
     Parameters
     ----------
     component_amounts : Mapping[str, CustomProp]
-        A dictionary mapping component names to their respective amounts or CustomProp objects representing the amounts.
+        A mapping of component identifiers to unit-aware amounts.
     solution_volume : CustomProp
-        The volume of the solution as a CustomProp object.
-    output_unit : str, optional
-        The unit for the output concentration values. Defaults to 'kg/m^3'.
+        The unit-aware volume of the solution.
+    output_unit : str
+        The unit for the output concentration values.
     components : Optional[List[Component]], optional
-        A list of Component objects to map the component amounts to, by default None.
+        Component definitions used to resolve and order component identifiers,
+        by default None.
     component_key : Optional[ComponentKey], optional
         The key to use for mapping component amounts to components, by default None.
     case_sensitive : bool, optional
@@ -252,12 +268,14 @@ def _calc_component_concentrations_from_props(
     sort_by_components_order : bool, optional
         Whether to sort the component concentrations by the order of components, by default True.
     unit_conversion_fn : UnitConversionFn, optional
-        The function to use for unit conversion. Defaults to None. Then it will use the default conversion function `pycuc.convert_from_to`.
+        Reserved for API consistency. Unit conversion is handled by the
+        conversion helpers used in this module.
 
     Returns
     -------
     Dict[str, float]
-        A dictionary mapping component names to their calculated concentration values.
+        A dictionary mapping resolved component identifiers to concentration
+        values in ``output_unit``.
     """
     # SECTION: Unit validation
     units_ = _to_units(output_unit)
