@@ -183,6 +183,36 @@ def to_g_mol(
 
 
 # ! ::: Convert component moles to the requested output unit
+
+def _to_amounts(
+    component_amounts: Mapping[str, float | int | CustomProp],
+    output_unit: str,
+    unit_conversion_fn: Optional[UnitConversionFn] = None,
+) -> Dict[str, float]:
+    """
+    Convert a dictionary of component amounts to float values in the desired output unit.
+
+    Parameters
+    ----------
+    component_amounts : Mapping[str, float | int | CustomProp]
+        A dictionary mapping component names to their respective amounts or CustomProp objects representing the amounts.
+    output_unit : str
+        The unit to which the component amounts should be converted.
+    unit_conversion_fn : UnitConversionFn, optional
+        The function to use for unit conversion. Defaults to None. Then it will use the default conversion function `pycuc.convert_from_to`.
+
+    Returns
+    -------
+    Dict[str, float]
+        A dictionary mapping component names to their respective amounts as floats in the desired output unit.
+    """
+    return to_amounts(
+        component_amounts=component_amounts,
+        output_unit=output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn)
+    )
+
+
 def _to_moles(
         component_moles: ComponentMoles,
         output_unit: Optional[str] = None,
