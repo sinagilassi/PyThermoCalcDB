@@ -1282,6 +1282,7 @@ def mole_fraction_to_mass_fraction(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> dict[str, float]:
+    """Convert mapping mole fractions to mapping mass fractions."""
     ...
 
 
@@ -1294,6 +1295,7 @@ def mole_fraction_to_mass_fraction(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> list[float]:
+    """Convert sequence mole fractions to sequence mass fractions."""
     ...
 
 
@@ -1330,6 +1332,7 @@ def mass_fraction_to_mole_fraction(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> dict[str, float]:
+    """Convert mapping mass fractions to mapping mole fractions."""
     ...
 
 
@@ -1342,6 +1345,7 @@ def mass_fraction_to_mole_fraction(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> list[float]:
+    """Convert sequence mass fractions to sequence mole fractions."""
     ...
 
 
@@ -1379,6 +1383,7 @@ def molarities_to_molalities(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> dict[str, float]:
+    """Convert mapping molarities to mapping molalities."""
     ...
 
 
@@ -1392,6 +1397,7 @@ def molarities_to_molalities(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> list[float]:
+    """Convert sequence molarities to sequence molalities."""
     ...
 
 
@@ -1431,6 +1437,7 @@ def molality_to_mole_fraction(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> dict[str, float]:
+    """Convert mapping molalities to mapping mole fractions."""
     ...
 
 
@@ -1444,6 +1451,7 @@ def molality_to_mole_fraction(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> list[float]:
+    """Convert sequence molalities to sequence mole fractions."""
     ...
 
 
