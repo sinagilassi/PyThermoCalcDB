@@ -338,6 +338,26 @@ def calc_charge_balance_from_props(
 
 # ! ::: Electroneutrality check
 
+@calculation_info(
+    name="electroneutrality",
+    description="Check electroneutrality from numeric inputs.",
+    equation="abs(sum_i(z_i * c_i)) <= tolerance",
+    inputs={
+        "concentrations": "Species concentrations.",
+        "charges": "Species charges.",
+        "tolerance": "Maximum allowed absolute charge-balance residual.",
+    },
+    outputs={
+        "electroneutrality": "Whether the charge-balance residual is within tolerance."
+    },
+    tags=(
+        "electroneutrality",
+        "array_like",
+        "numpy",
+        "numeric",
+        "boolean",
+    ),
+)
 def check_electroneutrality(
     concentrations: float | int | Sequence[float | int] | NDArray[np.number],
     charges: float | int | Sequence[float | int] | NDArray[np.number],
@@ -389,6 +409,25 @@ def check_electroneutrality(
 
 # ! ::: Sequence check
 
+@calculation_info(
+    name="electroneutrality",
+    description="Check electroneutrality from sequence inputs.",
+    equation="abs(sum_i(z_i * c_i)) <= tolerance",
+    inputs={
+        "concentrations": "Species concentrations.",
+        "charges": "Species charges.",
+        "tolerance": "Maximum allowed absolute charge-balance residual.",
+    },
+    outputs={
+        "electroneutrality": "Whether the charge-balance residual is within tolerance."
+    },
+    tags=(
+        "electroneutrality",
+        "sequence",
+        "numeric",
+        "boolean",
+    ),
+)
 def check_electroneutrality_from_sequence(
     concentrations: Sequence[float | int],
     charges: Sequence[float | int],
@@ -440,6 +479,25 @@ def check_electroneutrality_from_sequence(
 
 # ! ::: Mapping check
 
+@calculation_info(
+    name="electroneutrality",
+    description="Check electroneutrality from mapping inputs.",
+    equation="abs(sum_i(z_i * c_i)) <= tolerance",
+    inputs={
+        "concentrations": "Keyed species concentrations.",
+        "charges": "Keyed species charges.",
+        "tolerance": "Maximum allowed absolute charge-balance residual.",
+    },
+    outputs={
+        "electroneutrality": "Whether the charge-balance residual is within tolerance."
+    },
+    tags=(
+        "electroneutrality",
+        "mapping",
+        "numeric",
+        "boolean",
+    ),
+)
 def check_electroneutrality_from_mapping(
     concentrations: Mapping[str, float | int],
     charges: Mapping[str, float | int],
@@ -491,6 +549,26 @@ def check_electroneutrality_from_mapping(
 
 # ! ::: Unit-aware mapping check
 
+@calculation_info(
+    name="electroneutrality",
+    description="Check electroneutrality from unit-aware mapping inputs.",
+    equation="abs(sum_i(z_i * c_i)) <= tolerance",
+    inputs={
+        "concentrations": "Keyed unit-aware species concentrations.",
+        "charges": "Keyed species charges.",
+        "output_concentration_unit": "Unit used to normalize concentrations.",
+        "tolerance": "Maximum allowed absolute charge-balance residual.",
+    },
+    outputs={
+        "electroneutrality": "Whether the charge-balance residual is within tolerance."
+    },
+    tags=(
+        "electroneutrality",
+        "mapping",
+        "unit_aware",
+        "boolean",
+    ),
+)
 def check_electroneutrality_from_props(
     concentrations: Mapping[str, CustomProp],
     charges: Mapping[str, float | int],
