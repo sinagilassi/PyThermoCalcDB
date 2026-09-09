@@ -232,6 +232,7 @@ def mass_concentration1(
         component_mass: List[float],
         solution_volume: float,
 ) -> List[float]:
+    """Calculate numeric mass concentrations from mass sequence and volume."""
     return concentration_amount_volume_1(
         component_amounts=component_mass,
         solution_volume=solution_volume,
@@ -242,6 +243,7 @@ def mass_concentration2(
     component_mass: Dict[str, float | int],
     solution_volume: float,
 ) -> Tuple[Dict[str, float], List[float]]:
+    """Calculate numeric mass concentrations from keyed masses and volume."""
     return concentration_amount_volume_2(
         component_amounts=component_mass,
         solution_volume=solution_volume,
@@ -254,6 +256,7 @@ def mass_concentration3(
     output_unit: str = 'kg/m^3',
     unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Tuple[Dict[str, float], List[float]]:
+    """Calculate unit-aware mass concentrations on the requested output basis."""
     return concentration_amount_volume_3(
         component_amounts=component_mass,
         solution_volume=solution_volume,
@@ -272,6 +275,7 @@ def mass_concentration4(
     sort_by_components_order: bool = True,
     unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Optional[Tuple[Dict[str, float], List[float]]]:
+    """Calculate component-aware unit-normalized mass concentrations."""
     return concentration_amount_volume_4(
         component_amounts=component_mass,
         solution_volume=solution_volume,
@@ -289,6 +293,7 @@ def molar_concentration1(
         component_moles: List[float],
         solution_volume: float,
 ) -> List[float]:
+    """Calculate numeric molar concentrations from mole sequence and volume."""
     return concentration_amount_volume_1(
         component_amounts=component_moles,
         solution_volume=solution_volume,
@@ -299,6 +304,7 @@ def molar_concentration2(
     component_moles: Dict[str, float | int],
     solution_volume: float,
 ) -> Tuple[Dict[str, float], List[float]]:
+    """Calculate numeric molar concentrations from keyed moles and volume."""
     return concentration_amount_volume_2(
         component_amounts=component_moles,
         solution_volume=solution_volume,
@@ -311,6 +317,7 @@ def molar_concentration3(
     output_unit: str = 'mol/L',
     unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Tuple[Dict[str, float], List[float]]:
+    """Calculate unit-aware molar concentrations on the requested output basis."""
     return concentration_amount_volume_3(
         component_amounts=component_moles,
         solution_volume=solution_volume,
@@ -329,6 +336,7 @@ def molar_concentration4(
     sort_by_components_order: bool = True,
     unit_conversion_fn: Optional[UnitConversionFn] = None,
 ) -> Optional[Tuple[Dict[str, float], List[float]]]:
+    """Calculate component-aware unit-normalized molar concentrations."""
     return concentration_amount_volume_4(
         component_amounts=component_moles,
         solution_volume=solution_volume,
