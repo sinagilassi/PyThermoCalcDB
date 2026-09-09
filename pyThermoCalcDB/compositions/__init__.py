@@ -42,13 +42,20 @@ from .ionic_strength import (
 )
 
 from .charge_balance import (
-    _calc_charge_balance_v1,
+    _calc_charge_balance,
+    _calc_charge_balance_from_mapping,
+    _calc_charge_balance_from_props,
+    _calc_charge_balance_from_sequence,
     calc_charge_balance_from_mapping,
+    calc_charge_balance_from_props,
     calc_charge_balance_from_sequence,
     calc_mapping_charge_balance,
     calc_sequence_charge_balance,
     calc_charge_balance,
     check_electroneutrality,
+    check_electroneutrality_from_mapping,
+    check_electroneutrality_from_props,
+    check_electroneutrality_from_sequence,
 )
 
 from .ionic_strength_molality import (
@@ -170,13 +177,20 @@ __all__ = [
     "calc_ionic_strength_molarity_from_sequence",
     "calc_ionic_strength_molarity_from_props",
     "calc_ionic_strength_molarity",
-    "_calc_charge_balance_v1",
+    "_calc_charge_balance",
+    "_calc_charge_balance_from_mapping",
+    "_calc_charge_balance_from_props",
+    "_calc_charge_balance_from_sequence",
     "calc_mapping_charge_balance",
     "calc_sequence_charge_balance",
     "calc_charge_balance_from_mapping",
+    "calc_charge_balance_from_props",
     "calc_charge_balance_from_sequence",
     "calc_charge_balance",
     "check_electroneutrality",
+    "check_electroneutrality_from_mapping",
+    "check_electroneutrality_from_props",
+    "check_electroneutrality_from_sequence",
     "_calc_normality",
     "calc_normality",
     "_calc_normality_from_props",
