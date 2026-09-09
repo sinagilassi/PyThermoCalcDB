@@ -1,23 +1,18 @@
 # import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, cast
+from typing import Any, Optional, Dict, List, Optional
 import numpy as np
 from numpy.typing import NDArray
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
+from pythermodb_settings.decorators import calculation_info
 from pythermodb_settings.utils import (
-    config_components_values,
     to_annotated_value,
 )
-from pythermodb_settings.decorators import calculation_info
 
 # old
-from typing import Any, Dict, List, Optional, Tuple
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, UnitConversionFn
-from pythermodb_settings.utils import config_components_values, to_amounts
 # locals
-from ..models import ComponentAmounts
-from ..utils.conversions import _to_units, _to_volume, _resolve_unit_conversion_fn
 from .core.concentration import (
     _calc_concentrations,
     _calc_concentrations_from_sequence,
