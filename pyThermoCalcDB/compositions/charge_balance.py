@@ -1,6 +1,7 @@
 """Charge-balance calculations."""
 
 # import libs
+import logging
 from collections.abc import Mapping, Sequence
 from typing import Optional, cast
 
@@ -23,11 +24,59 @@ from ..utils.conversions import (
 )
 from ..utils.tools import to_annotated_value
 
+# NOTE: logger setup
+logger = logging.getLogger(__name__)
+
+
+# ======================================================================
+# *** Helper functions
+# ======================================================================
+def _validate_charge_balance_inputs(
+    concentrations: NDArray[np.float64],
+    charges: NDArray[np.float64],
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Validate and broadcast charge-balance input arrays."""
+    # SECTION: Validate array dimensions
+    if concentrations.ndim > 2:
+        raise ValueError(
+            "concentrations must be a scalar, 1-D array, or 2-D array."
+        )
+
+    if charges.ndim > 2:
+        raise ValueError("charges must be a scalar, 1-D array, or 2-D array.")
+
+    if not np.all(np.isfinite(concentrations)):
+        raise ValueError("concentrations must contain finite values.")
+
+    if not np.all(np.isfinite(charges)):
+        raise ValueError("charges must contain finite values.")
+
+    # ! Concentrations cannot be negative for charge-balance composition input.
+    if np.any(concentrations < 0):
+        raise ValueError("concentrations must be non-negative.")
+
+    # NOTE: Broadcast inputs to compatible shapes before calculation.
+    try:
+        concentrations, charges = np.broadcast_arrays(
+            concentrations,
+            charges,
+        )
+    except ValueError as exc:
+        raise ValueError(
+            "concentrations and charges must have broadcast-compatible shapes."
+        ) from exc
+
+    return (
+        cast(NDArray[np.float64], concentrations),
+        cast(NDArray[np.float64], charges),
+    )
+
 
 # ======================================================================
 # *** Internal deterministic calculations
 # ======================================================================
 # ! ::: Numeric array-like core
+
 
 def _calc_charge_balance(
     concentrations: float | int | Sequence[float | int] | NDArray[np.number],
@@ -44,35 +93,11 @@ def _calc_charge_balance(
         dtype=np.float64,
     )
 
-    # SECTION: Validate inputs
-    if concentration_values.ndim > 2:
-        raise ValueError(
-            "concentrations must be a scalar, 1-D array, or 2-D array."
-        )
-
-    if charge_values.ndim > 2:
-        raise ValueError("charges must be a scalar, 1-D array, or 2-D array.")
-
-    if not np.all(np.isfinite(concentration_values)):
-        raise ValueError("concentrations must contain finite values.")
-
-    if not np.all(np.isfinite(charge_values)):
-        raise ValueError("charges must contain finite values.")
-
-    # ! Concentrations cannot be negative for charge-balance composition input.
-    if np.any(concentration_values < 0):
-        raise ValueError("concentrations must be non-negative.")
-
-    # ? NumPy handles scalar, 1-D, and 2-D broadcasting consistently here.
-    try:
-        concentration_values, charge_values = np.broadcast_arrays(
-            concentration_values,
-            charge_values,
-        )
-    except ValueError as exc:
-        raise ValueError(
-            "concentrations and charges must have broadcast-compatible shapes."
-        ) from exc
+    # NOTE: validation
+    concentration_values, charge_values = _validate_charge_balance_inputs(
+        concentration_values,
+        charge_values,
+    )
 
     # SECTION: Calculate residual contributions
     values = concentration_values * charge_values
