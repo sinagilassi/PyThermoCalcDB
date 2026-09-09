@@ -98,7 +98,7 @@ def _validate(
 def _calc_concentrations(
     component_amounts: Sequence[float | int] | NDArray[np.number],
     solution_volume: float | int | NDArray[np.number],
-):
+) -> NDArray[np.float64]:
     """
     Calculate concentrations using NumPy vectorization.
 
@@ -329,3 +329,13 @@ def _calc_component_concentrations_from_props(
         component_amounts=component_values_dict,
         solution_volume=solution_volume_scalar,
     )
+
+
+# export
+__all__ = [
+    "_calc_concentrations",
+    "_calc_concentrations_from_sequence",
+    "_calc_concentrations_from_mapping",
+    "_calc_concentrations_from_props",
+    "_calc_component_concentrations_from_props",
+]
