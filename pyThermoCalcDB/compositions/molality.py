@@ -12,10 +12,7 @@ from pythermodb_settings.models import (
     ComponentKey,
     CustomProp,
 )
-from pythermodb_settings.utils import (
-    config_components_values,
-    to_annotated_value,
-)
+from pythermodb_settings.utils import to_annotated_value
 
 # locals
 from .core.molality import (
