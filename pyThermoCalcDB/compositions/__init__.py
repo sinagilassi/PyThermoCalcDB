@@ -21,7 +21,6 @@ from .molality import (
     calc_molalities_from_sequence,
     calc_molalities_from_mapping,
     calc_molalities_from_props,
-    calc_component_molalities_from_props,
 )
 
 # NOTE: electrolyte primitives
@@ -131,7 +130,6 @@ __all__ = [
     "calc_molalities_from_sequence",
     "calc_molalities_from_mapping",
     "calc_molalities_from_props",
-    "calc_component_molalities_from_props",
     # ? normality
     "calc_normality",
     "calc_normality_from_props",
