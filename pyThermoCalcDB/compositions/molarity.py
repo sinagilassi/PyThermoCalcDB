@@ -12,10 +12,8 @@ from pythermodb_settings.decorators import calculation_info
 # locals
 from .core.molarity import (
     _calc_molarities,
-    _calc_molarities_from_sequence,
     _calc_molarities_from_mapping,
     _calc_molarities_from_props,
-    _calc_component_molarities_from_props
 )
 
 # NOTE: logger setup
@@ -56,7 +54,7 @@ logger = logging.getLogger(__name__)
         "numeric",
     )
 )
-def _molarity_annotated(
+def calc_molarities(
         component_moles: Sequence[float | int] | NDArray[np.number],
         solution_volume: float | int | NDArray[np.number],
         *,
@@ -122,7 +120,7 @@ def _molarity_annotated(
         "numeric",
     )
 )
-def _molarity_1_annotated(
+def calc_molarities_from_sequence(
         component_moles: Sequence[float],
         solution_volume: float,
         *,
@@ -154,9 +152,10 @@ def _molarity_1_annotated(
         The calculated molarity values with metadata.
     """
     return to_annotated_value(
-        _calc_molarities_from_sequence(
+        _calc_molarities(
             component_moles=component_moles,
-            solution_volume=solution_volume
+            solution_volume=solution_volume,
+            as_list=True
         ),
         name=name,
         description=description,
@@ -195,7 +194,7 @@ def _molarity_1_annotated(
         "keyed",
     )
 )
-def _molarity_2_annotated(
+def calc_molarities_from_mapping(
         component_moles: Mapping[str, float | int],
         solution_volume: float,
         *,
@@ -241,96 +240,6 @@ def _molarity_2_annotated(
 
 # ::: annotated for mapping with custom properties
 
-
-@calculation_info(
-    name="molarity",
-    description="Calculate keyed molarity values from unit-aware component moles and solution volume.",
-    equation="molarity = component_moles / solution_volume",
-    inputs={
-        "component_moles": "Mapping of component identifiers to unit-aware component mole amounts.",
-        "solution_volume": "Unit-aware volume of the solution.",
-        "output_unit": "Molarity unit used to normalize component moles and solution volume."
-    },
-    outputs={
-        "molarity": "Mapping of component identifiers to molarity values in output_unit."
-    },
-    aliases=(
-        "molar concentration",
-        "amount concentration",
-    ),
-    notes=(
-        "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
-        "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
-    ),
-    tags=(
-        "molarity",
-        "mapping",
-        "unit_aware",
-        "component_aware",
-        "unit_conversion",
-    )
-)
-def _molarity_3_annotated(
-    component_moles: Mapping[str, CustomProp],
-    solution_volume: CustomProp,
-    output_unit: str = 'mol/L',
-    *,
-    name: str = "molarity",
-    description: str = "Calculate the molarity of each component in a solution.",
-    unit: str | None = None,
-    symbol: str | None = None
-) -> AnnotatedValue[dict[str, float]]:
-    """Calculate annotated molarity values from unit-aware component moles.
-
-    Parameters
-    ----------
-    component_moles : Mapping[str, CustomProp]
-        A mapping of component names to their mole amounts with units.
-    solution_volume : CustomProp
-        The solution volume with units.
-    output_unit : str, optional
-        The output molarity unit. Defaults to ``"mol/L"``.
-    name : str, optional
-        The name stored in the annotated result. Defaults to ``"molarity"``.
-    description : str, optional
-        The description stored in the annotated result.
-    unit : str, optional
-        The unit stored in the annotated result. Must match ``output_unit``.
-    symbol : str, optional
-        The symbol stored in the annotated result.
-
-    Returns
-    -------
-    AnnotatedValue[dict[str, float]]
-        The calculated molarity values with metadata.
-    """
-    # SECTION: set default unit for output if not provided
-    if unit is None:
-        unit = output_unit
-
-    # check unit & output unit consistency
-    if unit != output_unit:
-        raise ValueError(
-            f"Mismatch between unit ({unit}) and output_unit ({output_unit})"
-        )
-
-    return to_annotated_value(
-        _calc_molarities_from_props(
-            component_moles=component_moles,
-            solution_volume=solution_volume,
-            output_unit=output_unit
-        ),
-        name=name,
-        description=description,
-        unit=output_unit,  # ! set output unit
-        symbol=symbol,
-        implementation="_calc_molarities_from_props"
-    )
-
-
-# ::: annotated for component mapping with custom properties
-
-
 @calculation_info(
     name="component_molarity",
     description="Calculate unit-aware component molarities with optional component-key remapping and ordering.",
@@ -364,7 +273,7 @@ def _molarity_3_annotated(
         "component_ordering",
     )
 )
-def _molarity_4_annotated(
+def calc_molarities_from_props(
     component_moles: Mapping[str, CustomProp],
         solution_volume: CustomProp,
         output_unit: str = 'mol/L',
@@ -420,7 +329,7 @@ def _molarity_4_annotated(
             f"Mismatch between unit ({unit}) and output_unit ({output_unit})"
         )
 
-    res = _calc_component_molarities_from_props(
+    res = _calc_molarities_from_props(
         component_moles=component_moles,
         solution_volume=solution_volume,
         output_unit=output_unit,
@@ -441,29 +350,10 @@ def _molarity_4_annotated(
     )
 
 
-# ======================================================================
-# *** Aliases
-# ======================================================================
-# >> molarities
-calc_molarities = _molarity_annotated
-
-# >> molarities from sequence
-calc_molarities_from_sequence = _molarity_1_annotated
-
-# >> molarities from mapping
-calc_molarities_from_mapping = _molarity_2_annotated
-
-# >> molarities with units
-calc_molarities_from_props = _molarity_3_annotated
-
-# >> component molarities
-calc_component_molarities_from_props = _molarity_4_annotated
-
 # all
 __all__ = [
     "calc_molarities",
     "calc_molarities_from_sequence",
     "calc_molarities_from_mapping",
     "calc_molarities_from_props",
-    "calc_component_molarities_from_props",
 ]

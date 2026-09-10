@@ -1,7 +1,7 @@
 ﻿# import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, cast
+from typing import Any, Optional, cast, overload, Literal
 import numpy as np
 from numpy.typing import NDArray
 from pythermodb_settings.models import Component, ComponentKey, CustomProp
@@ -99,10 +99,32 @@ def _validate_moles_and_volume(
 # ! ::: Molarity from array-like inputs
 
 
+@overload
 def _calc_molarities(
     component_moles: Sequence[float | int] | NDArray[np.number],
     solution_volume: float | int | NDArray[np.number],
+    *,
+    as_list: Literal[False] = False,
 ) -> NDArray[np.float64]:
+    ...
+
+
+@overload
+def _calc_molarities(
+    component_moles: Sequence[float | int],
+    solution_volume: float | int,
+    *,
+    as_list: Literal[True],
+) -> list[float]:
+    ...
+
+
+def _calc_molarities(
+    component_moles: Sequence[float | int] | NDArray[np.number],
+    solution_volume: float | int | NDArray[np.number],
+    *,
+    as_list: bool = False,
+) -> NDArray[np.float64] | list[float]:
     """
     Calculate molarities using NumPy vectorization.
 
@@ -114,11 +136,13 @@ def _calc_molarities(
     solution_volume : float | int | NDArray[np.number]
         Solution volume. Must be a scalar or have the same shape as
         ``component_moles``.
+    as_list : bool, optional
+        If True, the result will be returned as a list of floats. Default is False, which returns a NumPy array.
 
     Returns
     -------
     NDArray[np.floating]
-        Molarities with the same shape as ``component_moles``.
+        Molarities with the same shape as ``component_moles``. The default return type is a NumPy array, but if ``as_list`` is True, a list of floats will be returned instead.
     """
     # set
     moles: NDArray[np.float64] = np.asarray(component_moles, dtype=np.float64)
@@ -126,36 +150,13 @@ def _calc_molarities(
 
     # validate
     volume = _validate_moles_and_volume(moles, volume)
+    # molarities
+    molarities = cast(NDArray[np.float64], moles / volume)
 
-    return cast(NDArray[np.float64], moles / volume)
-
-# ! ::: Molarity from sequence
-
-
-def _calc_molarities_from_sequence(
-        component_moles: Sequence[float | int],
-        solution_volume: float,
-) -> list[float]:
-    """
-    Calculate the molarity of each component in a solution given the component moles and the solution volume.
-
-    Parameters
-    ----------
-    component_moles : Sequence[float | int]
-        A sequence of moles for each component.
-    solution_volume : float
-        The volume of the solution.
-
-    Returns
-    -------
-    list[float]
-        A list of molarity values for each component.
-    """
-    # calc
-    return _calc_molarities(
-        component_moles,
-        solution_volume
-    ).tolist()
+    # check as list
+    if as_list:
+        return cast(list[float], molarities.tolist())
+    return molarities
 
 
 # ! ::: Molarity from mapping
@@ -197,63 +198,6 @@ def _calc_molarities_from_mapping(
 
 
 def _calc_molarities_from_props(
-    component_moles: Mapping[str, CustomProp],
-    solution_volume: CustomProp,
-    output_unit: str = 'mol/L',
-) -> dict[str, float]:
-    """
-    Calculate the molarity of each component in a solution given the component moles and the solution volume as a CustomProp. The default
-    volume unit is litre (L).
-
-    Parameters
-    ----------
-    component_moles : Mapping[str, CustomProp]
-        A mapping of component names to their respective mole amounts.
-    solution_volume : CustomProp
-        The volume of the solution as a CustomProp object.
-    output_unit : str, optional
-        The unit for the output molarity values. Defaults to 'mol/L'.
-
-    Returns
-    -------
-    dict[str, float]
-        A dictionary mapping component names to their respective molarity values.
-
-    Notes
-    -----
-    - The solution volume is expected to be provided as a CustomProp object. If the output_unit is not specified, it defaults to mol/L.
-    - Component mole values are expected to be CustomProp objects so their units can be converted to the mole unit from output_unit.
-    """
-    # SECTION: set default units for moles and volume
-    units_ = _to_units(output_unit)
-    # >> set
-    mole_unit = units_[0]
-    volume_unit = units_[1]
-
-    # NOTE: component moles
-    # ! convert component moles to the specified unit if necessary
-    component_moles_dict: dict[str, float] = _to_moles(
-        component_moles=component_moles,
-        output_unit=mole_unit
-    )
-
-    # NOTE: solution volume unit should match output unit denominator
-    # ! convert solution volume to the specified unit
-    solution_volume_scalar = _to_volume(
-        solution_volume=solution_volume,
-        output_unit=volume_unit
-    )
-
-    # SECTION: calculate molarity for each component
-    return _calc_molarities_from_mapping(
-        component_moles=component_moles_dict,
-        solution_volume=solution_volume_scalar,
-    )
-
-# ! ::: Molarity with component ID mapping and sorting
-
-
-def _calc_component_molarities_from_props(
     component_moles: Mapping[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
@@ -351,8 +295,6 @@ def _calc_component_molarities_from_props(
 # all
 __all__ = [
     "_calc_molarities",
-    "_calc_molarities_from_sequence",
     "_calc_molarities_from_mapping",
     "_calc_molarities_from_props",
-    "_calc_component_molarities_from_props",
 ]
