@@ -1,5 +1,12 @@
 # NOTE: fractions
 from .fractions import (
+    _calc_fractions,
+    _calc_fractions_from_mapping,
+    _calc_component_fractions,
+    calc_fractions,
+    calc_fractions_from_sequence,
+    calc_fractions_from_mapping,
+    calc_component_fractions,
     fr1,
     fr2,
     fr3,
@@ -37,7 +44,7 @@ from .molality import (
 )
 
 # NOTE: electrolyte primitives
-from .ionic_strength import (
+from .core.ionic_strength import (
     _calc_ionic_strength,
 )
 
@@ -154,6 +161,13 @@ __all__ = [
     "calculate_fractions",
     "calculate_keyed_fractions",
     "calculate_component_fractions",
+    "_calc_fractions",
+    "_calc_fractions_from_mapping",
+    "_calc_component_fractions",
+    "calc_fractions",
+    "calc_fractions_from_sequence",
+    "calc_fractions_from_mapping",
+    "calc_component_fractions",
     "calc_mapping_ionic_strength_molality",
     "calc_sequence_ionic_strength_molality",
     "calc_mapping_ionic_strength_molality_from_components",
