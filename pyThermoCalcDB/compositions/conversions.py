@@ -224,7 +224,7 @@ def calc_mole_fraction_to_mass_fraction_from_mapping(
           "mass_fraction", "mapping", "unit_aware"),
 )
 def calc_mole_fraction_to_mass_fraction_from_props(
-    mole_fractions: Mapping[str, float | int],
+    mole_fractions: Mapping[str, CustomProp],
     molecular_weights: Mapping[str, CustomProp],
     output_molecular_weight_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -242,7 +242,7 @@ def calc_mole_fraction_to_mass_fraction_from_props(
 
     Parameters
     ----------
-    mole_fractions : Mapping[str, float | int]
+    mole_fractions : Mapping[str, CustomProp]
         Mole fractions keyed by component.
     molecular_weights : Mapping[str, CustomProp]
         Unit-aware molecular weights keyed by component.
@@ -437,7 +437,7 @@ def calc_mass_fraction_to_mole_fraction_from_mapping(
           "mole_fraction", "mapping", "unit_aware"),
 )
 def calc_mass_fraction_to_mole_fraction_from_props(
-    mass_fractions: Mapping[str, float | int],
+    mass_fractions: Mapping[str, CustomProp],
     molecular_weights: Mapping[str, CustomProp],
     output_molecular_weight_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -455,7 +455,7 @@ def calc_mass_fraction_to_mole_fraction_from_props(
 
     Parameters
     ----------
-    mass_fractions : Mapping[str, float | int]
+    mass_fractions : Mapping[str, CustomProp]
         Mass fractions keyed by component.
     molecular_weights : Mapping[str, CustomProp]
         Unit-aware molecular weights keyed by component.
