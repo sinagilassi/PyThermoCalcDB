@@ -130,33 +130,6 @@ def _calc_concentrations(
 
     return cast(NDArray[np.float64], moles / volume)
 
-# ! ::: Concentration [amount/volume] from sequence
-
-
-def _calc_concentrations_from_sequence(
-        component_amounts: Sequence[float | int],
-        solution_volume: float | int,
-) -> List[float]:
-    """
-    Calculate the concentration of each component in a solution.
-
-    Parameters
-    ----------
-    component_amounts : Sequence[float | int]
-        A sequence of amounts for each component.
-    solution_volume : float | int
-        The volume of the solution.
-
-    Returns
-    -------
-    List[float]
-        A list of concentration values for each component.
-    """
-    return _calc_concentrations(
-        component_amounts,
-        solution_volume
-    ).tolist()
-
 
 # ! ::: Concentration [amount/volume] from mapping
 
@@ -188,56 +161,8 @@ def _calc_concentrations_from_mapping(
 
 
 # ! ::: Concentration [amount/volume] with solution volume as CustomProp
+
 def _calc_concentrations_from_props(
-    component_amounts: Mapping[str, CustomProp],
-    solution_volume: CustomProp,
-    output_unit: str,
-) -> Dict[str, float]:
-    """
-    Calculate keyed concentrations from unit-aware component amounts and solution volume.
-
-    Parameters
-    ----------
-    component_amounts : Mapping[str, CustomProp]
-        A mapping of component names to their unit-aware amounts.
-    solution_volume : CustomProp
-        The unit-aware volume of the solution.
-    output_unit : str
-        The unit for the output concentration values.
-
-    Returns
-    -------
-    Dict[str, float]
-        A dictionary mapping component names to concentration values in
-        ``output_unit``.
-    """
-    # SECTION: set default units for amount and volume
-    units_ = _to_units(output_unit)
-    # >> set
-    amount_unit = units_[0]
-    volume_unit = units_[1]
-
-    # NOTE: component amounts
-    component_amounts_dict: Dict[str, float] = _to_amounts(
-        component_amounts=component_amounts,
-        output_unit=amount_unit,
-    )
-
-    # NOTE: solution volume unit should match output unit denominator
-    solution_volume_scalar = _to_volume(
-        solution_volume=solution_volume,
-        output_unit=volume_unit,
-    )
-
-    # SECTION: calculate concentration for each component
-    return _calc_concentrations_from_mapping(
-        component_amounts=component_amounts_dict,
-        solution_volume=solution_volume_scalar,
-    )
-
-
-# ! ::: Concentration [amount/volume] with component ID mapping and sorting
-def _calc_component_concentrations_from_props(
     component_amounts: Mapping[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str,
@@ -334,8 +259,6 @@ def _calc_component_concentrations_from_props(
 # export
 __all__ = [
     "_calc_concentrations",
-    "_calc_concentrations_from_sequence",
     "_calc_concentrations_from_mapping",
     "_calc_concentrations_from_props",
-    "_calc_component_concentrations_from_props",
 ]

@@ -18,10 +18,8 @@ from pythermodb_settings.utils import (
 # locals
 from .core.concentration import (
     _calc_concentrations,
-    _calc_concentrations_from_sequence,
     _calc_concentrations_from_mapping,
     _calc_concentrations_from_props,
-    _calc_component_concentrations_from_props,
 )
 
 # NOTE: logger setup
@@ -120,15 +118,15 @@ def calc_mass_concentrations_from_sequence(
 ) -> AnnotatedValue[list[float]]:
     """Calculate annotated mass concentrations from a sequence of masses."""
     return to_annotated_value(
-        _calc_concentrations_from_sequence(
+        _calc_concentrations(
             component_amounts=component_mass,
             solution_volume=solution_volume,
-        ),
+        ).tolist(),
         name=name,
         description=description,
         unit=unit,
         symbol=symbol,
-        implementation="_calc_concentrations_from_sequence",
+        implementation="_calc_concentrations",
     )
 
 
@@ -183,67 +181,6 @@ def calc_mass_concentrations_from_mapping(
 
 
 @calculation_info(
-    name="mass_concentration",
-    description="Calculate keyed mass concentration values from unit-aware component masses and solution volume.",
-    equation="mass_concentration = component_mass / solution_volume",
-    inputs={
-        "component_mass": "Mapping of component identifiers to unit-aware component masses.",
-        "solution_volume": "Unit-aware volume of the solution.",
-        "output_unit": "Mass concentration unit used to normalize component masses and solution volume.",
-    },
-    outputs={
-        "mass_concentration": "Mapping of component identifiers to mass concentration values in output_unit.",
-    },
-    aliases=(
-        "mass concentration",
-        "density concentration",
-    ),
-    notes=(
-        "The output_unit must be a ratio such as kg/m^3 with mass in the numerator and volume in the denominator.",
-        "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
-    ),
-    tags=(
-        "mass_concentration",
-        "mapping",
-        "unit_aware",
-        "component_aware",
-        "unit_conversion",
-    ),
-)
-def calc_mass_concentrations_from_props(
-    component_mass: Mapping[str, CustomProp],
-    solution_volume: CustomProp,
-    output_unit: str = 'kg/m^3',
-    *,
-    name: str = "mass_concentration",
-    description: str = "Calculate the mass concentration of each component in a solution.",
-    unit: str | None = None,
-    symbol: str | None = None,
-) -> AnnotatedValue[dict[str, float]]:
-    """Calculate annotated unit-aware mass concentrations."""
-    if unit is None:
-        unit = output_unit
-
-    if unit != output_unit:
-        raise ValueError(
-            f"Mismatch between unit ({unit}) and output_unit ({output_unit})"
-        )
-
-    return to_annotated_value(
-        _calc_concentrations_from_props(
-            component_amounts=component_mass,
-            solution_volume=solution_volume,
-            output_unit=output_unit,
-        ),
-        name=name,
-        description=description,
-        unit=output_unit,
-        symbol=symbol,
-        implementation="_calc_concentrations_from_props",
-    )
-
-
-@calculation_info(
     name="component_mass_concentration",
     description="Calculate unit-aware component mass concentrations with optional component-key remapping and ordering.",
     equation="mass_concentration = component_mass / solution_volume",
@@ -276,7 +213,7 @@ def calc_mass_concentrations_from_props(
         "component_ordering",
     ),
 )
-def calc_component_mass_concentration_from_props(
+def calc_mass_concentrations_from_props(
     component_mass: Mapping[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'kg/m^3',
@@ -301,7 +238,7 @@ def calc_component_mass_concentration_from_props(
         )
 
     return to_annotated_value(
-        _calc_component_concentrations_from_props(
+        _calc_concentrations_from_props(
             component_amounts=component_mass,
             solution_volume=solution_volume,
             output_unit=output_unit,
@@ -315,7 +252,7 @@ def calc_component_mass_concentration_from_props(
         description=description,
         unit=output_unit,
         symbol=symbol,
-        implementation="_calc_component_concentrations_from_props",
+        implementation="_calc_concentrations_from_props",
     )
 
 
@@ -409,10 +346,10 @@ def calc_molar_concentrations_from_sequence(
 ) -> AnnotatedValue[list[float]]:
     """Calculate annotated molar concentrations from a sequence of moles."""
     return to_annotated_value(
-        _calc_concentrations_from_sequence(
+        _calc_concentrations(
             component_amounts=component_moles,
             solution_volume=solution_volume,
-        ),
+        ).tolist(),
         name=name,
         description=description,
         unit=unit,
@@ -473,74 +410,6 @@ def calc_molar_concentrations_from_mapping(
 
 
 @calculation_info(
-    name="molar_concentration",
-    description="Calculate keyed molar concentration values from unit-aware component moles and solution volume.",
-    equation="molar_concentration = component_moles / solution_volume",
-    inputs={
-        "component_moles": "Mapping of component identifiers to unit-aware component mole amounts.",
-        "solution_volume": "Unit-aware volume of the solution.",
-        "output_unit": "Molar concentration unit used to normalize component moles and solution volume.",
-    },
-    outputs={
-        "molar_concentration": "Mapping of component identifiers to molar concentration values in output_unit.",
-    },
-    aliases=(
-        "molar concentration",
-        "amount concentration",
-        "molarity",
-    ),
-    notes=(
-        "The output_unit must be a ratio such as mol/L with amount in the numerator and volume in the denominator.",
-        "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
-    ),
-    tags=(
-        "molar_concentration",
-        "mapping",
-        "unit_aware",
-        "component_aware",
-        "unit_conversion",
-    ),
-)
-def calc_molar_concentrations_from_props(
-    component_moles: Mapping[str, CustomProp],
-    solution_volume: CustomProp,
-    output_unit: str = 'mol/L',
-    unit_conversion_fn: Optional[UnitConversionFn] = None,
-    *,
-    name: str = "molar_concentration",
-    description: str = "Calculate the molar concentration of each component in a solution.",
-    unit: str | None = None,
-    symbol: str | None = None,
-) -> AnnotatedValue[dict[str, float]]:
-    """Calculate annotated unit-aware molar concentrations."""
-    if unit_conversion_fn is not None:
-        logger.warning(
-            "unit_conversion_fn is accepted for API compatibility but is not used."
-        )
-
-    if unit is None:
-        unit = output_unit
-
-    if unit != output_unit:
-        raise ValueError(
-            f"Mismatch between unit ({unit}) and output_unit ({output_unit})"
-        )
-
-    return to_annotated_value(
-        _calc_concentrations_from_props(
-            component_amounts=component_moles,
-            solution_volume=solution_volume,
-            output_unit=output_unit,
-        ),
-        name=name,
-        description=description,
-        unit=output_unit,
-        symbol=symbol,
-        implementation="_calc_concentrations_from_props",
-    )
-
-
-@calculation_info(
     name="component_molar_concentration",
     description="Calculate unit-aware component molar concentrations with optional component-key remapping and ordering.",
     equation="molar_concentration = component_moles / solution_volume",
@@ -574,7 +443,7 @@ def calc_molar_concentrations_from_props(
         "component_ordering",
     ),
 )
-def calc_component_molar_concentrations_from_props(
+def calc_molar_concentrations_from_props(
     component_moles: Mapping[str, CustomProp],
     solution_volume: CustomProp,
     output_unit: str = 'mol/L',
@@ -599,7 +468,7 @@ def calc_component_molar_concentrations_from_props(
         )
 
     return to_annotated_value(
-        _calc_component_concentrations_from_props(
+        _calc_concentrations_from_props(
             component_amounts=component_moles,
             solution_volume=solution_volume,
             output_unit=output_unit,
@@ -619,14 +488,14 @@ def calc_component_molar_concentrations_from_props(
 
 # export functions
 __all__ = [
+    # mass
     "calc_mass_concentrations",
     "calc_mass_concentrations_from_sequence",
     "calc_mass_concentrations_from_mapping",
     "calc_mass_concentrations_from_props",
-    "calc_component_mass_concentration_from_props",
+    # molar
     "calc_molar_concentrations",
     "calc_molar_concentrations_from_sequence",
     "calc_molar_concentrations_from_mapping",
     "calc_molar_concentrations_from_props",
-    "calc_component_molar_concentrations_from_props",
 ]

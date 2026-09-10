@@ -18,12 +18,9 @@ from ..utils.conversions import (
 )
 from ..utils.tools import to_annotated_value
 from .core.ionic_strength import (
-    _calc_ionic_strength_molarity,
-    _calc_ionic_strength_molarity_from_sequence,
-    _calc_ionic_strength_molarity_from_mapping,
-    _calc_ionic_strength_molarity_from_props,
-    _calc_ionic_strength_molarity_with_components_from_sequence,
-    _calc_ionic_strength_molarity_with_components_from_mapping,
+    _calc_ionic_strength,
+    _calc_ionic_strength_from_mapping,
+    _calc_ionic_strength_from_props,
 )
 
 
@@ -62,8 +59,8 @@ def calc_ionic_strength_molarity(
 ) -> AnnotatedValue[float | NDArray[np.float64]]:
     """Return annotated molarity-based ionic strength from numeric inputs."""
     # SECTION: Calculate value
-    value = _calc_ionic_strength_molarity(
-        molarities=molarities,
+    value = _calc_ionic_strength(
+        values=molarities,
         charges=charges,
     )
 
@@ -74,7 +71,7 @@ def calc_ionic_strength_molarity(
         description=description,
         unit=unit,
         symbol=symbol,
-        implementation="_calc_ionic_strength_molarity",
+        implementation="_calc_ionic_strength",
     )
 
 
@@ -109,10 +106,10 @@ def calc_ionic_strength_molarity_from_sequence(
 ) -> AnnotatedValue[float]:
     """Return annotated molarity-based ionic strength from numeric sequences."""
     # SECTION: Calculate value
-    value = _calc_ionic_strength_molarity_from_sequence(
-        molarities=molarities,
+    value = float(_calc_ionic_strength(
+        values=molarities,
         charges=charges,
-    )
+    ))
 
     # SECTION: Build annotated value
     return to_annotated_value(
@@ -156,9 +153,10 @@ def calc_ionic_strength_molarity_from_mapping(
 ) -> AnnotatedValue[float]:
     """Return annotated molarity-based ionic strength from numeric mappings."""
     # SECTION: Calculate value
-    value = _calc_ionic_strength_molarity_from_mapping(
-        molarities=molarities,
+    value = _calc_ionic_strength_from_mapping(
+        values=molarities,
         charges=charges,
+        mode='molarity',
     )
 
     # SECTION: Build annotated value
@@ -168,7 +166,7 @@ def calc_ionic_strength_molarity_from_mapping(
         description=description,
         unit=unit,
         symbol=symbol,
-        implementation="_calc_ionic_strength_molarity_from_mapping",
+        implementation="_calc_ionic_strength_from_mapping",
     )
 
 
@@ -194,7 +192,7 @@ def calc_ionic_strength_molarity_from_mapping(
 )
 def calc_ionic_strength_molarity_from_props(
     molarities: Mapping[str, CustomProp],
-    charges: Mapping[str, float | int],
+    charges: Mapping[str, CustomProp],
     output_molarity_unit: str = "mol/L",
     unit_conversion_fn: UnitConversionFn | None = None,
     components: Optional[Sequence[Component]] = None,
@@ -208,10 +206,11 @@ def calc_ionic_strength_molarity_from_props(
 ) -> AnnotatedValue[float]:
     """Return annotated molarity-based ionic strength from unit-aware mappings."""
     # SECTION: Calculate value
-    value = _calc_ionic_strength_molarity_from_props(
-        molarities=molarities,
+    value = _calc_ionic_strength_from_props(
+        values=molarities,
         charges=charges,
-        output_molarity_unit=output_molarity_unit,
+        mode='molarity',
+        output_unit=output_molarity_unit,
         unit_conversion_fn=unit_conversion_fn,
         components=components,
         component_key=component_key,
@@ -230,115 +229,8 @@ def calc_ionic_strength_molarity_from_props(
             output_molarity_unit,
         ),
         symbol=symbol,
-        implementation="_calc_ionic_strength_molarity_from_props",
+        implementation="_calc_ionic_strength_from_props",
     )
-
-
-# ::: annotated for mapping and component metadata
-
-@calculation_info(
-    name="ionic_strength_molarity",
-    description="Calculate molarity-based ionic strength from mapping and component metadata.",
-    equation="I_c = 0.5 * sum_i(c_i * z_i**2)",
-    inputs={
-        "molarities": "Keyed species molarities.",
-        "components": "Species component metadata used to obtain charges.",
-    },
-    outputs={
-        "ionic_strength": "Molarity-based ionic strength."
-    },
-    tags=(
-        "ionic_strength",
-        "molarity",
-        "mapping",
-        "components",
-    ),
-)
-def calc_ionic_strength_molarity_with_components_from_mapping(
-    molarities: Mapping[str, float | int],
-    components: Sequence[Component],
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    *,
-    name: str = "ionic_strength",
-    description: str = "Molarity-based ionic strength from component charges.",
-    unit: str | None = None,
-    symbol: str | None = None,
-) -> AnnotatedValue[float]:
-    """Return annotated molarity ionic strength from mapping component metadata."""
-    # SECTION: Calculate value
-    value = _calc_ionic_strength_molarity_with_components_from_mapping(
-        molarities=molarities,
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-    )
-
-    # SECTION: Build annotated value
-    return to_annotated_value(
-        value=value,
-        name=name,
-        description=description,
-        unit=unit,
-        symbol=symbol,
-        implementation="_calc_ionic_strength_molarity_with_components_from_mapping",
-    )
-
-
-# ::: annotated for sequence and component metadata
-
-@calculation_info(
-    name="ionic_strength_molarity",
-    description="Calculate molarity-based ionic strength from sequence and component metadata.",
-    equation="I_c = 0.5 * sum_i(c_i * z_i**2)",
-    inputs={
-        "molarities": "Species molarities.",
-        "components": "Species component metadata used to obtain charges.",
-    },
-    outputs={
-        "ionic_strength": "Molarity-based ionic strength."
-    },
-    tags=(
-        "ionic_strength",
-        "molarity",
-        "sequence",
-        "components",
-    ),
-)
-def calc_ionic_strength_molarity_with_components_from_sequence(
-    molarities: Sequence[float | int],
-    components: Sequence[Component],
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    *,
-    name: str = "ionic_strength",
-    description: str = "Molarity-based ionic strength from component charges.",
-    unit: str | None = None,
-    symbol: str | None = None,
-) -> AnnotatedValue[float]:
-    """Return annotated molarity ionic strength from sequence component metadata."""
-    # SECTION: Calculate value
-    value = _calc_ionic_strength_molarity_with_components_from_sequence(
-        molarities=molarities,
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-    )
-
-    # SECTION: Build annotated value
-    return to_annotated_value(
-        value=value,
-        name=name,
-        description=description,
-        unit=unit,
-        symbol=symbol,
-        implementation="_calc_ionic_strength_molarity_with_components_from_sequence",
-    )
-
-
-# SECTION: Compatibility aliases
-calc_mapping_ionic_strength_molarity = calc_ionic_strength_molarity_from_mapping
-calc_sequence_ionic_strength_molarity = calc_ionic_strength_molarity_from_sequence
 
 
 # SECTION: Public exports
@@ -348,8 +240,4 @@ __all__ = [
     "calc_ionic_strength_molarity_from_sequence",
     "calc_ionic_strength_molarity_from_mapping",
     "calc_ionic_strength_molarity_from_props",
-    "calc_ionic_strength_molarity_with_components_from_sequence",
-    "calc_ionic_strength_molarity_with_components_from_mapping",
-    "calc_mapping_ionic_strength_molarity",
-    "calc_sequence_ionic_strength_molarity",
 ]

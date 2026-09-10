@@ -2,7 +2,7 @@
 
 # import libs
 from collections.abc import Mapping, Sequence
-from typing import cast, Optional
+from typing import cast, Optional, Literal
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, UnitConversionFn
 from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.components import extract_components_values
@@ -12,7 +12,6 @@ from pythermodb_settings.utils.validators import non_negative, same_shape
 import numpy as np
 from numpy.typing import NDArray
 from ...utils.conversions import (
-    _resolve_result_unit,
     _resolve_unit_conversion_fn,
     _validate_same_keys,
     _configure_component_values
@@ -66,7 +65,7 @@ def _validate_concentrations_and_charges(
 # *** Core calculation
 # ======================================================================
 
-def _calc_ionic_strength(
+def _calc_ionic_strength_core(
     concentrations: float | int | Sequence[float | int] | NDArray[np.number],
     charges: float | int | Sequence[float | int] | NDArray[np.number],
 ) -> float | NDArray[np.float64]:
@@ -105,259 +104,83 @@ def _calc_ionic_strength(
 # ======================================================================
 # ! ::: Numeric array-like core
 
-def _calc_ionic_strength_molality(
-    molalities: float | int | Sequence[float | int] | NDArray[np.number],
+def _calc_ionic_strength(
+    values: float | int | Sequence[float | int] | NDArray[np.number],
     charges: float | int | Sequence[float | int] | NDArray[np.number],
 ) -> float | NDArray[np.float64]:
     """Calculate molality-based ionic strength from numeric array-like inputs."""
     # SECTION: Calculate ionic strength
-    return _calc_ionic_strength(
-        concentrations=molalities,
+    return _calc_ionic_strength_core(
+        concentrations=values,
         charges=charges,
-    )
-
-
-# ! ::: Sequence adapter
-
-def _calc_ionic_strength_molality_from_sequence(
-    molalities: Sequence[float | int],
-    charges: Sequence[float | int],
-) -> float:
-    """Calculate molality-based ionic strength from numeric sequence inputs."""
-    # SECTION: Validate inputs
-    non_negative(molalities, "molalities")
-    same_shape(molalities, charges)
-
-    # SECTION: Calculate ionic strength
-    return cast(
-        float,
-        _calc_ionic_strength(
-            molalities,
-            charges,
-        ),
     )
 
 
 # ! ::: Mapping adapter
 
-def _calc_ionic_strength_molality_from_mapping(
-    molalities: Mapping[str, float | int],
+def _calc_ionic_strength_from_mapping(
+    values: Mapping[str, float | int],
     charges: Mapping[str, float | int],
+    mode: Literal['molarity', 'molality']
 ) -> float:
-    """Calculate molality-based ionic strength from numeric mapping inputs."""
+    """Calculate molarity- or molality-based ionic strength from numeric mapping inputs."""
     # SECTION: Validate inputs
-    non_negative(molalities, "molalities")
-    same_shape(molalities, charges)
-    _validate_same_keys(molalities, charges)
+    non_negative(values, mode)
+    same_shape(values, charges)
+    _validate_same_keys(values, charges)
+
+    # SECTION: Normalize molalities and charges for consistent ordering
+    normalized_molalities = list(dict(sorted(values.items())).values())
+    normalized_charges = list(dict(sorted(charges.items())).values())
 
     # SECTION: Calculate ionic strength
     return cast(
         float,
-        _calc_ionic_strength(
-            list(molalities.values()),
-            [charges[key] for key in molalities],
+        _calc_ionic_strength_core(
+            normalized_molalities,
+            normalized_charges,
         ),
     )
-
 
 # ! ::: Unit-aware mapping adapter
 
-def _calc_ionic_strength_molality_from_props(
-    molalities: Mapping[str, CustomProp],
-    charges: Mapping[str, float | int],
-    output_molality_unit: str = "mol/kg",
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Calculate molality-based ionic strength from unit-aware molality inputs."""
-    # SECTION: Normalize unit-aware molalities
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-    normalized_molalities = to_dict(
-        molalities,
-        output_molality_unit,
-        unit_conversion_fn=conversion_fn,
-    )
 
-    # ! Mapping inputs must pair the same species.
-    _validate_same_keys(normalized_molalities, charges)
-
-    # SECTION: Calculate ionic strength
-    return cast(
-        float,
-        _calc_ionic_strength(
-            list(normalized_molalities.values()),
-            [charges[key] for key in normalized_molalities],
-        ),
-    )
-
-
-# ! ::: Mapping input with component metadata
-
-def _calc_ionic_strength_molality_with_components_from_mapping(
-    molalities: Mapping[str, float | int],
-    components: Sequence[Component],
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-) -> float:
-    """Calculate molality ionic strength from mapping input and components."""
-    # SECTION: Normalize molality values by component metadata
-    configured = config_components_values(
-        values=dict(molalities),
-        components=list(components),
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=True,
-    )
-
-    # ! Component configuration must succeed before charges are extracted.
-    if configured is None:
-        raise ValueError("Failed to normalize molalities component values.")
-
-    _, molality_values = configured
-
-    # SECTION: Extract component charges
-    extracted = extract_components_values(
-        attribute_name="net_charge",
-        components=list(components),
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-    )
-
-    if extracted is None:
-        raise ValueError("Failed to extract component charges.")
-
-    _, charge_values = extracted
-
-    # SECTION: Calculate ionic strength
-    return cast(
-        float,
-        _calc_ionic_strength(
-            molality_values,
-            charge_values,
-        ),
-    )
-
-
-# ! ::: Sequence input with component metadata
-
-def _calc_ionic_strength_molality_with_components_from_sequence(
-    molalities: Sequence[float | int],
-    components: Sequence[Component],
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-) -> float:
-    """Calculate molality ionic strength from sequence input and components."""
-    # SECTION: Extract component charges
-    extracted = extract_components_values(
-        attribute_name="net_charge",
-        components=list(components),
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-    )
-
-    if extracted is None:
-        raise ValueError("Failed to extract component charges.")
-
-    _, charge_values = extracted
-
-    # SECTION: Calculate ionic strength
-    return _calc_ionic_strength_molality_from_sequence(
-        molalities=molalities,
-        charges=charge_values,
-    )
-
-# ======================================================================
-# *** Internal deterministic calculations
-# ======================================================================
-# ! ::: Numeric array-like core
-
-
-def _calc_ionic_strength_molarity(
-    molarities: float | int | Sequence[float | int] | NDArray[np.number],
-    charges: float | int | Sequence[float | int] | NDArray[np.number],
-) -> float | NDArray[np.float64]:
-    """Calculate molarity-based ionic strength from numeric array-like inputs."""
-    # SECTION: Calculate ionic strength
-    return _calc_ionic_strength(
-        concentrations=molarities,
-        charges=charges,
-    )
-
-
-# ! ::: Sequence adapter
-
-def _calc_ionic_strength_molarity_from_sequence(
-    molarities: Sequence[float | int],
-    charges: Sequence[float | int],
-) -> float:
-    """Calculate molarity-based ionic strength from numeric sequence inputs."""
-    # SECTION: Validate inputs
-    non_negative(molarities, "molarities")
-    same_shape(molarities, charges)
-
-    # SECTION: Calculate ionic strength
-    return cast(
-        float,
-        _calc_ionic_strength(
-            molarities,
-            charges,
-        ),
-    )
-
-
-# ! ::: Mapping adapter
-
-def _calc_ionic_strength_molarity_from_mapping(
-    molarities: Mapping[str, float | int],
-    charges: Mapping[str, float | int],
-) -> float:
-    """Calculate molarity-based ionic strength from numeric mapping inputs."""
-    # SECTION: Validate inputs
-    non_negative(molarities, "molarities")
-    same_shape(molarities, charges)
-    _validate_same_keys(molarities, charges)
-
-    # SECTION: Calculate ionic strength
-    return cast(
-        float,
-        _calc_ionic_strength(
-            list(molarities.values()),
-            [charges[key] for key in molarities],
-        ),
-    )
-
-
-# ! ::: Unit-aware mapping adapter
-
-def _calc_ionic_strength_molarity_from_props(
-    molarities: Mapping[str, CustomProp],
-    charges: Mapping[str, float | int],
-    output_molarity_unit: str = "mol/L",
+def _calc_ionic_strength_from_props(
+    values: Mapping[str, CustomProp],
+    charges: Mapping[str, CustomProp],
+    mode: Literal["molarity", "molality"],
+    output_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
     components: Optional[Sequence[Component]] = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> float:
-    """Calculate molarity-based ionic strength from unit-aware molarity inputs."""
+    """Calculate ionic strength from unit-aware molarity inputs."""
     # SECTION: Normalize unit-aware molarities
     conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-    normalized_molarities = to_dict(
-        molarities,
-        output_molarity_unit,
+    normalized_values = to_dict(
+        values,
+        output_unit,
         unit_conversion_fn=conversion_fn,
+    )
+    normalized_charges = to_dict(
+        charges,
+        None,
+        None,
     )
 
     # ? Component metadata can remap keys and enforce component order.
-    normalized_molarities = _configure_component_values(
-        normalized_molarities,
+    normalized_values = _configure_component_values(
+        normalized_values,
         list(components) if components is not None else None,
         component_key,
         case_sensitive,
         sort_by_components_order,
-        "molarities",
+        mode,
     )
     normalized_charges = _configure_component_values(
-        dict(charges),
+        normalized_charges,
         list(components) if components is not None else None,
         component_key,
         case_sensitive,
@@ -366,109 +189,21 @@ def _calc_ionic_strength_molarity_from_props(
     )
 
     # ! Mapping inputs must pair the same species.
-    _validate_same_keys(normalized_molarities, normalized_charges)
+    _validate_same_keys(normalized_values, normalized_charges)
 
     # SECTION: Calculate ionic strength
     return cast(
         float,
-        _calc_ionic_strength(
-            list(normalized_molarities.values()),
-            [normalized_charges[key] for key in normalized_molarities],
+        _calc_ionic_strength_core(
+            list(normalized_values.values()),
+            [normalized_charges[key] for key in normalized_values],
         ),
-    )
-
-# ! ::: Mapping input with component metadata
-
-
-def _calc_ionic_strength_molarity_with_components_from_mapping(
-    molarities: Mapping[str, float | int],
-    components: Sequence[Component],
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-) -> float:
-    """Calculate molarity ionic strength from mapping input and components."""
-    # SECTION: Normalize molarity values by component metadata
-    configured = config_components_values(
-        values=dict(molarities),
-        components=list(components),
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=True,
-    )
-
-    # ! Component configuration must succeed before charges are extracted.
-    if configured is None:
-        raise ValueError("Failed to normalize molarities component values.")
-
-    _, molarity_values = configured
-
-    # SECTION: Extract component charges
-    extracted = extract_components_values(
-        attribute_name="net_charge",
-        components=list(components),
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-    )
-
-    if extracted is None:
-        raise ValueError("Failed to extract component charges.")
-
-    _, charge_values = extracted
-
-    # SECTION: Calculate ionic strength
-    return cast(
-        float,
-        _calc_ionic_strength(
-            molarity_values,
-            charge_values,
-        ),
-    )
-
-
-# ! ::: Sequence input with component metadata
-
-def _calc_ionic_strength_molarity_with_components_from_sequence(
-    molarities: Sequence[float | int],
-    components: Sequence[Component],
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-) -> float:
-    """Calculate molarity ionic strength from sequence input and components."""
-    # SECTION: Extract component charges
-    extracted = extract_components_values(
-        attribute_name="net_charge",
-        components=list(components),
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-    )
-
-    if extracted is None:
-        raise ValueError("Failed to extract component charges.")
-
-    _, charge_values = extracted
-
-    # SECTION: Calculate ionic strength
-    return _calc_ionic_strength_molarity_from_sequence(
-        molarities=molarities,
-        charges=charge_values,
     )
 
 
 # SECTION: Public exports
 __all__ = [
     "_calc_ionic_strength",
-    # molality
-    "_calc_ionic_strength_molality",
-    "_calc_ionic_strength_molality_from_sequence",
-    "_calc_ionic_strength_molality_from_mapping",
-    "_calc_ionic_strength_molality_from_props",
-    "_calc_ionic_strength_molality_with_components_from_sequence",
-    "_calc_ionic_strength_molality_with_components_from_mapping",
-    # molarity
-    "_calc_ionic_strength_molarity",
-    "_calc_ionic_strength_molarity_from_sequence",
-    "_calc_ionic_strength_molarity_from_mapping",
-    "_calc_ionic_strength_molarity_from_props",
-    "_calc_ionic_strength_molarity_with_components_from_sequence",
-    "_calc_ionic_strength_molarity_with_components_from_mapping",
+    "_calc_ionic_strength_from_mapping",
+    "_calc_ionic_strength_from_props",
 ]
