@@ -1695,6 +1695,50 @@ def calc_ppb_mole_to_mole_fraction(
     return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mole_to_mole_fraction")
 
 
+# SECTION: Compatibility aliases
+mole_fraction_to_mass_fraction = calc_mole_fraction_to_mass_fraction
+mapping_mole_fraction_to_mass_fraction = calc_mole_fraction_to_mass_fraction_from_mapping
+sequence_mole_fraction_to_mass_fraction = calc_mole_fraction_to_mass_fraction_from_sequence
+mapping_mole_fraction_to_mass_fraction_with_units = calc_mole_fraction_to_mass_fraction_from_props
+sequence_mole_fraction_to_mass_fraction_with_units = calc_mole_fraction_to_mass_fraction_from_props
+mass_fraction_to_mole_fraction = calc_mass_fraction_to_mole_fraction
+mapping_mass_fraction_to_mole_fraction = calc_mass_fraction_to_mole_fraction_from_mapping
+sequence_mass_fraction_to_mole_fraction = calc_mass_fraction_to_mole_fraction_from_sequence
+mapping_mass_fraction_to_mole_fraction_with_units = calc_mass_fraction_to_mole_fraction_from_props
+sequence_mass_fraction_to_mole_fraction_with_units = calc_mass_fraction_to_mole_fraction_from_props
+molarity_to_molality = calc_molarity_to_molality
+molality_to_molarity = calc_molality_to_molarity
+molarities_to_molalities = calc_molarities_to_molalities
+mapping_molarities_to_molalities = calc_molarities_to_molalities_from_mapping
+sequence_molarities_to_molalities = calc_molarities_to_molalities_from_sequence
+mapping_molarities_to_molalities_with_units = calc_molarities_to_molalities_from_props
+sequence_molarities_to_molalities_with_units = calc_molarities_to_molalities_from_props
+molality_to_mole_fraction = calc_molality_to_mole_fraction
+mapping_molality_to_mole_fraction = calc_molality_to_mole_fraction_from_mapping
+sequence_molality_to_mole_fraction = calc_molality_to_mole_fraction_from_sequence
+mapping_molality_to_mole_fraction_with_units = calc_molality_to_mole_fraction_from_props
+sequence_molality_to_mole_fraction_with_units = calc_molality_to_mole_fraction_from_props
+mole_fraction_to_molality = calc_mole_fraction_to_molality
+molarity_to_mass_fraction = calc_molarity_to_mass_fraction
+mass_fraction_to_molarity = calc_mass_fraction_to_molarity
+molality_to_mass_fraction = calc_molality_to_mass_fraction
+mass_fraction_to_molality = calc_mass_fraction_to_molality
+molarity_to_mass_concentration = calc_molarity_to_mass_concentration
+mass_concentration_to_molarity = calc_mass_concentration_to_molarity
+mass_fraction_to_weight_percent = calc_mass_fraction_to_weight_percent
+weight_percent_to_mass_fraction = calc_weight_percent_to_mass_fraction
+mole_fraction_to_mole_percent = calc_mole_fraction_to_mole_percent
+mole_percent_to_mole_fraction = calc_mole_percent_to_mole_fraction
+mass_fraction_to_ppm = calc_mass_fraction_to_ppm
+ppm_mass_to_mass_fraction = calc_ppm_mass_to_mass_fraction
+mole_fraction_to_ppm = calc_mole_fraction_to_ppm
+ppm_mole_to_mole_fraction = calc_ppm_mole_to_mole_fraction
+mass_fraction_to_ppb = calc_mass_fraction_to_ppb
+ppb_mass_to_mass_fraction = calc_ppb_mass_to_mass_fraction
+mole_fraction_to_ppb = calc_mole_fraction_to_ppb
+ppb_mole_to_mole_fraction = calc_ppb_mole_to_mole_fraction
+
+
 # SECTION: Public exports
 __all__ = [
     "calc_mole_fraction_to_mass_fraction",
@@ -1734,4 +1778,45 @@ __all__ = [
     "calc_ppb_mass_to_mass_fraction",
     "calc_mole_fraction_to_ppb",
     "calc_ppb_mole_to_mole_fraction",
+    "mole_fraction_to_mass_fraction",
+    "mapping_mole_fraction_to_mass_fraction",
+    "sequence_mole_fraction_to_mass_fraction",
+    "mapping_mole_fraction_to_mass_fraction_with_units",
+    "sequence_mole_fraction_to_mass_fraction_with_units",
+    "mass_fraction_to_mole_fraction",
+    "mapping_mass_fraction_to_mole_fraction",
+    "sequence_mass_fraction_to_mole_fraction",
+    "mapping_mass_fraction_to_mole_fraction_with_units",
+    "sequence_mass_fraction_to_mole_fraction_with_units",
+    "molarity_to_molality",
+    "molality_to_molarity",
+    "molarities_to_molalities",
+    "mapping_molarities_to_molalities",
+    "sequence_molarities_to_molalities",
+    "mapping_molarities_to_molalities_with_units",
+    "sequence_molarities_to_molalities_with_units",
+    "molality_to_mole_fraction",
+    "mapping_molality_to_mole_fraction",
+    "sequence_molality_to_mole_fraction",
+    "mapping_molality_to_mole_fraction_with_units",
+    "sequence_molality_to_mole_fraction_with_units",
+    "mole_fraction_to_molality",
+    "molarity_to_mass_fraction",
+    "mass_fraction_to_molarity",
+    "molality_to_mass_fraction",
+    "mass_fraction_to_molality",
+    "molarity_to_mass_concentration",
+    "mass_concentration_to_molarity",
+    "mass_fraction_to_weight_percent",
+    "weight_percent_to_mass_fraction",
+    "mole_fraction_to_mole_percent",
+    "mole_percent_to_mole_fraction",
+    "mass_fraction_to_ppm",
+    "ppm_mass_to_mass_fraction",
+    "mole_fraction_to_ppm",
+    "ppm_mole_to_mole_fraction",
+    "mass_fraction_to_ppb",
+    "ppb_mass_to_mass_fraction",
+    "mole_fraction_to_ppb",
+    "ppb_mole_to_mole_fraction",
 ]
