@@ -211,3 +211,6 @@ __marimo__/
 # guides
 /guides
 guides/
+
+# .codex
+.codex/
