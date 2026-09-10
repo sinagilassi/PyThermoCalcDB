@@ -293,6 +293,17 @@ def calc_ionic_strength_molality_with_components_from_sequence(
     )
 
 
+# SECTION: Compatibility aliases
+calc_mapping_ionic_strength_molality = calc_ionic_strength_molality_from_mapping
+calc_sequence_ionic_strength_molality = calc_ionic_strength_molality_from_sequence
+calc_mapping_ionic_strength_molality_from_components = (
+    calc_ionic_strength_molality_with_components_from_mapping
+)
+calc_sequence_ionic_strength_molality_from_components = (
+    calc_ionic_strength_molality_with_components_from_sequence
+)
+
+
 # SECTION: Public exports
 __all__ = [
     # public
@@ -302,4 +313,8 @@ __all__ = [
     "calc_ionic_strength_molality_from_props",
     "calc_ionic_strength_molality_with_components_from_sequence",
     "calc_ionic_strength_molality_with_components_from_mapping",
+    "calc_mapping_ionic_strength_molality",
+    "calc_sequence_ionic_strength_molality",
+    "calc_mapping_ionic_strength_molality_from_components",
+    "calc_sequence_ionic_strength_molality_from_components",
 ]

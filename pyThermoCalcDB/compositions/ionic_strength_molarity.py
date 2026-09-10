@@ -336,6 +336,11 @@ def calc_ionic_strength_molarity_with_components_from_sequence(
     )
 
 
+# SECTION: Compatibility aliases
+calc_mapping_ionic_strength_molarity = calc_ionic_strength_molarity_from_mapping
+calc_sequence_ionic_strength_molarity = calc_ionic_strength_molarity_from_sequence
+
+
 # SECTION: Public exports
 __all__ = [
     # public
@@ -345,4 +350,6 @@ __all__ = [
     "calc_ionic_strength_molarity_from_props",
     "calc_ionic_strength_molarity_with_components_from_sequence",
     "calc_ionic_strength_molarity_with_components_from_mapping",
+    "calc_mapping_ionic_strength_molarity",
+    "calc_sequence_ionic_strength_molarity",
 ]
