@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
-from pythermodb_settings.models import Component, ComponentKey, CustomProp, AnnotatedValue
+from pythermodb_settings.models import Component, ComponentKey, AnnotatedValue
 from pythermodb_settings.utils import (
     to_annotated_value,
 )
@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 # *** Public annotated API
 # ======================================================================
 
-# ::: annotated for numpy array
+# ! ::: annotated for numpy array
+
 @calculation_info(
     name="fraction",
     description="Calculate the fraction of each value relative to the total.",
@@ -89,8 +90,9 @@ def _fraction_annotated(
         implementation="_calc_fractions",
     )
 
+# ! ::: annotated for sequence
 
-# ::: annotated for sequence
+
 @calculation_info(
     name="fraction",
     description="Calculate the fraction of each value relative to the total.",
@@ -135,7 +137,9 @@ def _fraction_1_annotated(
         implementation="_calc_fractions",
     )
 
-# ::: annotated for mapping
+# ! ::: annotated for mapping
+
+
 @calculation_info(
     name="fraction",
     description="Calculate the fraction of each keyed value relative to the total.",
@@ -181,7 +185,9 @@ def _fraction_2_annotated(
         implementation="_calc_fractions_from_mapping",
     )
 
-# ::: annotated for component mapping
+# ! ::: annotated for component mapping
+
+
 @calculation_info(
     name="component_fraction",
     description="Calculate component fractions with optional component-key remapping and ordering.",
@@ -228,7 +234,7 @@ def _fraction_3_annotated(
     return to_annotated_value(
         _calc_component_fractions(
             values=values,
-            components=components,
+            components=list(components) if components is not None else None,
             component_key=component_key,
             case_sensitive=case_sensitive,
             sort_by_components_order=sort_by_components_order
@@ -239,27 +245,6 @@ def _fraction_3_annotated(
         symbol=symbol,
         implementation="_calc_component_fractions",
     )
-
-
-# ======================================================================
-# *** Backward compatible deterministic API
-# ======================================================================
-def _component_fractions_with_list(
-        values: Mapping[str, float | int],
-        components: Optional[Sequence[Component]] = None,
-        component_key: Optional[ComponentKey] = None,
-        case_sensitive: bool = True,
-        sort_by_components_order: bool = True,
-) -> tuple[dict[str, float], list[float]]:
-    """Return component fractions as both keyed values and ordered values."""
-    result = _calc_component_fractions(
-        values=values,
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order
-    )
-    return result, list(result.values())
 
 
 # ======================================================================
@@ -277,27 +262,11 @@ calc_fractions_from_mapping = _fraction_2_annotated
 # >> component fractions
 calc_component_fractions = _fraction_3_annotated
 
-# >> compatibility aliases
-fr1 = _calc_fractions
-fr2 = _calc_fractions_from_mapping
-fr3 = _component_fractions_with_list
-calculate_fractions = fr1
-calculate_keyed_fractions = fr2
-calculate_component_fractions = fr3
 
 # all
 __all__ = [
-    "_calc_fractions",
-    "_calc_fractions_from_mapping",
-    "_calc_component_fractions",
     "calc_fractions",
     "calc_fractions_from_sequence",
     "calc_fractions_from_mapping",
     "calc_component_fractions",
-    "fr1",
-    "fr2",
-    "fr3",
-    "calculate_fractions",
-    "calculate_keyed_fractions",
-    "calculate_component_fractions",
 ]
