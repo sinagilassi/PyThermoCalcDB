@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
-from pythermodb_settings.models import Component, ComponentKey, AnnotatedValue
+from pythermodb_settings.models import Component, ComponentKey, AnnotatedValue, CustomProp
 from pythermodb_settings.utils import (
     to_annotated_value,
 )
@@ -12,7 +12,7 @@ from pythermodb_settings.decorators import calculation_info
 from .core.fractions import (
     _calc_fractions,
     _calc_fractions_from_mapping,
-    _calc_component_fractions,
+    _calc_fractions_from_props,
 )
 
 # NOTE: logger set
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
         "unitless",
     )
 )
-def _fraction_annotated(
+def calc_fractions(
         values: Sequence[float | int] | NDArray[np.number],
         *,
         name: str = "fraction",
@@ -119,7 +119,7 @@ def _fraction_annotated(
         "unitless",
     )
 )
-def _fraction_1_annotated(
+def calc_fractions_from_sequence(
         values: Sequence[float | int],
         *,
         name: str = "fraction",
@@ -167,7 +167,7 @@ def _fraction_1_annotated(
         "unitless",
     )
 )
-def _fraction_2_annotated(
+def calc_fractions_from_mapping(
         values: Mapping[str, float | int],
         *,
         name: str = "fraction",
@@ -218,8 +218,8 @@ def _fraction_2_annotated(
         "unitless",
     )
 )
-def _fraction_3_annotated(
-        values: Mapping[str, float | int],
+def calc_fractions_from_props(
+        values: Mapping[str, CustomProp],
         components: Optional[Sequence[Component]] = None,
         component_key: Optional[ComponentKey] = None,
         case_sensitive: bool = True,
@@ -232,7 +232,7 @@ def _fraction_3_annotated(
 ) -> AnnotatedValue[dict[str, float]]:
     """Calculate annotated component fractions from a value mapping."""
     return to_annotated_value(
-        _calc_component_fractions(
+        _calc_fractions_from_props(
             values=values,
             components=list(components) if components is not None else None,
             component_key=component_key,
@@ -243,24 +243,8 @@ def _fraction_3_annotated(
         description=description,
         unit=unit,
         symbol=symbol,
-        implementation="_calc_component_fractions",
+        implementation="_calc_fractions_from_props",
     )
-
-
-# ======================================================================
-# *** Aliases
-# ======================================================================
-# >> fractions
-calc_fractions = _fraction_annotated
-
-# >> fractions from sequence
-calc_fractions_from_sequence = _fraction_1_annotated
-
-# >> fractions from mapping
-calc_fractions_from_mapping = _fraction_2_annotated
-
-# >> component fractions
-calc_component_fractions = _fraction_3_annotated
 
 
 # all
@@ -268,5 +252,5 @@ __all__ = [
     "calc_fractions",
     "calc_fractions_from_sequence",
     "calc_fractions_from_mapping",
-    "calc_component_fractions",
+    "calc_fractions_from_props",
 ]

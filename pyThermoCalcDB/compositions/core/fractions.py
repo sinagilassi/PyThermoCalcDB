@@ -4,11 +4,13 @@ import numpy as np
 from numpy.typing import NDArray
 from collections.abc import Mapping, Sequence
 from typing import List, Dict, Optional, Tuple, Any, cast
-from pythermodb_settings.models import Component, ComponentKey
+from pythermodb_settings.models import Component, ComponentKey, CustomProp
 # locals
 from pythermodb_settings.utils import (
     config_components_values,
+    to_amounts
 )
+# locals
 
 # NOTE: logger set
 logger = logging.getLogger(__name__)
@@ -90,8 +92,8 @@ def _calc_fractions_from_mapping(
     return dict(zip(values.keys(), res.tolist()))
 
 
-def _calc_component_fractions(
-        values: Mapping[str, float | int],
+def _calc_fractions_from_props(
+        values: Mapping[str, CustomProp],
         components: Optional[List[Component]] = None,
         component_key: Optional[ComponentKey] = None,
         case_sensitive: bool = True,
@@ -102,7 +104,7 @@ def _calc_component_fractions(
 
     Parameters
     ----------
-    values : Dict[str, float | int]
+    values : Dict[str, CustomProp]
         A dictionary of component IDs and their corresponding values.
     components : Optional[List[Component]], optional
         A list of Component objects. Required when component_key is provided.
@@ -117,6 +119,10 @@ def _calc_component_fractions(
         A dictionary of component fractions, or None if the input is invalid.
     """
     # SECTION: get components values
+    normalized_value: Dict[str, float] = to_amounts(
+        component_amounts=values,
+    )
+
     # ! configure component values if component_key is provided otherwise
     # ! otherwise use the original values dictionary
     if component_key is not None:
@@ -132,7 +138,8 @@ def _calc_component_fractions(
             components=components,
             component_key=component_key,
             case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order
+            sort_by_components_order=sort_by_components_order,
+            extract_values=True
         )
         # >> check
         if component_values is None:
@@ -142,7 +149,7 @@ def _calc_component_fractions(
         # unpack
         component_values_dict, _ = component_values
     else:
-        component_values_dict = values
+        component_values_dict = normalized_value
 
     # SECTION: Calculate fractions
     total = sum(component_values_dict.values())
@@ -160,5 +167,5 @@ def _calc_component_fractions(
 __all__ = [
     "_calc_fractions",
     "_calc_fractions_from_mapping",
-    "_calc_component_fractions",
+    "_calc_fractions_from_props",
 ]
