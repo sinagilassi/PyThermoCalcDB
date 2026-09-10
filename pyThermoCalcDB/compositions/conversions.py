@@ -1,1319 +1,238 @@
-"""Composition basis conversion functions.
+"""Annotated public APIs for composition-basis conversions."""
 
-These helpers perform deterministic arithmetic conversions between common
-composition bases. Inputs may be plain numeric values or ``CustomProp`` values.
-Mapping inputs are normalized through ``pythermodb_settings.utils.to_amounts``.
-
-Unit convention
----------------
-Arguments named ``output_*_unit`` are optional and define the unit used to
-normalize the matching input before calculation. When an ``output_*_unit`` is
-``None``, the input value is used as-is. When it is provided, numeric values are
-assumed to already use that unit and ``CustomProp`` values are converted to that
-unit with ``pycuc.convert_from_to``. The functions return plain floats,
-dictionaries of floats, or lists of floats.
-"""
-
+# import libs
 from collections.abc import Mapping, Sequence
-from typing import Optional, List, cast, overload
+from typing import Optional
+
+import numpy as np
+from numpy.typing import NDArray
+
 # >> pythermodb-settings
-from pythermodb_settings.models import CustomProp, ScalarValue, Component, ComponentKey
+from pythermodb_settings.decorators import calculation_info
+from pythermodb_settings.models import AnnotatedValue, Component, ComponentKey, CustomProp
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils.validators import (
-    non_empty,
-    fractions,
-    positive,
-    non_negative,
-    same_shape
-)
-from pythermodb_settings.utils.quantity import (
-    to_dict,
-    to_list,
-)
+
 # locals
-from ..utils.conversions import (
-    _configure_component_values,
-    _resolve_unit_conversion_fn,
-    _pos,
-    _scalar,
+from ..utils.tools import to_annotated_value
+from .core.conversions import (
+    _calc_mass_concentration_to_molarity,
+    _calc_mass_fraction_to_molality,
+    _calc_mass_fraction_to_molarity,
+    _calc_mass_fraction_to_mole_fraction,
+    _calc_mass_fraction_to_mole_fraction_from_mapping,
+    _calc_mass_fraction_to_mole_fraction_from_props,
+    _calc_mass_fraction_to_mole_fraction_from_sequence,
+    _calc_mass_fraction_to_ppb,
+    _calc_mass_fraction_to_ppm,
+    _calc_mass_fraction_to_weight_percent,
+    _calc_molarities_to_molalities,
+    _calc_molarities_to_molalities_from_mapping,
+    _calc_molarities_to_molalities_from_props,
+    _calc_molarities_to_molalities_from_sequence,
+    _calc_molarity_to_mass_concentration,
+    _calc_molarity_to_mass_fraction,
+    _calc_molarity_to_molality,
+    _calc_molality_to_mass_fraction,
+    _calc_molality_to_molarity,
+    _calc_molality_to_mole_fraction,
+    _calc_molality_to_mole_fraction_from_mapping,
+    _calc_molality_to_mole_fraction_from_props,
+    _calc_molality_to_mole_fraction_from_sequence,
+    _calc_mole_fraction_to_mass_fraction,
+    _calc_mole_fraction_to_mass_fraction_from_mapping,
+    _calc_mole_fraction_to_mass_fraction_from_props,
+    _calc_mole_fraction_to_mass_fraction_from_sequence,
+    _calc_mole_fraction_to_molality,
+    _calc_mole_fraction_to_mole_percent,
+    _calc_mole_fraction_to_ppb,
+    _calc_mole_fraction_to_ppm,
+    _calc_mole_percent_to_mole_fraction,
+    _calc_ppb_mass_to_mass_fraction,
+    _calc_ppb_mole_to_mole_fraction,
+    _calc_ppm_mass_to_mass_fraction,
+    _calc_ppm_mole_to_mole_fraction,
+    _calc_weight_percent_to_mass_fraction,
 )
 
-# SECTION: Mole fraction and mass fraction conversions
 
-# ! mole fraction to mass fraction conversion
-
-
-def _mole_fraction_to_mass_fraction(
-    mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert component mole fractions to mass fractions.
+def _annotate(
+    value: object,
+    *,
+    name: str,
+    description: str,
+    unit: str | None,
+    symbol: str | None,
+    implementation: str,
+) -> AnnotatedValue[object]:
+    """Build an annotated conversion result.
 
     Parameters
     ----------
-    mole_fractions : Mapping[str, float | int | CustomProp] or Sequence[float | int | CustomProp]
-        Component mole fractions. Values must be between zero and one. Mapping
-        keys must match ``molecular_weights`` keys; sequence order must match
-        ``molecular_weights`` order.
-    molecular_weights : Mapping[str, float | int | CustomProp] or Sequence[float | int | CustomProp]
-        Component molecular weights. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit``. ``CustomProp`` values are converted to
-        ``output_molecular_weight_unit`` when it is provided.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weights`` before calculation. Leave as ``None`` to use input values as-is. Leave as
-        ``None`` when all molecular weights are already numerically consistent.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-    components : list[Component], optional
-        Components used to remap and order mapping-input results when
-        ``component_key`` is provided.
-    component_key : ComponentKey, optional
-        Component identifier format for remapping mapping-input keys. When
-        ``None``, original mapping keys and insertion order are preserved.
-    case_sensitive : bool, optional
-        Whether component ID matching is case-sensitive. Defaults to ``True``.
-    sort_by_components_order : bool, optional
-        Whether mapping results should follow the order of ``components``.
-        Defaults to ``True``.
+    value : object
+        Calculated conversion result.
+    name : str
+        Result name.
+    description : str
+        Result description.
+    unit : str | None
+        Result unit metadata.
+    symbol : str | None
+        Result symbol metadata.
+    implementation : str
+        Core implementation name stored in result metadata.
 
     Returns
     -------
-    dict[str, float] or list[float]
-        Component mass fractions. Mapping input returns a dictionary; sequence
-        input returns a list.
-
-    Notes
-    -----
-    Equation defines as:
-    w_i = x_i*M_i / sum_j(x_j*M_j)
+    AnnotatedValue[object]
+        Annotated calculation result.
     """
-    # SECTION: Validate inputs
-    fractions(mole_fractions, "mole_fractions")
-    positive(molecular_weights, "molecular_weights")
-    same_shape(mole_fractions, molecular_weights)
-
-    # SECTION: Mapping implementation
-    if isinstance(mole_fractions, Mapping) and isinstance(molecular_weights, Mapping):
-        x = to_dict(
-            mole_fractions,
-            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-        )
-        mw = to_dict(
-            molecular_weights,
-            output_molecular_weight_unit,
-            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-        )
-        x = _configure_component_values(
-            x,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-            "mole_fractions",
-        )
-        mw = _configure_component_values(
-            mw,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-            "molecular_weights",
-        )
-        denom = sum(x[key] * mw[key] for key in x)
-        if denom <= 0.0:
-            raise ValueError(
-                "The weighted molecular-weight sum must be positive.")
-        return {key: x[key] * mw[key] / denom for key in x}
-
-    if isinstance(mole_fractions, Mapping) or isinstance(molecular_weights, Mapping):
-        raise TypeError(
-            "Both component inputs must be mappings or both sequences.")
-
-    # SECTION: Sequence implementation
-    x = to_list(
-        mole_fractions,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-    mw = to_list(
-        molecular_weights,
-        output_molecular_weight_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-    denom = sum(x_i * mw_i for x_i, mw_i in zip(x, mw))
-    if denom <= 0.0:
-        raise ValueError("The weighted molecular-weight sum must be positive.")
-    return [x_i * mw_i / denom for x_i, mw_i in zip(x, mw)]
-
-# ! ::: Convert Mass Fraction to Mole Fraction
-
-
-def _mass_fraction_to_mole_fraction(
-    mass_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert component mass fractions to mole fractions.
-
-    Parameters
-    ----------
-    mass_fractions : Mapping[str, float | int | CustomProp] or Sequence[float | int | CustomProp]
-        Component mass fractions. Values must be between zero and one. Mapping
-        keys must match ``molecular_weights`` keys; sequence order must match
-        ``molecular_weights`` order.
-    molecular_weights : Mapping[str, float | int | CustomProp] or Sequence[float | int | CustomProp]
-        Component molecular weights. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit``. ``CustomProp`` values are converted to
-        ``output_molecular_weight_unit`` when it is provided.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weights`` before calculation. Leave as ``None`` to use input values as-is. Leave as
-        ``None`` when all molecular weights are already numerically consistent.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-    components : list[Component], optional
-        Components used to remap and order mapping-input results when
-        ``component_key`` is provided.
-    component_key : ComponentKey, optional
-        Component identifier format for remapping mapping-input keys. When
-        ``None``, original mapping keys and insertion order are preserved.
-    case_sensitive : bool, optional
-        Whether component ID matching is case-sensitive. Defaults to ``True``.
-    sort_by_components_order : bool, optional
-        Whether mapping results should follow the order of ``components``.
-        Defaults to ``True``.
-
-    Returns
-    -------
-    dict[str, float] or list[float]
-        Component mole fractions. Mapping input returns a dictionary; sequence
-        input returns a list.
-
-    Notes
-    -----
-    Equation defines as:
-    x_i = (w_i/M_i) / sum_j(w_j/M_j)
-    """
-    # SECTION: Validate inputs
-    fractions(mass_fractions, "mass_fractions")
-    positive(molecular_weights, "molecular_weights")
-    same_shape(mass_fractions, molecular_weights)
-
-    # SECTION: Mapping implementation
-    if isinstance(mass_fractions, Mapping) and isinstance(molecular_weights, Mapping):
-        w = to_dict(
-            mass_fractions,
-            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-        )
-        mw = to_dict(
-            molecular_weights,
-            output_molecular_weight_unit,
-            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-        )
-        w = _configure_component_values(
-            w,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-            "mass_fractions",
-        )
-        mw = _configure_component_values(
-            mw,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-            "molecular_weights",
-        )
-        denom = sum(w[key] / mw[key] for key in w)
-        if denom <= 0.0:
-            raise ValueError(
-                "The reciprocal molecular-weight sum must be positive.")
-        return {key: (w[key] / mw[key]) / denom for key in w}
-
-    if isinstance(mass_fractions, Mapping) or isinstance(molecular_weights, Mapping):
-        raise TypeError(
-            "Both component inputs must be mappings or both sequences.")
-
-    # SECTION: Sequence implementation
-    w = to_list(
-        mass_fractions,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-    mw = to_list(
-        molecular_weights,
-        output_molecular_weight_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-    denom = sum(w_i / mw_i for w_i, mw_i in zip(w, mw))
-    if denom <= 0.0:
-        raise ValueError(
-            "The reciprocal molecular-weight sum must be positive.")
-    return [(w_i / mw_i) / denom for w_i, mw_i in zip(w, mw)]
-
-
-# SECTION: Molarity and molality conversions
-# ! ::: Convert Molarity to Molality
-def molarity_to_molality(
-    molarity: ScalarValue,
-    molecular_weight: ScalarValue,
-    solution_density: ScalarValue,
-    output_molarity_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    output_solution_density_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert single-solute molarity to molality.
-
-    Parameters
-    ----------
-    molarity : float | int | CustomProp
-        Solute molarity. Numeric values are assumed to already be in
-        ``output_molarity_unit`` when it is provided.
-    molecular_weight : float | int | CustomProp
-        Solute molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    solution_density : float | int | CustomProp
-        Solution density. Numeric values are assumed to already be in
-        ``output_solution_density_unit`` when it is provided.
-    output_molarity_unit : str, optional
-        Unit used to normalize ``molarity`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_solution_density_unit : str, optional
-        Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-
-    Returns
-    -------
-    float
-        Solute molality, consistent with the normalized input units.
-
-    Notes
-    -----
-    Equation defines as:
-    b = C / (rho - C*M)
-    """
-    # SECTION: Validate inputs
-    c = _pos(
-        molarity,
-        "molarity",
-        output_molarity_unit,
-        unit_conversion_fn
-    )
-    mw = _pos(
-        molecular_weight,
-        "molecular_weight",
-        output_molecular_weight_unit,
-        unit_conversion_fn
-    )
-    rho = _pos(
-        solution_density,
-        "solution_density",
-        output_solution_density_unit,
-        unit_conversion_fn
-    )
-
-    # ! The solvent mass on a 1-volume basis must remain positive.
-    solvent_mass = rho - c * mw
-    if solvent_mass <= 0.0:
-        raise ValueError(
-            "solution_density - molarity*molecular_weight must be positive.")
-
-    # SECTION: Calculate molality
-    return c / solvent_mass
-
-# ! ::: Convert Molarity to Molality
-
-
-def molality_to_molarity(
-    molality: ScalarValue,
-    molecular_weight: ScalarValue,
-    solution_density: ScalarValue,
-    output_molality_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    output_solution_density_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert single-solute molality to molarity.
-
-    Parameters
-    ----------
-    molality : float | int | CustomProp
-        Solute molality. Numeric values are assumed to already be in
-        ``output_molality_unit`` when it is provided.
-    molecular_weight : float | int | CustomProp
-        Solute molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    solution_density : float | int | CustomProp
-        Solution density. Numeric values are assumed to already be in
-        ``output_solution_density_unit`` when it is provided.
-    output_molality_unit : str, optional
-        Unit used to normalize ``molality`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_solution_density_unit : str, optional
-        Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-
-    Returns
-    -------
-    float
-        Solute molarity, consistent with the normalized input units.
-
-    Notes
-    -----
-    Equation defines as:
-    C = b*rho / (1 + b*M)
-    """
-    # SECTION: Validate inputs
-    b = _pos(
-        molality,
-        "molality",
-        output_molality_unit,
-        unit_conversion_fn
-    )
-    mw = _pos(
-        molecular_weight,
-        "molecular_weight",
-        output_molecular_weight_unit,
-        unit_conversion_fn
-    )
-    rho = _pos(
-        solution_density,
-        "solution_density",
-        output_solution_density_unit,
-        unit_conversion_fn
-    )
-
-    # SECTION: Calculate molarity
-    return b * rho / (1.0 + b * mw)
-
-# ! ::: Convert Molality to Molarity
-
-
-def _molarities_to_molalities(
-    molarities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    solution_density: ScalarValue,
-    output_molarity_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    output_solution_density_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert multisolute molarities to molalities.
-
-    Parameters
-    ----------
-    molarities : Mapping[str, float | int | CustomProp] or Sequence[float | int | CustomProp]
-        Solute molarities. Numeric values are assumed to already be in
-        ``output_molarity_unit`` when it is provided. Mapping keys must match ``molecular_weights``
-        keys; sequence order must match ``molecular_weights`` order.
-    molecular_weights : Mapping[str, float | int | CustomProp] or Sequence[float | int | CustomProp]
-        Solute molecular weights. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    solution_density : float | int | CustomProp
-        Solution density. Numeric values are assumed to already be in
-        ``output_solution_density_unit`` when it is provided.
-    output_molarity_unit : str, optional
-        Unit used to normalize ``molarities`` before calculation. Leave as ``None`` to use input values as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weights`` before calculation. Leave as ``None`` to use input values as-is.
-    output_solution_density_unit : str, optional
-        Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-    components : list[Component], optional
-        Components used to remap and order mapping-input results when
-        ``component_key`` is provided.
-    component_key : ComponentKey, optional
-        Component identifier format for remapping mapping-input keys. When
-        ``None``, original mapping keys and insertion order are preserved.
-    case_sensitive : bool, optional
-        Whether component ID matching is case-sensitive. Defaults to ``True``.
-    sort_by_components_order : bool, optional
-        Whether mapping results should follow the order of ``components``.
-        Defaults to ``True``.
-
-    Returns
-    -------
-    dict[str, float] or list[float]
-        Solute molalities. Mapping input returns a dictionary; sequence input
-        returns a list.
-
-    Notes
-    -----
-    Equation defines as:
-    b_i = C_i / (rho - sum_j(C_j*M_j))
-    """
-    # SECTION: Validate inputs
-    non_empty(molarities, "molarities")
-    non_negative(molarities, "molarities")
-    positive(molecular_weights, "molecular_weights")
-    same_shape(molarities, molecular_weights)
-    rho = _pos(
-        solution_density,
-        "solution_density",
-        output_solution_density_unit,
-        unit_conversion_fn
-    )
-
-    # SECTION: Mapping implementation
-    if isinstance(molarities, Mapping) and isinstance(molecular_weights, Mapping):
-        c = to_dict(
-            molarities,
-            output_molarity_unit,
-            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-        )
-        mw = to_dict(
-            molecular_weights,
-            output_molecular_weight_unit,
-            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-        )
-        c = _configure_component_values(
-            c,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-            "molarities",
-        )
-        mw = _configure_component_values(
-            mw,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-            "molecular_weights",
-        )
-        solvent_mass = rho - sum(c[key] * mw[key] for key in c)
-        if solvent_mass <= 0.0:
-            raise ValueError(
-                "solution_density - sum(molarity*molecular_weight) must be positive.")
-        return {key: c[key] / solvent_mass for key in c}
-
-    if isinstance(molarities, Mapping) or isinstance(molecular_weights, Mapping):
-        raise TypeError(
-            "Both component inputs must be mappings or both sequences.")
-
-    # SECTION: Sequence implementation
-    c = to_list(
-        molarities,
-        output_molarity_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-    mw = to_list(
-        molecular_weights,
-        output_molecular_weight_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-    solvent_mass = rho - sum(c_i * mw_i for c_i, mw_i in zip(c, mw))
-    if solvent_mass <= 0.0:
-        raise ValueError(
-            "solution_density - sum(molarity*molecular_weight) must be positive.")
-    return [c_i / solvent_mass for c_i in c]
-
-
-# SECTION: Molality and mole fraction conversions
-
-# ! ::: Convert Molality to Mole Fraction
-def _molality_to_mole_fraction(
-    molalities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    solvent_molecular_weight: ScalarValue,
-    solvent_key: str = "solvent",
-    output_molality_unit: str | None = None,
-    output_solvent_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert solute molalities to mole fractions, including solvent.
-
-    Parameters
-    ----------
-    molalities : Mapping[str, float | int | CustomProp] or Sequence[float | int | CustomProp]
-        Solute molalities. Numeric values are assumed to already be in
-        ``output_molality_unit`` when it is provided.
-    solvent_molecular_weight : float | int | CustomProp
-        Solvent molecular weight. Numeric values are assumed to already be in
-        ``output_solvent_molecular_weight_unit`` when it is provided.
-    solvent_key : str, default="solvent"
-        Key used for the solvent entry when ``molalities`` is a mapping.
-    output_molality_unit : str, optional
-        Unit used to normalize ``molalities`` before calculation. Leave as ``None`` to use input values as-is.
-    output_solvent_molecular_weight_unit : str, optional
-        Unit used to normalize ``solvent_molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-    components : list[Component], optional
-        Components used to remap and order mapping-input results when
-        ``component_key`` is provided.
-    component_key : ComponentKey, optional
-        Component identifier format for remapping mapping-input keys. When
-        ``None``, original mapping keys and insertion order are preserved.
-    case_sensitive : bool, optional
-        Whether component ID matching is case-sensitive. Defaults to ``True``.
-    sort_by_components_order : bool, optional
-        Whether mapping results should follow the order of ``components``.
-        Defaults to ``True``.
-
-    Returns
-    -------
-    dict[str, float] or list[float]
-        Mole fractions for solutes plus solvent. Sequence output appends the
-        solvent mole fraction as the final item.
-
-    Notes
-    -----
-    Uses a 1 kg solvent basis, so n_solvent = 1/M_solvent.
-    """
-    # SECTION: Validate inputs
-    non_empty(molalities, "molalities")
-    non_negative(molalities, "molalities")
-    solvent_moles = 1.0 / _pos(
-        solvent_molecular_weight,
-        "solvent_molecular_weight",
-        output_solvent_molecular_weight_unit,
-        unit_conversion_fn,
-    )
-
-    # SECTION: Mapping implementation
-    if isinstance(molalities, Mapping):
-        b = to_dict(
-            molalities,
-            output_molality_unit,
-            unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-        )
-        b = _configure_component_values(
-            b,
-            components,
-            component_key,
-            case_sensitive,
-            sort_by_components_order,
-            "molalities",
-        )
-        total = solvent_moles + sum(b.values())
-        res = {key: value / total for key, value in b.items()}
-        res[solvent_key] = solvent_moles / total
-        return res
-
-    # SECTION: Sequence implementation
-    b = to_list(
-        molalities,
-        output_molality_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-    total = solvent_moles + sum(b)
-    return [value / total for value in b] + [solvent_moles / total]
-
-# ! ::: Convert Mole Fraction to Molality
-
-
-def mole_fraction_to_molality(
-    solute_mole_fraction: ScalarValue,
-    solvent_mole_fraction: ScalarValue,
-    solvent_molecular_weight: ScalarValue,
-    output_solvent_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a solute mole fraction to molality.
-
-    Parameters
-    ----------
-    solute_mole_fraction : float | int | CustomProp
-        Mole fraction of the solute. Must be between zero and one.
-    solvent_mole_fraction : float | int | CustomProp
-        Mole fraction of the solvent. Must be greater than zero and no greater
-        than one.
-    solvent_molecular_weight : float | int | CustomProp
-        Solvent molecular weight. Numeric values are assumed to already be in
-        ``output_solvent_molecular_weight_unit`` when it is provided.
-    output_solvent_molecular_weight_unit : str, optional
-        Unit used to normalize ``solvent_molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-
-    Returns
-    -------
-    float
-        Solute molality, consistent with the normalized solvent molecular weight.
-
-    Notes
-    -----
-    Equation defines as:
-    b_i = x_i / (x_s*M_s)
-    """
-    # SECTION: Validate inputs
-    x_i = _scalar(solute_mole_fraction, "solute_mole_fraction")
-    x_s = _scalar(solvent_mole_fraction, "solvent_mole_fraction")
-    mw_s = _pos(
-        solvent_molecular_weight,
-        "solvent_molecular_weight",
-        output_solvent_molecular_weight_unit,
-        unit_conversion_fn,
-    )
-
-    # ! Solvent fraction must be positive because it appears in the denominator.
-    if x_i < 0.0 or x_i > 1.0:
-        raise ValueError("solute_mole_fraction must be between zero and one.")
-    if x_s <= 0.0 or x_s > 1.0:
-        raise ValueError(
-            "solvent_mole_fraction must be greater than zero and no greater than one.")
-
-    # SECTION: Calculate molality
-    return x_i / (x_s * mw_s)
-
-
-# SECTION: Molarity and mass fraction conversions
-def molarity_to_mass_fraction(
-    molarity: ScalarValue,
-    molecular_weight: ScalarValue,
-    solution_density: ScalarValue,
-    output_molarity_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    output_solution_density_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert single-solute molarity to mass fraction.
-
-    Parameters
-    ----------
-    molarity : float | int | CustomProp
-        Solute molarity. Numeric values are assumed to already be in
-        ``output_molarity_unit`` when it is provided.
-    molecular_weight : float | int | CustomProp
-        Solute molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    solution_density : float | int | CustomProp
-        Solution density. Numeric values are assumed to already be in
-        ``output_solution_density_unit`` when it is provided.
-    output_molarity_unit : str, optional
-        Unit used to normalize ``molarity`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_solution_density_unit : str, optional
-        Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-
-    Returns
-    -------
-    float
-        Solute mass fraction.
-
-    Notes
-    -----
-    Equation defines as:
-    w_i = C_i*M_i / rho
-    """
-    # SECTION: Calculate and validate result
-    result = _pos(molarity, "molarity", output_molarity_unit, unit_conversion_fn) * _pos(
-        molecular_weight,
-        "molecular_weight",
-        output_molecular_weight_unit,
-        unit_conversion_fn,
-    )
-    result = result / _pos(
-        solution_density,
-        "solution_density",
-        output_solution_density_unit,
-        unit_conversion_fn
-    )
-    if result > 1.0:
-        raise ValueError("Calculated mass fraction is greater than one.")
-    return result
-
-# ! ::: Convert Mass Fraction to Molarity
-
-
-def mass_fraction_to_molarity(
-    mass_fraction: ScalarValue,
-    solution_density: ScalarValue,
-    molecular_weight: ScalarValue,
-    output_solution_density_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert single-solute mass fraction to molarity.
-
-    Parameters
-    ----------
-    mass_fraction : float | int | CustomProp
-        Solute mass fraction. Must be between zero and one.
-    solution_density : float | int | CustomProp
-        Solution density. Numeric values are assumed to already be in
-        ``output_solution_density_unit`` when it is provided.
-    molecular_weight : float | int | CustomProp
-        Solute molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    output_solution_density_unit : str, optional
-        Unit used to normalize ``solution_density`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-
-    Returns
-    -------
-    float
-        Solute molarity, consistent with the normalized input units.
-
-    Notes
-    -----
-    Equation defines as:
-    C_i = w_i*rho / M_i
-    """
-    # SECTION: Validate inputs
-    w = _scalar(mass_fraction, "mass_fraction")
-    if w < 0.0 or w > 1.0:
-        raise ValueError("mass_fraction must be between zero and one.")
-
-    # SECTION: Calculate molarity
-    return w * _pos(
-        solution_density,
-        "solution_density",
-        output_solution_density_unit,
-        unit_conversion_fn
-    ) / _pos(
-        molecular_weight,
-        "molecular_weight",
-        output_molecular_weight_unit,
-        unit_conversion_fn,
+    return to_annotated_value(
+        value=value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation=implementation,
     )
 
 
-# SECTION: Molality and mass fraction conversions
-
-# ! ::: Convert Molarity to Mass Fraction
-def molality_to_mass_fraction(
-    molality: ScalarValue,
-    molecular_weight: ScalarValue,
-    output_molality_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert single-solute molality to mass fraction.
-
-    Parameters
-    ----------
-    molality : float | int | CustomProp
-        Solute molality. Numeric values are assumed to already be in
-        ``output_molality_unit`` when it is provided.
-    molecular_weight : float | int | CustomProp
-        Solute molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    output_molality_unit : str, optional
-        Unit used to normalize ``molality`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-
-    Returns
-    -------
-    float
-        Solute mass fraction.
-
-    Notes
-    -----
-    Equation defines as:
-    w_i = b_i*M_i / (1 + b_i*M_i)
-    """
-    # SECTION: Calculate from a 1 kg solvent basis
-    solute_mass = _pos(molality, "molality", output_molality_unit, unit_conversion_fn) * _pos(
-        molecular_weight,
-        "molecular_weight",
-        output_molecular_weight_unit,
-        unit_conversion_fn,
-    )
-    return solute_mass / (1.0 + solute_mass)
-
-# ! ::: Convert Mass Fraction to Molality
+# ======================================================================
+# *** Public annotated API
+# ======================================================================
 
 
-def mass_fraction_to_molality(
-    mass_fraction: ScalarValue,
-    molecular_weight: ScalarValue,
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert single-solute mass fraction to molality.
+@calculation_info(
+    name="mole_fraction_to_mass_fraction",
+    description="Convert mole fractions to mass fractions.",
+    equation="w_i = x_i*M_i / sum_j(x_j*M_j)",
+    inputs={
+        "mole_fractions": "Mole fractions.",
+        "molecular_weights": "Molecular weights.",
+    },
+    outputs={"mass_fractions": "Mass fractions."},
+    tags=("conversion", "mole_fraction", "mass_fraction", "array_like", "numpy"),
+)
+def calc_mole_fraction_to_mass_fraction(
+    mole_fractions: float | int | Sequence[float | int] | NDArray[np.number],
+    molecular_weights: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    name: str = "mass_fractions",
+    description: str = "Mass fractions converted from mole fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[NDArray[np.float64]]:
+    """Return annotated mass fractions from numeric array-like inputs.
 
     Parameters
     ----------
-    mass_fraction : float | int | CustomProp
-        Solute mass fraction. Must be at least zero and less than one.
-    molecular_weight : float | int | CustomProp
-        Solute molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
+    mole_fractions : float | int | Sequence[float | int] | NDArray[np.number]
+        Mole fractions to convert.
+    molecular_weights : float | int | Sequence[float | int] | NDArray[np.number]
+        Molecular weights paired with ``mole_fractions``.
 
     Returns
     -------
-    float
-        Solute molality, consistent with the normalized molecular weight.
-
-    Notes
-    -----
-    Equation defines as:
-    b_i = w_i / (M_i*(1 - w_i))
+    AnnotatedValue[NDArray[np.float64]]
+        Annotated mass fractions.
     """
-    # SECTION: Validate inputs
-    w = _scalar(mass_fraction, "mass_fraction")
-    if w < 0.0 or w >= 1.0:
-        raise ValueError(
-            "mass_fraction must be at least zero and less than one.")
-
-    # SECTION: Calculate molality
-    return w / (
-        _pos(molecular_weight, "molecular_weight",
-             output_molecular_weight_unit, unit_conversion_fn) * (1.0 - w)
+    value = _calc_mole_fraction_to_mass_fraction(mole_fractions, molecular_weights)
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mole_fraction_to_mass_fraction",
     )
 
 
-# SECTION: Molarity and mass concentration conversions
-
-# ! ::: Convert Molarity to Mass Concentration
-def molarity_to_mass_concentration(
-    molarity: ScalarValue,
-    molecular_weight: ScalarValue,
-    output_molarity_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert molarity to mass concentration.
+@calculation_info(
+    name="mole_fraction_to_mass_fraction",
+    description="Convert sequence mole fractions to mass fractions.",
+    equation="w_i = x_i*M_i / sum_j(x_j*M_j)",
+    inputs={
+        "mole_fractions": "Sequence or NumPy array of mole fractions.",
+        "molecular_weights": "Sequence or NumPy array of molecular weights.",
+    },
+    outputs={"mass_fractions": "List of mass fractions."},
+    tags=("conversion", "mole_fraction", "mass_fraction", "sequence", "numeric"),
+)
+def calc_mole_fraction_to_mass_fraction_from_sequence(
+    mole_fractions: float | int | Sequence[float | int] | NDArray[np.number],
+    molecular_weights: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    name: str = "mass_fractions",
+    description: str = "Mass fractions converted from mole fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[list[float]]:
+    """Return annotated mass fractions from array-like inputs as a list.
 
     Parameters
     ----------
-    molarity : float | int | CustomProp
-        Component molarity. Numeric values are assumed to already be in
-        ``output_molarity_unit`` when it is provided.
-    molecular_weight : float | int | CustomProp
-        Component molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    output_molarity_unit : str, optional
-        Unit used to normalize ``molarity`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
+    mole_fractions : float | int | Sequence[float | int] | NDArray[np.number]
+        Mole fractions to convert.
+    molecular_weights : float | int | Sequence[float | int] | NDArray[np.number]
+        Molecular weights paired with ``mole_fractions``.
 
     Returns
     -------
-    float
-        Component mass concentration, consistent with the normalized input units.
-
-    Notes
-    -----
-    Equation defines as:
-    c_m,i = C_i*M_i
+    AnnotatedValue[list[float]]
+        Annotated mass-fraction list.
     """
-    return _pos(molarity, "molarity", output_molarity_unit, unit_conversion_fn) * _pos(
-        molecular_weight,
-        "molecular_weight",
-        output_molecular_weight_unit,
-        unit_conversion_fn,
+    value = _calc_mole_fraction_to_mass_fraction_from_sequence(
+        mole_fractions=mole_fractions,
+        molecular_weights=molecular_weights,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mole_fraction_to_mass_fraction_from_sequence",
     )
 
 
-# ! ::: Convert Mass Concentration to Molarity
-def mass_concentration_to_molarity(
-    mass_concentration: ScalarValue,
-    molecular_weight: ScalarValue,
-    output_mass_concentration_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert mass concentration to molarity.
-
-    Parameters
-    ----------
-    mass_concentration : float | int | CustomProp
-        Component mass concentration. Numeric values are assumed to already be in
-        ``output_mass_concentration_unit`` when it is provided.
-    molecular_weight : float | int | CustomProp
-        Component molecular weight. Numeric values are assumed to already be in
-        ``output_molecular_weight_unit`` when it is provided.
-    output_mass_concentration_unit : str, optional
-        Unit used to normalize ``mass_concentration`` before calculation. Leave as ``None`` to use the input value as-is.
-    output_molecular_weight_unit : str, optional
-        Unit used to normalize ``molecular_weight`` before calculation. Leave as ``None`` to use the input value as-is.
-    unit_conversion_fn : UnitConversionFn, optional
-        Function used to convert ``CustomProp`` values when a matching
-        ``output_*_unit`` is provided. Defaults to ``pycuc.convert_from_to``
-        when ``None``.
-
-    Returns
-    -------
-    float
-        Component molarity, consistent with the normalized input units.
-
-    Notes
-    -----
-    Equation defines as:
-    C_i = c_m,i / M_i
-    """
-    return _pos(mass_concentration, "mass_concentration", output_mass_concentration_unit, unit_conversion_fn) / _pos(
-        molecular_weight,
-        "molecular_weight",
-        output_molecular_weight_unit,
-        unit_conversion_fn,
-    )
-
-
-# SECTION: Percent conversions
-# ! ::: Convert Mass Fraction to Weight Percent
-def mass_fraction_to_weight_percent(mass_fraction: ScalarValue) -> float:
-    """Convert mass fraction to weight percent.
-
-    Parameters
-    ----------
-    mass_fraction : float | int | CustomProp
-        Mass fraction on [0, 1]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for fraction inputs.
-
-    Returns
-    -------
-    float
-        Weight percent on [0, 100].
-    """
-    # SECTION: Validate and convert
-    w = _scalar(mass_fraction, "mass_fraction")
-    if w < 0.0 or w > 1.0:
-        raise ValueError("mass_fraction must be between zero and one.")
-    return 100.0 * w
-
-# ! ::: Convert Weight Percent to Mass Fraction
-
-
-def weight_percent_to_mass_fraction(weight_percent: ScalarValue) -> float:
-    """Convert weight percent to mass fraction.
-
-    Parameters
-    ----------
-    weight_percent : float | int | CustomProp
-        Weight percent on [0, 100]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for percent inputs.
-
-    Returns
-    -------
-    float
-        Mass fraction on [0, 1].
-    """
-    # SECTION: Validate and convert
-    value = _scalar(weight_percent, "weight_percent")
-    if value < 0.0 or value > 100.0:
-        raise ValueError("weight_percent must be between zero and 100.")
-    return value / 100.0
-
-# ! ::: Convert Mole Fraction to Mole Percent
-
-
-def mole_fraction_to_mole_percent(mole_fraction: ScalarValue) -> float:
-    """Convert mole fraction to mole percent.
-
-    Parameters
-    ----------
-    mole_fraction : float | int | CustomProp
-        Mole fraction on [0, 1]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for fraction inputs.
-
-    Returns
-    -------
-    float
-        Mole percent on [0, 100].
-    """
-    # SECTION: Validate and convert
-    x = _scalar(mole_fraction, "mole_fraction")
-    if x < 0.0 or x > 1.0:
-        raise ValueError("mole_fraction must be between zero and one.")
-    return 100.0 * x
-
-# ! ::: Convert Mole Percent to Mole Fraction
-
-
-def mole_percent_to_mole_fraction(mole_percent: ScalarValue) -> float:
-    """Convert mole percent to mole fraction.
-
-    Parameters
-    ----------
-    mole_percent : float | int | CustomProp
-        Mole percent on [0, 100]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for percent inputs.
-
-    Returns
-    -------
-    float
-        Mole fraction on [0, 1].
-    """
-    # SECTION: Validate and convert
-    value = _scalar(mole_percent, "mole_percent")
-    if value < 0.0 or value > 100.0:
-        raise ValueError("mole_percent must be between zero and 100.")
-    return value / 100.0
-
-
-# SECTION: ppm conversions
-# ! ::: Convert Mass Fraction to Mass-based ppm
-def mass_fraction_to_ppm(mass_fraction: ScalarValue) -> float:
-    """Convert mass fraction to mass-based ppm.
-
-    Parameters
-    ----------
-    mass_fraction : float | int | CustomProp
-        Mass fraction on [0, 1]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for fraction inputs.
-
-    Returns
-    -------
-    float
-        Mass-based ppm.
-    """
-    # NOTE: ppm_mass = mass_fraction * 1e6
-    return mass_fraction_to_weight_percent(mass_fraction) * 10000.0
-
-# ! ::: Convert Mass-based ppm to Mass Fraction
-
-
-def ppm_mass_to_mass_fraction(ppm: ScalarValue) -> float:
-    """Convert mass-based ppm to mass fraction.
-
-    Parameters
-    ----------
-    ppm : float | int | CustomProp
-        Mass-based parts per million. Must be non-negative. ``CustomProp`` values
-        are used as-is; no unit conversion is performed.
-
-    Returns
-    -------
-    float
-        Mass fraction.
-    """
-    # SECTION: Validate and convert
-    value = _scalar(ppm, "ppm")
-    if value < 0.0:
-        raise ValueError("ppm must be non-negative.")
-    return value * 1e-6
-
-
-# ! ::: Convert Mole Fraction to Mole-based ppm
-
-def mole_fraction_to_ppm(mole_fraction: ScalarValue) -> float:
-    """Convert mole fraction to mole-based ppm.
-
-    Parameters
-    ----------
-    mole_fraction : float | int | CustomProp
-        Mole fraction on [0, 1]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for fraction inputs.
-
-    Returns
-    -------
-    float
-        Mole-based ppm.
-    """
-    # NOTE: ppm_mole = mole_fraction * 1e6
-    return mole_fraction_to_mole_percent(mole_fraction) * 10000.0
-
-# ! ::: Convert Mole-based ppm to Mole Fraction
-
-
-def ppm_mole_to_mole_fraction(ppm: ScalarValue) -> float:
-    """Convert mole-based ppm to mole fraction.
-
-    Parameters
-    ----------
-    ppm : float | int | CustomProp
-        Mole-based parts per million. Must be non-negative. ``CustomProp`` values
-        are used as-is; no unit conversion is performed.
-
-    Returns
-    -------
-    float
-        Mole fraction.
-    """
-    # SECTION: Validate and convert
-    value = _scalar(ppm, "ppm")
-    if value < 0.0:
-        raise ValueError("ppm must be non-negative.")
-    return value * 1e-6
-
-
-# SECTION: ppb conversions
-
-# ! ::: Convert Mass Fraction to Mass-based ppb
-def mass_fraction_to_ppb(mass_fraction: ScalarValue) -> float:
-    """Convert mass fraction to mass-based ppb.
-
-    Parameters
-    ----------
-    mass_fraction : float | int | CustomProp
-        Mass fraction on [0, 1]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for fraction inputs.
-
-    Returns
-    -------
-    float
-        Mass-based ppb.
-    """
-    # NOTE: ppb_mass = mass_fraction * 1e9
-    return mass_fraction_to_weight_percent(mass_fraction) * 10000000.0
-
-# ! ::: Convert Mass-based ppb to Mass Fraction
-
-
-def ppb_mass_to_mass_fraction(ppb: ScalarValue) -> float:
-    """Convert mass-based ppb to mass fraction.
-
-    Parameters
-    ----------
-    ppb : float | int | CustomProp
-        Mass-based parts per billion. Must be non-negative. ``CustomProp`` values
-        are used as-is; no unit conversion is performed.
-
-    Returns
-    -------
-    float
-        Mass fraction.
-    """
-    # SECTION: Validate and convert
-    value = _scalar(ppb, "ppb")
-    if value < 0.0:
-        raise ValueError("ppb must be non-negative.")
-    return value * 1e-9
-
-# ! ::: Convert Mole Fraction to Mole-based ppb
-
-
-def mole_fraction_to_ppb(mole_fraction: ScalarValue) -> float:
-    """Convert mole fraction to mole-based ppb.
-
-    Parameters
-    ----------
-    mole_fraction : float | int | CustomProp
-        Mole fraction on [0, 1]. ``CustomProp`` values are used as-is; no unit
-        conversion is performed for fraction inputs.
-
-    Returns
-    -------
-    float
-        Mole-based ppb.
-    """
-    # NOTE: ppb_mole = mole_fraction * 1e9
-    return mole_fraction_to_mole_percent(mole_fraction) * 10000000.0
-
-# ! ::: Convert Mole-based ppb to Mole Fraction
-
-
-def ppb_mole_to_mole_fraction(ppb: ScalarValue) -> float:
-    """Convert mole-based ppb to mole fraction.
-
-    Parameters
-    ----------
-    ppb : float | int | CustomProp
-        Mole-based parts per billion. Must be non-negative. ``CustomProp`` values
-        are used as-is; no unit conversion is performed.
-
-    Returns
-    -------
-    float
-        Mole fraction.
-    """
-    # SECTION: Validate and convert
-    value = _scalar(ppb, "ppb")
-    if value < 0.0:
-        raise ValueError("ppb must be non-negative.")
-    return value * 1e-9
-
-
-# SECTION: Explicit input-shape aliases
-
-@overload
-def mole_fraction_to_mass_fraction(
+@calculation_info(
+    name="mole_fraction_to_mass_fraction",
+    description="Convert mapping mole fractions to mass fractions.",
+    equation="w_i = x_i*M_i / sum_j(x_j*M_j)",
+    inputs={
+        "mole_fractions": "Mapping of component keys to mole fractions.",
+        "molecular_weights": "Mapping of component keys to molecular weights.",
+    },
+    outputs={"mass_fractions": "Mapping of component keys to mass fractions."},
+    tags=("conversion", "mole_fraction", "mass_fraction", "mapping", "numeric"),
+)
+def calc_mole_fraction_to_mass_fraction_from_mapping(
     mole_fractions: Mapping[str, float | int],
     molecular_weights: Mapping[str, float | int],
-    components: Optional[List[Component]] = None,
+    components: Optional[list[Component]] = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping mole fractions to mapping mass fractions."""
-    ...
+    *,
+    name: str = "mass_fractions",
+    description: str = "Mass fractions converted from keyed mole fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated mass fractions from numeric mappings.
 
+    Parameters
+    ----------
+    mole_fractions : Mapping[str, float | int]
+        Mole fractions keyed by component.
+    molecular_weights : Mapping[str, float | int]
+        Molecular weights keyed by component.
 
-@overload
-def mole_fraction_to_mass_fraction(
-    mole_fractions: Sequence[float | int],
-    molecular_weights: Sequence[float | int],
-    components: None = None,
-    component_key: None = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> list[float]:
-    """Convert sequence mole fractions to sequence mass fractions."""
-    ...
-
-
-def mole_fraction_to_mass_fraction(
-    mole_fractions: Mapping[str, float | int] | Sequence[float | int],
-    molecular_weights: Mapping[str, float | int] | Sequence[float | int],
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert mole fractions to mass fractions using numeric inputs.
-
-    Mapping inputs return a dictionary. Sequence inputs return a list. For
-    molecular weights with units, use the corresponding ``..._with_units``
-    mapping or sequence function.
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated mass fractions keyed by component.
     """
-    return _mole_fraction_to_mass_fraction(
+    value = _calc_mole_fraction_to_mass_fraction_from_mapping(
         mole_fractions=mole_fractions,
         molecular_weights=molecular_weights,
         components=components,
@@ -1321,49 +240,208 @@ def mole_fraction_to_mass_fraction(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mole_fraction_to_mass_fraction_from_mapping",
+    )
 
 
-@overload
-def mass_fraction_to_mole_fraction(
+@calculation_info(
+    name="mole_fraction_to_mass_fraction",
+    description="Convert mole fractions to mass fractions using unit-aware weights.",
+    equation="w_i = x_i*M_i / sum_j(x_j*M_j)",
+    inputs={
+        "mole_fractions": "Mapping of component keys to mole fractions.",
+        "molecular_weights": "Mapping of component keys to unit-aware molecular weights.",
+    },
+    outputs={"mass_fractions": "Mapping of component keys to mass fractions."},
+    tags=("conversion", "mole_fraction", "mass_fraction", "mapping", "unit_aware"),
+)
+def calc_mole_fraction_to_mass_fraction_from_props(
+    mole_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[list[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+    *,
+    name: str = "mass_fractions",
+    description: str = "Mass fractions converted from keyed mole fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated mass fractions using unit-aware molecular weights.
+
+    Parameters
+    ----------
+    mole_fractions : Mapping[str, float | int]
+        Mole fractions keyed by component.
+    molecular_weights : Mapping[str, CustomProp]
+        Unit-aware molecular weights keyed by component.
+
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated mass fractions keyed by component.
+    """
+    value = _calc_mole_fraction_to_mass_fraction_from_props(
+        mole_fractions=mole_fractions,
+        molecular_weights=molecular_weights,
+        output_molecular_weight_unit=output_molecular_weight_unit,
+        unit_conversion_fn=unit_conversion_fn,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mole_fraction_to_mass_fraction_from_props",
+    )
+
+
+@calculation_info(
+    name="mass_fraction_to_mole_fraction",
+    description="Convert mass fractions to mole fractions.",
+    equation="x_i = (w_i/M_i) / sum_j(w_j/M_j)",
+    inputs={
+        "mass_fractions": "Mass fractions.",
+        "molecular_weights": "Molecular weights.",
+    },
+    outputs={"mole_fractions": "Mole fractions."},
+    tags=("conversion", "mass_fraction", "mole_fraction", "array_like", "numpy"),
+)
+def calc_mass_fraction_to_mole_fraction(
+    mass_fractions: float | int | Sequence[float | int] | NDArray[np.number],
+    molecular_weights: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from mass fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[NDArray[np.float64]]:
+    """Return annotated mole fractions from numeric array-like inputs.
+
+    Parameters
+    ----------
+    mass_fractions : float | int | Sequence[float | int] | NDArray[np.number]
+        Mass fractions to convert.
+    molecular_weights : float | int | Sequence[float | int] | NDArray[np.number]
+        Molecular weights paired with ``mass_fractions``.
+
+    Returns
+    -------
+    AnnotatedValue[NDArray[np.float64]]
+        Annotated mole fractions.
+    """
+    value = _calc_mass_fraction_to_mole_fraction(mass_fractions, molecular_weights)
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mass_fraction_to_mole_fraction",
+    )
+
+
+@calculation_info(
+    name="mass_fraction_to_mole_fraction",
+    description="Convert sequence mass fractions to mole fractions.",
+    equation="x_i = (w_i/M_i) / sum_j(w_j/M_j)",
+    inputs={
+        "mass_fractions": "Sequence or NumPy array of mass fractions.",
+        "molecular_weights": "Sequence or NumPy array of molecular weights.",
+    },
+    outputs={"mole_fractions": "List of mole fractions."},
+    tags=("conversion", "mass_fraction", "mole_fraction", "sequence", "numeric"),
+)
+def calc_mass_fraction_to_mole_fraction_from_sequence(
+    mass_fractions: float | int | Sequence[float | int] | NDArray[np.number],
+    molecular_weights: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from mass fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[list[float]]:
+    """Return annotated mole fractions from array-like inputs as a list.
+
+    Parameters
+    ----------
+    mass_fractions : float | int | Sequence[float | int] | NDArray[np.number]
+        Mass fractions to convert.
+    molecular_weights : float | int | Sequence[float | int] | NDArray[np.number]
+        Molecular weights paired with ``mass_fractions``.
+
+    Returns
+    -------
+    AnnotatedValue[list[float]]
+        Annotated mole-fraction list.
+    """
+    value = _calc_mass_fraction_to_mole_fraction_from_sequence(
+        mass_fractions=mass_fractions,
+        molecular_weights=molecular_weights,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mass_fraction_to_mole_fraction_from_sequence",
+    )
+
+
+@calculation_info(
+    name="mass_fraction_to_mole_fraction",
+    description="Convert mapping mass fractions to mole fractions.",
+    equation="x_i = (w_i/M_i) / sum_j(w_j/M_j)",
+    inputs={
+        "mass_fractions": "Mapping of component keys to mass fractions.",
+        "molecular_weights": "Mapping of component keys to molecular weights.",
+    },
+    outputs={"mole_fractions": "Mapping of component keys to mole fractions."},
+    tags=("conversion", "mass_fraction", "mole_fraction", "mapping", "numeric"),
+)
+def calc_mass_fraction_to_mole_fraction_from_mapping(
     mass_fractions: Mapping[str, float | int],
     molecular_weights: Mapping[str, float | int],
-    components: Optional[List[Component]] = None,
+    components: Optional[list[Component]] = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping mass fractions to mapping mole fractions."""
-    ...
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from keyed mass fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated mole fractions from numeric mappings.
 
+    Parameters
+    ----------
+    mass_fractions : Mapping[str, float | int]
+        Mass fractions keyed by component.
+    molecular_weights : Mapping[str, float | int]
+        Molecular weights keyed by component.
 
-@overload
-def mass_fraction_to_mole_fraction(
-    mass_fractions: Sequence[float | int],
-    molecular_weights: Sequence[float | int],
-    components: None = None,
-    component_key: None = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> list[float]:
-    """Convert sequence mass fractions to sequence mole fractions."""
-    ...
-
-
-def mass_fraction_to_mole_fraction(
-    mass_fractions: Mapping[str, float | int] | Sequence[float | int],
-    molecular_weights: Mapping[str, float | int] | Sequence[float | int],
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert mass fractions to mole fractions using numeric inputs.
-
-    Mapping inputs return a dictionary. Sequence inputs return a list. For
-    molecular weights with units, use the corresponding ``..._with_units``
-    mapping or sequence function.
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated mole fractions keyed by component.
     """
-    return _mass_fraction_to_mole_fraction(
+    value = _calc_mass_fraction_to_mole_fraction_from_mapping(
         mass_fractions=mass_fractions,
         molecular_weights=molecular_weights,
         components=components,
@@ -1371,52 +449,225 @@ def mass_fraction_to_mole_fraction(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mass_fraction_to_mole_fraction_from_mapping",
+    )
 
 
-@overload
-def molarities_to_molalities(
+@calculation_info(
+    name="mass_fraction_to_mole_fraction",
+    description="Convert mass fractions to mole fractions using unit-aware weights.",
+    equation="x_i = (w_i/M_i) / sum_j(w_j/M_j)",
+    inputs={
+        "mass_fractions": "Mapping of component keys to mass fractions.",
+        "molecular_weights": "Mapping of component keys to unit-aware molecular weights.",
+    },
+    outputs={"mole_fractions": "Mapping of component keys to mole fractions."},
+    tags=("conversion", "mass_fraction", "mole_fraction", "mapping", "unit_aware"),
+)
+def calc_mass_fraction_to_mole_fraction_from_props(
+    mass_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[list[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from keyed mass fractions.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated mole fractions using unit-aware molecular weights.
+
+    Parameters
+    ----------
+    mass_fractions : Mapping[str, float | int]
+        Mass fractions keyed by component.
+    molecular_weights : Mapping[str, CustomProp]
+        Unit-aware molecular weights keyed by component.
+
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated mole fractions keyed by component.
+    """
+    value = _calc_mass_fraction_to_mole_fraction_from_props(
+        mass_fractions=mass_fractions,
+        molecular_weights=molecular_weights,
+        output_molecular_weight_unit=output_molecular_weight_unit,
+        unit_conversion_fn=unit_conversion_fn,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_mass_fraction_to_mole_fraction_from_props",
+    )
+
+
+@calculation_info(
+    name="molarities_to_molalities",
+    description="Convert multisolute molarities to molalities.",
+    equation="b_i = C_i / (rho - sum_j(C_j*M_j))",
+    inputs={
+        "molarities": "Solute molarities.",
+        "molecular_weights": "Solute molecular weights.",
+        "solution_density": "Solution density.",
+    },
+    outputs={"molalities": "Solute molalities."},
+    tags=("conversion", "molarity", "molality", "array_like", "numpy"),
+)
+def calc_molarities_to_molalities(
+    molarities: float | int | Sequence[float | int] | NDArray[np.number],
+    molecular_weights: float | int | Sequence[float | int] | NDArray[np.number],
+    solution_density: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    name: str = "molalities",
+    description: str = "Molalities converted from molarities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[NDArray[np.float64]]:
+    """Return annotated molalities from numeric array-like inputs.
+
+    Parameters
+    ----------
+    molarities : float | int | Sequence[float | int] | NDArray[np.number]
+        Solute molarities to convert.
+    molecular_weights : float | int | Sequence[float | int] | NDArray[np.number]
+        Molecular weights paired with ``molarities``.
+    solution_density : float | int | Sequence[float | int] | NDArray[np.number]
+        Solution density.
+
+    Returns
+    -------
+    AnnotatedValue[NDArray[np.float64]]
+        Annotated molalities.
+    """
+    value = _calc_molarities_to_molalities(
+        molarities=molarities,
+        molecular_weights=molecular_weights,
+        solution_density=solution_density,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molarities_to_molalities",
+    )
+
+
+@calculation_info(
+    name="molarities_to_molalities",
+    description="Convert sequence molarities to molalities.",
+    equation="b_i = C_i / (rho - sum_j(C_j*M_j))",
+    inputs={
+        "molarities": "Sequence or NumPy array of solute molarities.",
+        "molecular_weights": "Sequence or NumPy array of molecular weights.",
+        "solution_density": "Solution density.",
+    },
+    outputs={"molalities": "List of solute molalities."},
+    tags=("conversion", "molarity", "molality", "sequence", "numeric"),
+)
+def calc_molarities_to_molalities_from_sequence(
+    molarities: float | int | Sequence[float | int] | NDArray[np.number],
+    molecular_weights: float | int | Sequence[float | int] | NDArray[np.number],
+    solution_density: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    name: str = "molalities",
+    description: str = "Molalities converted from molarities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[list[float]]:
+    """Return annotated molalities from array-like inputs as a list.
+
+    Parameters
+    ----------
+    molarities : float | int | Sequence[float | int] | NDArray[np.number]
+        Solute molarities to convert.
+    molecular_weights : float | int | Sequence[float | int] | NDArray[np.number]
+        Molecular weights paired with ``molarities``.
+    solution_density : float | int | Sequence[float | int] | NDArray[np.number]
+        Solution density.
+
+    Returns
+    -------
+    AnnotatedValue[list[float]]
+        Annotated molality list.
+    """
+    value = _calc_molarities_to_molalities_from_sequence(
+        molarities=molarities,
+        molecular_weights=molecular_weights,
+        solution_density=solution_density,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molarities_to_molalities_from_sequence",
+    )
+
+
+@calculation_info(
+    name="molarities_to_molalities",
+    description="Convert mapping molarities to molalities.",
+    equation="b_i = C_i / (rho - sum_j(C_j*M_j))",
+    inputs={
+        "molarities": "Mapping of component keys to molarities.",
+        "molecular_weights": "Mapping of component keys to molecular weights.",
+        "solution_density": "Solution density.",
+    },
+    outputs={"molalities": "Mapping of component keys to molalities."},
+    tags=("conversion", "molarity", "molality", "mapping", "numeric"),
+)
+def calc_molarities_to_molalities_from_mapping(
     molarities: Mapping[str, float | int],
     molecular_weights: Mapping[str, float | int],
     solution_density: float | int,
-    components: Optional[List[Component]] = None,
+    components: Optional[list[Component]] = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping molarities to mapping molalities."""
-    ...
+    *,
+    name: str = "molalities",
+    description: str = "Molalities converted from keyed molarities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated molalities from numeric mappings.
 
+    Parameters
+    ----------
+    molarities : Mapping[str, float | int]
+        Solute molarities keyed by component.
+    molecular_weights : Mapping[str, float | int]
+        Molecular weights keyed by component.
+    solution_density : float | int
+        Solution density.
 
-@overload
-def molarities_to_molalities(
-    molarities: Sequence[float | int],
-    molecular_weights: Sequence[float | int],
-    solution_density: float | int,
-    components: None = None,
-    component_key: None = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> list[float]:
-    """Convert sequence molarities to sequence molalities."""
-    ...
-
-
-def molarities_to_molalities(
-    molarities: Mapping[str, float | int] | Sequence[float | int],
-    molecular_weights: Mapping[str, float | int] | Sequence[float | int],
-    solution_density: float | int,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert multisolute molarities to molalities using numeric inputs.
-
-    Mapping inputs return a dictionary. Sequence inputs return a list. For
-    molarities, molecular weights, or density with units, use the corresponding
-    ``..._with_units`` mapping or sequence function.
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated molalities keyed by component.
     """
-    return _molarities_to_molalities(
+    value = _calc_molarities_to_molalities_from_mapping(
         molarities=molarities,
         molecular_weights=molecular_weights,
         solution_density=solution_density,
@@ -1425,52 +676,223 @@ def molarities_to_molalities(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molarities_to_molalities_from_mapping",
+    )
 
 
-@overload
-def molality_to_mole_fraction(
+@calculation_info(
+    name="molarities_to_molalities",
+    description="Convert unit-aware mapping molarities to molalities.",
+    equation="b_i = C_i / (rho - sum_j(C_j*M_j))",
+    inputs={
+        "molarities": "Mapping of component keys to unit-aware molarities.",
+        "molecular_weights": "Mapping of component keys to unit-aware molecular weights.",
+        "solution_density": "Unit-aware solution density.",
+    },
+    outputs={"molalities": "Mapping of component keys to molalities."},
+    tags=("conversion", "molarity", "molality", "mapping", "unit_aware"),
+)
+def calc_molarities_to_molalities_from_props(
+    molarities: Mapping[str, CustomProp],
+    molecular_weights: Mapping[str, CustomProp],
+    solution_density: CustomProp,
+    output_molarity_unit: str | None = None,
+    output_molecular_weight_unit: str | None = None,
+    output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[list[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+    *,
+    name: str = "molalities",
+    description: str = "Molalities converted from keyed unit-aware molarities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated molalities from unit-aware mappings.
+
+    Parameters
+    ----------
+    molarities : Mapping[str, CustomProp]
+        Unit-aware molarities keyed by component.
+    molecular_weights : Mapping[str, CustomProp]
+        Unit-aware molecular weights keyed by component.
+    solution_density : CustomProp
+        Unit-aware solution density.
+
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated molalities keyed by component.
+    """
+    value = _calc_molarities_to_molalities_from_props(
+        molarities=molarities,
+        molecular_weights=molecular_weights,
+        solution_density=solution_density,
+        output_molarity_unit=output_molarity_unit,
+        output_molecular_weight_unit=output_molecular_weight_unit,
+        output_solution_density_unit=output_solution_density_unit,
+        unit_conversion_fn=unit_conversion_fn,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molarities_to_molalities_from_props",
+    )
+
+
+@calculation_info(
+    name="molality_to_mole_fraction",
+    description="Convert molalities to solute and solvent mole fractions.",
+    equation="x_i = b_i / (sum_j(b_j) + 1/M_s)",
+    inputs={
+        "molalities": "Solute molalities.",
+        "solvent_molecular_weight": "Solvent molecular weight.",
+    },
+    outputs={"mole_fractions": "Solute mole fractions with solvent included."},
+    tags=("conversion", "molality", "mole_fraction", "array_like", "numpy"),
+)
+def calc_molality_to_mole_fraction(
+    molalities: float | int | Sequence[float | int] | NDArray[np.number],
+    solvent_molecular_weight: float | int,
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from molalities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[NDArray[np.float64]]:
+    """Return annotated mole fractions from numeric molality inputs.
+
+    Parameters
+    ----------
+    molalities : float | int | Sequence[float | int] | NDArray[np.number]
+        Solute molalities to convert.
+    solvent_molecular_weight : float | int
+        Solvent molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[NDArray[np.float64]]
+        Annotated mole fractions with solvent appended last.
+    """
+    value = _calc_molality_to_mole_fraction(
+        molalities=molalities,
+        solvent_molecular_weight=solvent_molecular_weight,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molality_to_mole_fraction",
+    )
+
+
+@calculation_info(
+    name="molality_to_mole_fraction",
+    description="Convert sequence molalities to mole fractions.",
+    equation="x_i = b_i / (sum_j(b_j) + 1/M_s)",
+    inputs={
+        "molalities": "Sequence or NumPy array of solute molalities.",
+        "solvent_molecular_weight": "Solvent molecular weight.",
+    },
+    outputs={"mole_fractions": "List of solute mole fractions with solvent last."},
+    tags=("conversion", "molality", "mole_fraction", "sequence", "numeric"),
+)
+def calc_molality_to_mole_fraction_from_sequence(
+    molalities: float | int | Sequence[float | int] | NDArray[np.number],
+    solvent_molecular_weight: float | int,
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from molalities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[list[float]]:
+    """Return annotated mole fractions from array-like molalities as a list.
+
+    Parameters
+    ----------
+    molalities : float | int | Sequence[float | int] | NDArray[np.number]
+        Solute molalities to convert.
+    solvent_molecular_weight : float | int
+        Solvent molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[list[float]]
+        Annotated mole-fraction list with solvent appended last.
+    """
+    value = _calc_molality_to_mole_fraction_from_sequence(
+        molalities=molalities,
+        solvent_molecular_weight=solvent_molecular_weight,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molality_to_mole_fraction_from_sequence",
+    )
+
+
+@calculation_info(
+    name="molality_to_mole_fraction",
+    description="Convert mapping molalities to mole fractions.",
+    equation="x_i = b_i / (sum_j(b_j) + 1/M_s)",
+    inputs={
+        "molalities": "Mapping of component keys to molalities.",
+        "solvent_molecular_weight": "Solvent molecular weight.",
+    },
+    outputs={"mole_fractions": "Mapping of component keys to mole fractions."},
+    tags=("conversion", "molality", "mole_fraction", "mapping", "numeric"),
+)
+def calc_molality_to_mole_fraction_from_mapping(
     molalities: Mapping[str, float | int],
     solvent_molecular_weight: float | int,
     solvent_key: str = "solvent",
-    components: Optional[List[Component]] = None,
+    components: Optional[list[Component]] = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping molalities to mapping mole fractions."""
-    ...
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from keyed molalities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated mole fractions from numeric molality mappings.
 
+    Parameters
+    ----------
+    molalities : Mapping[str, float | int]
+        Solute molalities keyed by component.
+    solvent_molecular_weight : float | int
+        Solvent molecular weight.
+    solvent_key : str, optional
+        Output key used for the solvent.
 
-@overload
-def molality_to_mole_fraction(
-    molalities: Sequence[float | int],
-    solvent_molecular_weight: float | int,
-    solvent_key: str = "solvent",
-    components: None = None,
-    component_key: None = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> list[float]:
-    """Convert sequence molalities to sequence mole fractions."""
-    ...
-
-
-def molality_to_mole_fraction(
-    molalities: Mapping[str, float | int] | Sequence[float | int],
-    solvent_molecular_weight: float | int,
-    solvent_key: str = "solvent",
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float] | list[float]:
-    """Convert molalities to mole fractions using numeric inputs.
-
-    Mapping inputs return a dictionary. Sequence inputs return a list. For
-    molalities or solvent molecular weight with units, use the corresponding
-    ``..._with_units`` mapping or sequence function.
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated mole fractions keyed by component.
     """
-    return _molality_to_mole_fraction(
+    value = _calc_molality_to_mole_fraction_from_mapping(
         molalities=molalities,
         solvent_molecular_weight=solvent_molecular_weight,
         solvent_key=solvent_key,
@@ -1479,393 +901,837 @@ def molality_to_mole_fraction(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-
-
-def mapping_mole_fraction_to_mass_fraction(
-    mole_fractions: Mapping[str, float | int],
-    molecular_weights: Mapping[str, float | int],
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping mole fractions to mass fractions using numeric inputs."""
-    return cast(
-        dict[str, float],
-        _mole_fraction_to_mass_fraction(
-            mole_fractions=mole_fractions,
-            molecular_weights=molecular_weights,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molality_to_mole_fraction_from_mapping",
     )
 
 
-def sequence_mole_fraction_to_mass_fraction(
-    mole_fractions: Sequence[float | int],
-    molecular_weights: Sequence[float | int],
-) -> list[float]:
-    """Convert sequence mole fractions to mass fractions using numeric inputs."""
-    return cast(
-        list[float],
-        _mole_fraction_to_mass_fraction(
-            mole_fractions=mole_fractions,
-            molecular_weights=molecular_weights,
-        ),
-    )
-
-
-def mapping_mole_fraction_to_mass_fraction_with_units(
-    mole_fractions: Mapping[str, float | int],
-    molecular_weights: Mapping[str, CustomProp],
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping mole fractions to mass fractions with molecular-weight units."""
-    return cast(
-        dict[str, float],
-        _mole_fraction_to_mass_fraction(
-            mole_fractions=mole_fractions,
-            molecular_weights=molecular_weights,
-            output_molecular_weight_unit=output_molecular_weight_unit,
-            unit_conversion_fn=unit_conversion_fn,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
-    )
-
-
-def sequence_mole_fraction_to_mass_fraction_with_units(
-    mole_fractions: Sequence[float | int],
-    molecular_weights: Sequence[CustomProp],
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> list[float]:
-    """Convert sequence mole fractions to mass fractions with molecular-weight units."""
-    return cast(
-        list[float],
-        _mole_fraction_to_mass_fraction(
-            mole_fractions=mole_fractions,
-            molecular_weights=molecular_weights,
-            output_molecular_weight_unit=output_molecular_weight_unit,
-            unit_conversion_fn=unit_conversion_fn,
-        ),
-    )
-
-
-def mapping_mass_fraction_to_mole_fraction(
-    mass_fractions: Mapping[str, float | int],
-    molecular_weights: Mapping[str, float | int],
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping mass fractions to mole fractions using numeric inputs."""
-    return cast(
-        dict[str, float],
-        _mass_fraction_to_mole_fraction(
-            mass_fractions=mass_fractions,
-            molecular_weights=molecular_weights,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
-    )
-
-
-def sequence_mass_fraction_to_mole_fraction(
-    mass_fractions: Sequence[float | int],
-    molecular_weights: Sequence[float | int],
-) -> list[float]:
-    """Convert sequence mass fractions to mole fractions using numeric inputs."""
-    return cast(
-        list[float],
-        _mass_fraction_to_mole_fraction(
-            mass_fractions=mass_fractions,
-            molecular_weights=molecular_weights,
-        ),
-    )
-
-
-def mapping_mass_fraction_to_mole_fraction_with_units(
-    mass_fractions: Mapping[str, float | int],
-    molecular_weights: Mapping[str, CustomProp],
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping mass fractions to mole fractions with molecular-weight units."""
-    return cast(
-        dict[str, float],
-        _mass_fraction_to_mole_fraction(
-            mass_fractions=mass_fractions,
-            molecular_weights=molecular_weights,
-            output_molecular_weight_unit=output_molecular_weight_unit,
-            unit_conversion_fn=unit_conversion_fn,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
-    )
-
-
-def sequence_mass_fraction_to_mole_fraction_with_units(
-    mass_fractions: Sequence[float | int],
-    molecular_weights: Sequence[CustomProp],
-    output_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> list[float]:
-    """Convert sequence mass fractions to mole fractions with molecular-weight units."""
-    return cast(
-        list[float],
-        _mass_fraction_to_mole_fraction(
-            mass_fractions=mass_fractions,
-            molecular_weights=molecular_weights,
-            output_molecular_weight_unit=output_molecular_weight_unit,
-            unit_conversion_fn=unit_conversion_fn,
-        ),
-    )
-
-
-def mapping_molarities_to_molalities(
-    molarities: Mapping[str, float | int],
-    molecular_weights: Mapping[str, float | int],
-    solution_density: float | int,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping molarities to molalities using numeric inputs."""
-    return cast(
-        dict[str, float],
-        _molarities_to_molalities(
-            molarities=molarities,
-            molecular_weights=molecular_weights,
-            solution_density=solution_density,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
-    )
-
-
-def sequence_molarities_to_molalities(
-    molarities: Sequence[float | int],
-    molecular_weights: Sequence[float | int],
-    solution_density: float | int,
-) -> list[float]:
-    """Convert sequence molarities to molalities using numeric inputs."""
-    return cast(
-        list[float],
-        _molarities_to_molalities(
-            molarities=molarities,
-            molecular_weights=molecular_weights,
-            solution_density=solution_density,
-        ),
-    )
-
-
-def mapping_molarities_to_molalities_with_units(
-    molarities: Mapping[str, CustomProp],
-    molecular_weights: Mapping[str, CustomProp],
-    solution_density: CustomProp,
-    output_molarity_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    output_solution_density_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping molarities to molalities with unit-aware inputs."""
-    return cast(
-        dict[str, float],
-        _molarities_to_molalities(
-            molarities=molarities,
-            molecular_weights=molecular_weights,
-            solution_density=solution_density,
-            output_molarity_unit=output_molarity_unit,
-            output_molecular_weight_unit=output_molecular_weight_unit,
-            output_solution_density_unit=output_solution_density_unit,
-            unit_conversion_fn=unit_conversion_fn,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
-    )
-
-
-def sequence_molarities_to_molalities_with_units(
-    molarities: Sequence[CustomProp],
-    molecular_weights: Sequence[CustomProp],
-    solution_density: CustomProp,
-    output_molarity_unit: str | None = None,
-    output_molecular_weight_unit: str | None = None,
-    output_solution_density_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> list[float]:
-    """Convert sequence molarities to molalities with unit-aware inputs."""
-    return cast(
-        list[float],
-        _molarities_to_molalities(
-            molarities=molarities,
-            molecular_weights=molecular_weights,
-            solution_density=solution_density,
-            output_molarity_unit=output_molarity_unit,
-            output_molecular_weight_unit=output_molecular_weight_unit,
-            output_solution_density_unit=output_solution_density_unit,
-            unit_conversion_fn=unit_conversion_fn,
-        ),
-    )
-
-
-def mapping_molality_to_mole_fraction(
-    molalities: Mapping[str, float | int],
-    solvent_molecular_weight: float | int,
-    solvent_key: str = "solvent",
-    components: Optional[List[Component]] = None,
-    component_key: Optional[ComponentKey] = None,
-    case_sensitive: bool = True,
-    sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping molalities to mole fractions using numeric inputs."""
-    return cast(
-        dict[str, float],
-        _molality_to_mole_fraction(
-            molalities=molalities,
-            solvent_molecular_weight=solvent_molecular_weight,
-            solvent_key=solvent_key,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
-    )
-
-
-def sequence_molality_to_mole_fraction(
-    molalities: Sequence[float | int],
-    solvent_molecular_weight: float | int,
-) -> list[float]:
-    """Convert sequence molalities to mole fractions using numeric inputs."""
-    return cast(
-        list[float],
-        _molality_to_mole_fraction(
-            molalities=molalities,
-            solvent_molecular_weight=solvent_molecular_weight,
-        ),
-    )
-
-
-def mapping_molality_to_mole_fraction_with_units(
+@calculation_info(
+    name="molality_to_mole_fraction",
+    description="Convert unit-aware mapping molalities to mole fractions.",
+    equation="x_i = b_i / (sum_j(b_j) + 1/M_s)",
+    inputs={
+        "molalities": "Mapping of component keys to unit-aware molalities.",
+        "solvent_molecular_weight": "Unit-aware solvent molecular weight.",
+    },
+    outputs={"mole_fractions": "Mapping of component keys to mole fractions."},
+    tags=("conversion", "molality", "mole_fraction", "mapping", "unit_aware"),
+)
+def calc_molality_to_mole_fraction_from_props(
     molalities: Mapping[str, CustomProp],
     solvent_molecular_weight: CustomProp,
     solvent_key: str = "solvent",
     output_molality_unit: str | None = None,
     output_solvent_molecular_weight_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
-    components: Optional[List[Component]] = None,
+    components: Optional[list[Component]] = None,
     component_key: Optional[ComponentKey] = None,
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
-) -> dict[str, float]:
-    """Convert mapping molalities to mole fractions with unit-aware inputs."""
-    return cast(
-        dict[str, float],
-        _molality_to_mole_fraction(
-            molalities=molalities,
-            solvent_molecular_weight=solvent_molecular_weight,
-            solvent_key=solvent_key,
-            output_molality_unit=output_molality_unit,
-            output_solvent_molecular_weight_unit=output_solvent_molecular_weight_unit,
-            unit_conversion_fn=unit_conversion_fn,
-            components=components,
-            component_key=component_key,
-            case_sensitive=case_sensitive,
-            sort_by_components_order=sort_by_components_order,
-        ),
+    *,
+    name: str = "mole_fractions",
+    description: str = "Mole fractions converted from keyed unit-aware molalities.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[dict[str, float]]:
+    """Return annotated mole fractions from unit-aware molality mappings.
+
+    Parameters
+    ----------
+    molalities : Mapping[str, CustomProp]
+        Unit-aware solute molalities keyed by component.
+    solvent_molecular_weight : CustomProp
+        Unit-aware solvent molecular weight.
+    solvent_key : str, optional
+        Output key used for the solvent.
+
+    Returns
+    -------
+    AnnotatedValue[dict[str, float]]
+        Annotated mole fractions keyed by component.
+    """
+    value = _calc_molality_to_mole_fraction_from_props(
+        molalities=molalities,
+        solvent_molecular_weight=solvent_molecular_weight,
+        solvent_key=solvent_key,
+        output_molality_unit=output_molality_unit,
+        output_solvent_molecular_weight_unit=output_solvent_molecular_weight_unit,
+        unit_conversion_fn=unit_conversion_fn,
+        components=components,
+        component_key=component_key,
+        case_sensitive=case_sensitive,
+        sort_by_components_order=sort_by_components_order,
+    )
+    return _annotate(
+        value,
+        name=name,
+        description=description,
+        unit=unit,
+        symbol=symbol,
+        implementation="_calc_molality_to_mole_fraction_from_props",
     )
 
 
-def sequence_molality_to_mole_fraction_with_units(
-    molalities: Sequence[CustomProp],
-    solvent_molecular_weight: CustomProp,
-    output_molality_unit: str | None = None,
-    output_solvent_molecular_weight_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> list[float]:
-    """Convert sequence molalities to mole fractions with unit-aware inputs."""
-    return cast(
-        list[float],
-        _molality_to_mole_fraction(
-            molalities=molalities,
-            solvent_molecular_weight=solvent_molecular_weight,
-            output_molality_unit=output_molality_unit,
-            output_solvent_molecular_weight_unit=output_solvent_molecular_weight_unit,
-            unit_conversion_fn=unit_conversion_fn,
-        ),
+@calculation_info(
+    name="molarity_to_molality",
+    description="Convert single-solute molarity to molality.",
+    equation="b = C / (rho - C*M)",
+    inputs={"molarity": "Solute molarity.", "molecular_weight": "Molecular weight.", "solution_density": "Solution density."},
+    outputs={"molality": "Solute molality."},
+    tags=("conversion", "molarity", "molality", "scalar", "numeric"),
+)
+def calc_molarity_to_molality(
+    molarity: float | int,
+    molecular_weight: float | int,
+    solution_density: float | int,
+    *,
+    name: str = "molality",
+    description: str = "Molality converted from molarity.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated molality from numeric molarity.
+
+    Parameters
+    ----------
+    molarity : float | int
+        Solute molarity.
+    molecular_weight : float | int
+        Solute molecular weight.
+    solution_density : float | int
+        Solution density.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated solute molality.
+    """
+    value = _calc_molarity_to_molality(molarity, molecular_weight, solution_density)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_molality")
+
+
+@calculation_info(
+    name="molality_to_molarity",
+    description="Convert single-solute molality to molarity.",
+    equation="C = b*rho / (1 + b*M)",
+    inputs={"molality": "Solute molality.", "molecular_weight": "Molecular weight.", "solution_density": "Solution density."},
+    outputs={"molarity": "Solute molarity."},
+    tags=("conversion", "molality", "molarity", "scalar", "numeric"),
+)
+def calc_molality_to_molarity(
+    molality: float | int,
+    molecular_weight: float | int,
+    solution_density: float | int,
+    *,
+    name: str = "molarity",
+    description: str = "Molarity converted from molality.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated molarity from numeric molality.
+
+    Parameters
+    ----------
+    molality : float | int
+        Solute molality.
+    molecular_weight : float | int
+        Solute molecular weight.
+    solution_density : float | int
+        Solution density.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated solute molarity.
+    """
+    value = _calc_molality_to_molarity(molality, molecular_weight, solution_density)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molality_to_molarity")
+
+
+@calculation_info(
+    name="mole_fraction_to_molality",
+    description="Convert solute mole fraction to molality.",
+    equation="b_i = x_i / (x_s*M_s)",
+    inputs={"solute_mole_fraction": "Solute mole fraction.", "solvent_mole_fraction": "Solvent mole fraction.", "solvent_molecular_weight": "Solvent molecular weight."},
+    outputs={"molality": "Solute molality."},
+    tags=("conversion", "mole_fraction", "molality", "scalar", "numeric"),
+)
+def calc_mole_fraction_to_molality(
+    solute_mole_fraction: float | int,
+    solvent_mole_fraction: float | int,
+    solvent_molecular_weight: float | int,
+    *,
+    name: str = "molality",
+    description: str = "Molality converted from mole fraction.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated molality from numeric mole fractions.
+
+    Parameters
+    ----------
+    solute_mole_fraction : float | int
+        Solute mole fraction.
+    solvent_mole_fraction : float | int
+        Solvent mole fraction.
+    solvent_molecular_weight : float | int
+        Solvent molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated solute molality.
+    """
+    value = _calc_mole_fraction_to_molality(
+        solute_mole_fraction,
+        solvent_mole_fraction,
+        solvent_molecular_weight,
     )
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_molality")
+
+
+@calculation_info(
+    name="molarity_to_mass_fraction",
+    description="Convert molarity to mass fraction.",
+    equation="w_i = C_i*M_i / rho",
+    inputs={"molarity": "Solute molarity.", "molecular_weight": "Molecular weight.", "solution_density": "Solution density."},
+    outputs={"mass_fraction": "Solute mass fraction."},
+    tags=("conversion", "molarity", "mass_fraction", "scalar", "numeric"),
+)
+def calc_molarity_to_mass_fraction(
+    molarity: float | int,
+    molecular_weight: float | int,
+    solution_density: float | int,
+    *,
+    name: str = "mass_fraction",
+    description: str = "Mass fraction converted from molarity.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass fraction from numeric molarity.
+
+    Parameters
+    ----------
+    molarity : float | int
+        Solute molarity.
+    molecular_weight : float | int
+        Solute molecular weight.
+    solution_density : float | int
+        Solution density.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass fraction.
+    """
+    value = _calc_molarity_to_mass_fraction(molarity, molecular_weight, solution_density)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_mass_fraction")
+
+
+@calculation_info(
+    name="mass_fraction_to_molarity",
+    description="Convert mass fraction to molarity.",
+    equation="C_i = w_i*rho / M_i",
+    inputs={"mass_fraction": "Solute mass fraction.", "solution_density": "Solution density.", "molecular_weight": "Molecular weight."},
+    outputs={"molarity": "Solute molarity."},
+    tags=("conversion", "mass_fraction", "molarity", "scalar", "numeric"),
+)
+def calc_mass_fraction_to_molarity(
+    mass_fraction: float | int,
+    solution_density: float | int,
+    molecular_weight: float | int,
+    *,
+    name: str = "molarity",
+    description: str = "Molarity converted from mass fraction.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated molarity from numeric mass fraction.
+
+    Parameters
+    ----------
+    mass_fraction : float | int
+        Solute mass fraction.
+    solution_density : float | int
+        Solution density.
+    molecular_weight : float | int
+        Solute molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated molarity.
+    """
+    value = _calc_mass_fraction_to_molarity(mass_fraction, solution_density, molecular_weight)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_molarity")
+
+
+@calculation_info(
+    name="molality_to_mass_fraction",
+    description="Convert molality to mass fraction.",
+    equation="w_i = b_i*M_i / (1 + b_i*M_i)",
+    inputs={"molality": "Solute molality.", "molecular_weight": "Molecular weight."},
+    outputs={"mass_fraction": "Solute mass fraction."},
+    tags=("conversion", "molality", "mass_fraction", "scalar", "numeric"),
+)
+def calc_molality_to_mass_fraction(
+    molality: float | int,
+    molecular_weight: float | int,
+    *,
+    name: str = "mass_fraction",
+    description: str = "Mass fraction converted from molality.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass fraction from numeric molality.
+
+    Parameters
+    ----------
+    molality : float | int
+        Solute molality.
+    molecular_weight : float | int
+        Solute molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass fraction.
+    """
+    value = _calc_molality_to_mass_fraction(molality, molecular_weight)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molality_to_mass_fraction")
+
+
+@calculation_info(
+    name="mass_fraction_to_molality",
+    description="Convert mass fraction to molality.",
+    equation="b_i = w_i / (M_i*(1 - w_i))",
+    inputs={"mass_fraction": "Solute mass fraction.", "molecular_weight": "Molecular weight."},
+    outputs={"molality": "Solute molality."},
+    tags=("conversion", "mass_fraction", "molality", "scalar", "numeric"),
+)
+def calc_mass_fraction_to_molality(
+    mass_fraction: float | int,
+    molecular_weight: float | int,
+    *,
+    name: str = "molality",
+    description: str = "Molality converted from mass fraction.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated molality from numeric mass fraction.
+
+    Parameters
+    ----------
+    mass_fraction : float | int
+        Solute mass fraction.
+    molecular_weight : float | int
+        Solute molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated molality.
+    """
+    value = _calc_mass_fraction_to_molality(mass_fraction, molecular_weight)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_molality")
+
+
+@calculation_info(
+    name="molarity_to_mass_concentration",
+    description="Convert molarity to mass concentration.",
+    equation="c_m,i = C_i*M_i",
+    inputs={"molarity": "Component molarity.", "molecular_weight": "Molecular weight."},
+    outputs={"mass_concentration": "Component mass concentration."},
+    tags=("conversion", "molarity", "mass_concentration", "scalar", "numeric"),
+)
+def calc_molarity_to_mass_concentration(
+    molarity: float | int,
+    molecular_weight: float | int,
+    *,
+    name: str = "mass_concentration",
+    description: str = "Mass concentration converted from molarity.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass concentration from numeric molarity.
+
+    Parameters
+    ----------
+    molarity : float | int
+        Component molarity.
+    molecular_weight : float | int
+        Component molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass concentration.
+    """
+    value = _calc_molarity_to_mass_concentration(molarity, molecular_weight)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_mass_concentration")
+
+
+@calculation_info(
+    name="mass_concentration_to_molarity",
+    description="Convert mass concentration to molarity.",
+    equation="C_i = c_m,i / M_i",
+    inputs={"mass_concentration": "Component mass concentration.", "molecular_weight": "Molecular weight."},
+    outputs={"molarity": "Component molarity."},
+    tags=("conversion", "mass_concentration", "molarity", "scalar", "numeric"),
+)
+def calc_mass_concentration_to_molarity(
+    mass_concentration: float | int,
+    molecular_weight: float | int,
+    *,
+    name: str = "molarity",
+    description: str = "Molarity converted from mass concentration.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated molarity from numeric mass concentration.
+
+    Parameters
+    ----------
+    mass_concentration : float | int
+        Component mass concentration.
+    molecular_weight : float | int
+        Component molecular weight.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated molarity.
+    """
+    value = _calc_mass_concentration_to_molarity(mass_concentration, molecular_weight)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_concentration_to_molarity")
+
+
+@calculation_info(
+    name="mass_fraction_to_weight_percent",
+    description="Convert mass fraction to weight percent.",
+    equation="wt_percent = 100*w",
+    inputs={"mass_fraction": "Mass fraction."},
+    outputs={"weight_percent": "Weight percent."},
+    tags=("conversion", "mass_fraction", "weight_percent", "scalar", "numeric"),
+)
+def calc_mass_fraction_to_weight_percent(
+    mass_fraction: float | int,
+    *,
+    name: str = "weight_percent",
+    description: str = "Weight percent converted from mass fraction.",
+    unit: str | None = "%",
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated weight percent from mass fraction.
+
+    Parameters
+    ----------
+    mass_fraction : float | int
+        Mass fraction to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated weight percent.
+    """
+    value = _calc_mass_fraction_to_weight_percent(mass_fraction)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_weight_percent")
+
+
+@calculation_info(
+    name="weight_percent_to_mass_fraction",
+    description="Convert weight percent to mass fraction.",
+    equation="w = wt_percent / 100",
+    inputs={"weight_percent": "Weight percent."},
+    outputs={"mass_fraction": "Mass fraction."},
+    tags=("conversion", "weight_percent", "mass_fraction", "scalar", "numeric"),
+)
+def calc_weight_percent_to_mass_fraction(
+    weight_percent: float | int,
+    *,
+    name: str = "mass_fraction",
+    description: str = "Mass fraction converted from weight percent.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass fraction from weight percent.
+
+    Parameters
+    ----------
+    weight_percent : float | int
+        Weight percent to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass fraction.
+    """
+    value = _calc_weight_percent_to_mass_fraction(weight_percent)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_weight_percent_to_mass_fraction")
+
+
+@calculation_info(
+    name="mole_fraction_to_mole_percent",
+    description="Convert mole fraction to mole percent.",
+    equation="mol_percent = 100*x",
+    inputs={"mole_fraction": "Mole fraction."},
+    outputs={"mole_percent": "Mole percent."},
+    tags=("conversion", "mole_fraction", "mole_percent", "scalar", "numeric"),
+)
+def calc_mole_fraction_to_mole_percent(
+    mole_fraction: float | int,
+    *,
+    name: str = "mole_percent",
+    description: str = "Mole percent converted from mole fraction.",
+    unit: str | None = "%",
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mole percent from mole fraction.
+
+    Parameters
+    ----------
+    mole_fraction : float | int
+        Mole fraction to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mole percent.
+    """
+    value = _calc_mole_fraction_to_mole_percent(mole_fraction)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_mole_percent")
+
+
+@calculation_info(
+    name="mole_percent_to_mole_fraction",
+    description="Convert mole percent to mole fraction.",
+    equation="x = mol_percent / 100",
+    inputs={"mole_percent": "Mole percent."},
+    outputs={"mole_fraction": "Mole fraction."},
+    tags=("conversion", "mole_percent", "mole_fraction", "scalar", "numeric"),
+)
+def calc_mole_percent_to_mole_fraction(
+    mole_percent: float | int,
+    *,
+    name: str = "mole_fraction",
+    description: str = "Mole fraction converted from mole percent.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mole fraction from mole percent.
+
+    Parameters
+    ----------
+    mole_percent : float | int
+        Mole percent to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mole fraction.
+    """
+    value = _calc_mole_percent_to_mole_fraction(mole_percent)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_percent_to_mole_fraction")
+
+
+@calculation_info(
+    name="mass_fraction_to_ppm",
+    description="Convert mass fraction to mass-based ppm.",
+    equation="ppm = 1e6*w",
+    inputs={"mass_fraction": "Mass fraction."},
+    outputs={"ppm": "Mass-based parts per million."},
+    tags=("conversion", "mass_fraction", "ppm", "scalar", "numeric"),
+)
+def calc_mass_fraction_to_ppm(
+    mass_fraction: float | int,
+    *,
+    name: str = "ppm",
+    description: str = "Mass-based ppm converted from mass fraction.",
+    unit: str | None = "ppm",
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass-based ppm from mass fraction.
+
+    Parameters
+    ----------
+    mass_fraction : float | int
+        Mass fraction to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass-based ppm.
+    """
+    value = _calc_mass_fraction_to_ppm(mass_fraction)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_ppm")
+
+
+@calculation_info(
+    name="ppm_mass_to_mass_fraction",
+    description="Convert mass-based ppm to mass fraction.",
+    equation="w = ppm*1e-6",
+    inputs={"ppm": "Mass-based parts per million."},
+    outputs={"mass_fraction": "Mass fraction."},
+    tags=("conversion", "ppm", "mass_fraction", "scalar", "numeric"),
+)
+def calc_ppm_mass_to_mass_fraction(
+    ppm: float | int,
+    *,
+    name: str = "mass_fraction",
+    description: str = "Mass fraction converted from mass-based ppm.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass fraction from mass-based ppm.
+
+    Parameters
+    ----------
+    ppm : float | int
+        Mass-based parts per million.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass fraction.
+    """
+    value = _calc_ppm_mass_to_mass_fraction(ppm)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppm_mass_to_mass_fraction")
+
+
+@calculation_info(
+    name="mole_fraction_to_ppm",
+    description="Convert mole fraction to mole-based ppm.",
+    equation="ppm = 1e6*x",
+    inputs={"mole_fraction": "Mole fraction."},
+    outputs={"ppm": "Mole-based parts per million."},
+    tags=("conversion", "mole_fraction", "ppm", "scalar", "numeric"),
+)
+def calc_mole_fraction_to_ppm(
+    mole_fraction: float | int,
+    *,
+    name: str = "ppm",
+    description: str = "Mole-based ppm converted from mole fraction.",
+    unit: str | None = "ppm",
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mole-based ppm from mole fraction.
+
+    Parameters
+    ----------
+    mole_fraction : float | int
+        Mole fraction to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mole-based ppm.
+    """
+    value = _calc_mole_fraction_to_ppm(mole_fraction)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_ppm")
+
+
+@calculation_info(
+    name="ppm_mole_to_mole_fraction",
+    description="Convert mole-based ppm to mole fraction.",
+    equation="x = ppm*1e-6",
+    inputs={"ppm": "Mole-based parts per million."},
+    outputs={"mole_fraction": "Mole fraction."},
+    tags=("conversion", "ppm", "mole_fraction", "scalar", "numeric"),
+)
+def calc_ppm_mole_to_mole_fraction(
+    ppm: float | int,
+    *,
+    name: str = "mole_fraction",
+    description: str = "Mole fraction converted from mole-based ppm.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mole fraction from mole-based ppm.
+
+    Parameters
+    ----------
+    ppm : float | int
+        Mole-based parts per million.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mole fraction.
+    """
+    value = _calc_ppm_mole_to_mole_fraction(ppm)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppm_mole_to_mole_fraction")
+
+
+@calculation_info(
+    name="mass_fraction_to_ppb",
+    description="Convert mass fraction to mass-based ppb.",
+    equation="ppb = 1e9*w",
+    inputs={"mass_fraction": "Mass fraction."},
+    outputs={"ppb": "Mass-based parts per billion."},
+    tags=("conversion", "mass_fraction", "ppb", "scalar", "numeric"),
+)
+def calc_mass_fraction_to_ppb(
+    mass_fraction: float | int,
+    *,
+    name: str = "ppb",
+    description: str = "Mass-based ppb converted from mass fraction.",
+    unit: str | None = "ppb",
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass-based ppb from mass fraction.
+
+    Parameters
+    ----------
+    mass_fraction : float | int
+        Mass fraction to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass-based ppb.
+    """
+    value = _calc_mass_fraction_to_ppb(mass_fraction)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_ppb")
+
+
+@calculation_info(
+    name="ppb_mass_to_mass_fraction",
+    description="Convert mass-based ppb to mass fraction.",
+    equation="w = ppb*1e-9",
+    inputs={"ppb": "Mass-based parts per billion."},
+    outputs={"mass_fraction": "Mass fraction."},
+    tags=("conversion", "ppb", "mass_fraction", "scalar", "numeric"),
+)
+def calc_ppb_mass_to_mass_fraction(
+    ppb: float | int,
+    *,
+    name: str = "mass_fraction",
+    description: str = "Mass fraction converted from mass-based ppb.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mass fraction from mass-based ppb.
+
+    Parameters
+    ----------
+    ppb : float | int
+        Mass-based parts per billion.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mass fraction.
+    """
+    value = _calc_ppb_mass_to_mass_fraction(ppb)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mass_to_mass_fraction")
+
+
+@calculation_info(
+    name="mole_fraction_to_ppb",
+    description="Convert mole fraction to mole-based ppb.",
+    equation="ppb = 1e9*x",
+    inputs={"mole_fraction": "Mole fraction."},
+    outputs={"ppb": "Mole-based parts per billion."},
+    tags=("conversion", "mole_fraction", "ppb", "scalar", "numeric"),
+)
+def calc_mole_fraction_to_ppb(
+    mole_fraction: float | int,
+    *,
+    name: str = "ppb",
+    description: str = "Mole-based ppb converted from mole fraction.",
+    unit: str | None = "ppb",
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mole-based ppb from mole fraction.
+
+    Parameters
+    ----------
+    mole_fraction : float | int
+        Mole fraction to convert.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mole-based ppb.
+    """
+    value = _calc_mole_fraction_to_ppb(mole_fraction)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_ppb")
+
+
+@calculation_info(
+    name="ppb_mole_to_mole_fraction",
+    description="Convert mole-based ppb to mole fraction.",
+    equation="x = ppb*1e-9",
+    inputs={"ppb": "Mole-based parts per billion."},
+    outputs={"mole_fraction": "Mole fraction."},
+    tags=("conversion", "ppb", "mole_fraction", "scalar", "numeric"),
+)
+def calc_ppb_mole_to_mole_fraction(
+    ppb: float | int,
+    *,
+    name: str = "mole_fraction",
+    description: str = "Mole fraction converted from mole-based ppb.",
+    unit: str | None = None,
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Return annotated mole fraction from mole-based ppb.
+
+    Parameters
+    ----------
+    ppb : float | int
+        Mole-based parts per billion.
+
+    Returns
+    -------
+    AnnotatedValue[float]
+        Annotated mole fraction.
+    """
+    value = _calc_ppb_mole_to_mole_fraction(ppb)
+    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mole_to_mole_fraction")
 
 
 # SECTION: Public exports
 __all__ = [
-    "mole_fraction_to_mass_fraction",
-    "mapping_mole_fraction_to_mass_fraction",
-    "sequence_mole_fraction_to_mass_fraction",
-    "mapping_mole_fraction_to_mass_fraction_with_units",
-    "sequence_mole_fraction_to_mass_fraction_with_units",
-    "mass_fraction_to_mole_fraction",
-    "mapping_mass_fraction_to_mole_fraction",
-    "sequence_mass_fraction_to_mole_fraction",
-    "mapping_mass_fraction_to_mole_fraction_with_units",
-    "sequence_mass_fraction_to_mole_fraction_with_units",
-    "molarity_to_molality",
-    "molality_to_molarity",
-    "molarities_to_molalities",
-    "mapping_molarities_to_molalities",
-    "sequence_molarities_to_molalities",
-    "mapping_molarities_to_molalities_with_units",
-    "sequence_molarities_to_molalities_with_units",
-    "molality_to_mole_fraction",
-    "mapping_molality_to_mole_fraction",
-    "sequence_molality_to_mole_fraction",
-    "mapping_molality_to_mole_fraction_with_units",
-    "sequence_molality_to_mole_fraction_with_units",
-    "mole_fraction_to_molality",
-    "molarity_to_mass_fraction",
-    "mass_fraction_to_molarity",
-    "molality_to_mass_fraction",
-    "mass_fraction_to_molality",
-    "molarity_to_mass_concentration",
-    "mass_concentration_to_molarity",
-    "mass_fraction_to_weight_percent",
-    "weight_percent_to_mass_fraction",
-    "mole_fraction_to_mole_percent",
-    "mole_percent_to_mole_fraction",
-    "mass_fraction_to_ppm",
-    "ppm_mass_to_mass_fraction",
-    "mole_fraction_to_ppm",
-    "ppm_mole_to_mole_fraction",
-    "mass_fraction_to_ppb",
-    "ppb_mass_to_mass_fraction",
-    "mole_fraction_to_ppb",
-    "ppb_mole_to_mole_fraction",
+    "calc_mole_fraction_to_mass_fraction",
+    "calc_mole_fraction_to_mass_fraction_from_sequence",
+    "calc_mole_fraction_to_mass_fraction_from_mapping",
+    "calc_mole_fraction_to_mass_fraction_from_props",
+    "calc_mass_fraction_to_mole_fraction",
+    "calc_mass_fraction_to_mole_fraction_from_sequence",
+    "calc_mass_fraction_to_mole_fraction_from_mapping",
+    "calc_mass_fraction_to_mole_fraction_from_props",
+    "calc_molarities_to_molalities",
+    "calc_molarities_to_molalities_from_sequence",
+    "calc_molarities_to_molalities_from_mapping",
+    "calc_molarities_to_molalities_from_props",
+    "calc_molality_to_mole_fraction",
+    "calc_molality_to_mole_fraction_from_sequence",
+    "calc_molality_to_mole_fraction_from_mapping",
+    "calc_molality_to_mole_fraction_from_props",
+    "calc_molarity_to_molality",
+    "calc_molality_to_molarity",
+    "calc_mole_fraction_to_molality",
+    "calc_molarity_to_mass_fraction",
+    "calc_mass_fraction_to_molarity",
+    "calc_molality_to_mass_fraction",
+    "calc_mass_fraction_to_molality",
+    "calc_molarity_to_mass_concentration",
+    "calc_mass_concentration_to_molarity",
+    "calc_mass_fraction_to_weight_percent",
+    "calc_weight_percent_to_mass_fraction",
+    "calc_mole_fraction_to_mole_percent",
+    "calc_mole_percent_to_mole_fraction",
+    "calc_mass_fraction_to_ppm",
+    "calc_ppm_mass_to_mass_fraction",
+    "calc_mole_fraction_to_ppm",
+    "calc_ppm_mole_to_mole_fraction",
+    "calc_mass_fraction_to_ppb",
+    "calc_ppb_mass_to_mass_fraction",
+    "calc_mole_fraction_to_ppb",
+    "calc_ppb_mole_to_mole_fraction",
 ]
