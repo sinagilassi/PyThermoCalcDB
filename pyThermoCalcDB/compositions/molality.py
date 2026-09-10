@@ -1,7 +1,7 @@
 # import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, overload, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -17,10 +17,8 @@ from pythermodb_settings.utils import to_annotated_value
 # locals
 from .core.molality import (
     _calc_molalities,
-    _calc_molalities_from_sequence,
     _calc_molalities_from_mapping,
     _calc_molalities_from_props,
-    _calc_component_molalities_from_props
 )
 
 # NOTE: logger setup
@@ -32,6 +30,7 @@ logger = logging.getLogger(__name__)
 # ======================================================================
 
 # ::: annotated for numpy array
+
 @calculation_info(
     name="molality",
     description="Calculate the molality of each component in a solution.",
@@ -59,7 +58,7 @@ logger = logging.getLogger(__name__)
         "numeric",
     )
 )
-def _molality_annotated(
+def calc_molalities(
     component_moles: Sequence[float | int] | NDArray[np.number],
     solvent_mass: float | int | NDArray[np.number],
     *,
@@ -67,18 +66,22 @@ def _molality_annotated(
     description: str = "Calculate the molality of each component in a solution.",
     unit: str | None = None,
     symbol: str | None = None,
-) -> AnnotatedValue[NDArray[np.floating]]:
+) -> AnnotatedValue[NDArray[np.float64]]:
     """Calculate annotated molality values from array-like inputs."""
-    return to_annotated_value(
-        _calc_molalities(
-            component_moles=component_moles,
-            solvent_mass=solvent_mass
+    value = _calc_molalities(
+        component_moles=component_moles,
+        solvent_mass=solvent_mass,
+    )
+    return cast(
+        AnnotatedValue[NDArray[np.float64]],
+        to_annotated_value(
+            value,
+            name=name,
+            description=description,
+            unit=unit,
+            symbol=symbol,
+            implementation="_calc_molalities",
         ),
-        name=name,
-        description=description,
-        unit=unit,
-        symbol=symbol,
-        implementation="_calc_molalities",
     )
 
 
@@ -109,26 +112,27 @@ def _molality_annotated(
         "numeric",
     )
 )
-def _molality_1_annotated(
-    component_moles: Sequence[float],
-    solvent_mass: float,
+def calc_molalities_from_sequence(
+    component_moles: Sequence[float | int],
+    solvent_mass: float | int,
     *,
     name: str = "molality",
     description: str = "Calculate the molality of each component in a solution.",
     unit: str | None = None,
-    symbol: str | None = None
+    symbol: str | None = None,
 ) -> AnnotatedValue[list[float]]:
     """Calculate annotated molality values from a sequence of component moles."""
     return to_annotated_value(
-        _calc_molalities_from_sequence(
+        _calc_molalities(
             component_moles=component_moles,
-            solvent_mass=solvent_mass
+            solvent_mass=solvent_mass,
+            as_list=True,
         ),
         name=name,
         description=description,
         unit=unit,
         symbol=symbol,
-        implementation="_calc_molalities_from_sequence"
+        implementation="_calc_molalities",
     )
 
 
@@ -160,7 +164,7 @@ def _molality_1_annotated(
         "keyed",
     )
 )
-def _molality_2_annotated(
+def calc_molalities_from_mapping(
     component_moles: Mapping[str, float | int],
     solvent_mass: float,
     *,
@@ -180,70 +184,6 @@ def _molality_2_annotated(
         unit=unit,
         symbol=symbol,
         implementation="_calc_molalities_from_mapping"
-    )
-
-
-# ::: annotated for mapping with custom properties
-@calculation_info(
-    name="molality",
-    description="Calculate keyed molality values from unit-aware component moles and solvent mass.",
-    equation="molality = component_moles / solvent_mass",
-    inputs={
-        "component_moles": "Mapping of component identifiers to unit-aware component mole amounts.",
-        "solvent_mass": "Unit-aware mass of the solvent.",
-        "output_unit": "Molality unit used to normalize component moles and solvent mass."
-    },
-    outputs={
-        "molality": "Mapping of component identifiers to molality values in output_unit."
-    },
-    aliases=(
-        "molal concentration",
-        "amount concentration by solvent mass",
-    ),
-    notes=(
-        "The output_unit must be a ratio such as mol/kg with amount in the numerator and mass in the denominator.",
-        "The annotated result unit is output_unit; an explicitly supplied unit must match output_unit.",
-    ),
-    tags=(
-        "molality",
-        "mapping",
-        "unit_aware",
-        "component_aware",
-        "unit_conversion",
-    )
-)
-def _molality_3_annotated(
-    component_moles: Mapping[str, CustomProp],
-    solvent_mass: CustomProp,
-    output_unit: str = 'mol/kg',
-    *,
-    name: str = "molality",
-    description: str = "Calculate the molality of each component in a solution.",
-    unit: str | None = None,
-    symbol: str | None = None
-) -> AnnotatedValue[dict[str, float]]:
-    """Calculate annotated molality values from unit-aware component moles."""
-    # SECTION: set default unit for output if not provided
-    if unit is None:
-        unit = output_unit
-
-    # check unit & output unit consistency
-    if unit != output_unit:
-        raise ValueError(
-            f"Mismatch between unit ({unit}) and output_unit ({output_unit})"
-        )
-
-    return to_annotated_value(
-        _calc_molalities_from_props(
-            component_moles=component_moles,
-            solvent_mass=solvent_mass,
-            output_unit=output_unit
-        ),
-        name=name,
-        description=description,
-        unit=output_unit,
-        symbol=symbol,
-        implementation="_calc_molalities_from_props"
     )
 
 
@@ -281,7 +221,7 @@ def _molality_3_annotated(
         "component_ordering",
     )
 )
-def _molality_4_annotated(
+def calc_molalities_from_props(
     component_moles: Mapping[str, CustomProp],
     solvent_mass: CustomProp,
     output_unit: str = 'mol/kg',
@@ -306,7 +246,7 @@ def _molality_4_annotated(
             f"Mismatch between unit ({unit}) and output_unit ({output_unit})"
         )
 
-    res = _calc_component_molalities_from_props(
+    res = _calc_molalities_from_props(
         component_moles=component_moles,
         solvent_mass=solvent_mass,
         output_unit=output_unit,
@@ -323,27 +263,9 @@ def _molality_4_annotated(
         description=description,
         unit=output_unit,
         symbol=symbol,
-        implementation="_calc_component_molalities_from_props"
+        implementation="_calc_molalities_from_props"
     )
 
-
-# ======================================================================
-# *** Aliases
-# ======================================================================
-# >> molalities
-calc_molalities = _molality_annotated
-
-# >> molalities from sequence
-calc_molalities_from_sequence = _molality_1_annotated
-
-# >> molalities from mapping
-calc_molalities_from_mapping = _molality_2_annotated
-
-# >> molalities with units
-calc_molalities_from_props = _molality_3_annotated
-
-# >> component molalities
-calc_component_molalities_from_props = _molality_4_annotated
 
 # all
 __all__ = [
@@ -351,5 +273,4 @@ __all__ = [
     "calc_molalities_from_sequence",
     "calc_molalities_from_mapping",
     "calc_molalities_from_props",
-    "calc_component_molalities_from_props",
 ]
