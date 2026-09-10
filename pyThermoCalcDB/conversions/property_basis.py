@@ -15,11 +15,16 @@ from pythermodb_settings.models import ScalarValue
 from pythermodb_settings.models.units import UnitConversionFn
 # locals
 from ..utils.conversions import _scalar, _pos
+from .core.property_basis import (
+    _calc_molar_to_mass_specific,
+    _calc_mass_specific_to_molar,
+)
 
 # SECTION: Molar and mass-specific property conversions
 
 
-def molar_to_mass_specific(
+# ! ::: Convert molar property to mass-specific property
+def calc_molar_to_mass_specific(
     molar_property: ScalarValue,
     molecular_weight: ScalarValue,
     output_molar_property_unit: str | None = None,
@@ -66,10 +71,11 @@ def molar_to_mass_specific(
     )
 
     # SECTION: Calculate mass-specific property
-    return y_molar / mw
+    return float(_calc_molar_to_mass_specific(y_molar, mw))
 
 
-def mass_specific_to_molar(
+# ! ::: Convert mass-specific property to molar property
+def calc_mass_specific_to_molar(
     mass_specific_property: ScalarValue,
     molecular_weight: ScalarValue,
     output_mass_specific_property_unit: str | None = None,
@@ -116,17 +122,31 @@ def mass_specific_to_molar(
     )
 
     # SECTION: Calculate molar property
-    return y_mass * mw
+    return float(_calc_mass_specific_to_molar(y_mass, mw))
+
+
+# SECTION: Backward-compatible aliases
+# NOTE: Prefer calc_* names for new public API usage.
+molar_to_mass_specific = calc_molar_to_mass_specific
+mass_specific_to_molar = calc_mass_specific_to_molar
 
 
 # SECTION: Heat capacity aliases
 # ! Cp follows the same basis conversion equations as any other property.
-molar_cp_to_mass_cp = molar_to_mass_specific
-mass_cp_to_molar_cp = mass_specific_to_molar
+calc_molar_cp_to_mass_cp = calc_molar_to_mass_specific
+calc_mass_cp_to_molar_cp = calc_mass_specific_to_molar
+molar_cp_to_mass_cp = calc_molar_cp_to_mass_cp
+mass_cp_to_molar_cp = calc_mass_cp_to_molar_cp
 
 
 # SECTION: Public exports
 __all__ = [
+    "_calc_molar_to_mass_specific",
+    "_calc_mass_specific_to_molar",
+    "calc_molar_to_mass_specific",
+    "calc_mass_specific_to_molar",
+    "calc_molar_cp_to_mass_cp",
+    "calc_mass_cp_to_molar_cp",
     "molar_to_mass_specific",
     "mass_specific_to_molar",
     "molar_cp_to_mass_cp",

@@ -10,12 +10,18 @@ from pythermodb_settings.models import ScalarValue
 from pythermodb_settings.models.units import UnitConversionFn
 # locals
 from ..utils.conversions import _scalar, _pos
+from .core.extensive_intensive import (
+    _calc_molar_property_to_total,
+    _calc_specific_property_to_total,
+    _calc_total_to_molar_property,
+    _calc_total_to_specific_property,
+)
 
 
 # SECTION: Molar extensive/intensive conversions
 
 # ! ::: Conversions between molar and total properties
-def molar_property_to_total(
+def calc_molar_property_to_total(
     moles: ScalarValue,
     molar_property: ScalarValue,
     output_moles_unit: str | None = None,
@@ -55,12 +61,12 @@ def molar_property_to_total(
         output_molar_property_unit,
         unit_conversion_fn,
     )
-    return n * y_molar
+    return float(_calc_molar_property_to_total(n, y_molar))
 
 # ! ::: Conversions between total and molar properties
 
 
-def total_to_molar_property(
+def calc_total_to_molar_property(
     total_property: ScalarValue,
     moles: ScalarValue,
     output_total_property_unit: str | None = None,
@@ -100,13 +106,13 @@ def total_to_molar_property(
         unit_conversion_fn,
     )
     n = _pos(moles, "moles", output_moles_unit, unit_conversion_fn)
-    return y_total / n
+    return float(_calc_total_to_molar_property(y_total, n))
 
 
 # SECTION: Mass extensive/intensive conversions
 
 # ! ::: Conversions between mass-specific and total properties
-def specific_property_to_total(
+def calc_specific_property_to_total(
     mass: ScalarValue,
     specific_property: ScalarValue,
     output_mass_unit: str | None = None,
@@ -146,12 +152,12 @@ def specific_property_to_total(
         output_specific_property_unit,
         unit_conversion_fn,
     )
-    return mass_value * y_specific
+    return float(_calc_specific_property_to_total(mass_value, y_specific))
 
 # ! ::: Conversions between total and mass-specific properties
 
 
-def total_to_specific_property(
+def calc_total_to_specific_property(
     total_property: ScalarValue,
     mass: ScalarValue,
     output_total_property_unit: str | None = None,
@@ -191,11 +197,23 @@ def total_to_specific_property(
         unit_conversion_fn,
     )
     mass_value = _pos(mass, "mass", output_mass_unit, unit_conversion_fn)
-    return y_total / mass_value
+    return float(_calc_total_to_specific_property(y_total, mass_value))
+
+
+# SECTION: Backward-compatible aliases
+# NOTE: Prefer calc_* names for new public API usage.
+molar_property_to_total = calc_molar_property_to_total
+specific_property_to_total = calc_specific_property_to_total
+total_to_molar_property = calc_total_to_molar_property
+total_to_specific_property = calc_total_to_specific_property
 
 
 # SECTION: Public exports
 __all__ = [
+    "calc_molar_property_to_total",
+    "calc_specific_property_to_total",
+    "calc_total_to_molar_property",
+    "calc_total_to_specific_property",
     "molar_property_to_total",
     "specific_property_to_total",
     "total_to_molar_property",
