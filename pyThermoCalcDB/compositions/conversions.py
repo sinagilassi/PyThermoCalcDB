@@ -54,48 +54,6 @@ from .core.conversions import (
     _calc_weight_percent_to_mass_fraction,
 )
 
-
-def _annotate(
-    value: object,
-    *,
-    name: str,
-    description: str,
-    unit: str | None,
-    symbol: str | None,
-    implementation: str,
-) -> AnnotatedValue[object]:
-    """Build an annotated conversion result.
-
-    Parameters
-    ----------
-    value : object
-        Calculated conversion result.
-    name : str
-        Result name.
-    description : str
-        Result description.
-    unit : str | None
-        Result unit metadata.
-    symbol : str | None
-        Result symbol metadata.
-    implementation : str
-        Core implementation name stored in result metadata.
-
-    Returns
-    -------
-    AnnotatedValue[object]
-        Annotated calculation result.
-    """
-    return to_annotated_value(
-        value=value,
-        name=name,
-        description=description,
-        unit=unit,
-        symbol=symbol,
-        implementation=implementation,
-    )
-
-
 # ======================================================================
 # *** Public annotated API
 # ======================================================================
@@ -110,7 +68,8 @@ def _annotate(
         "molecular_weights": "Molecular weights.",
     },
     outputs={"mass_fractions": "Mass fractions."},
-    tags=("conversion", "mole_fraction", "mass_fraction", "array_like", "numpy"),
+    tags=("conversion", "mole_fraction",
+          "mass_fraction", "array_like", "numpy"),
 )
 def calc_mole_fraction_to_mass_fraction(
     mole_fractions: float | int | Sequence[float | int] | NDArray[np.number],
@@ -135,8 +94,9 @@ def calc_mole_fraction_to_mass_fraction(
     AnnotatedValue[NDArray[np.float64]]
         Annotated mass fractions.
     """
-    value = _calc_mole_fraction_to_mass_fraction(mole_fractions, molecular_weights)
-    return _annotate(
+    value = _calc_mole_fraction_to_mass_fraction(
+        mole_fractions, molecular_weights)
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -155,7 +115,8 @@ def calc_mole_fraction_to_mass_fraction(
         "molecular_weights": "Sequence or NumPy array of molecular weights.",
     },
     outputs={"mass_fractions": "List of mass fractions."},
-    tags=("conversion", "mole_fraction", "mass_fraction", "sequence", "numeric"),
+    tags=("conversion", "mole_fraction",
+          "mass_fraction", "sequence", "numeric"),
 )
 def calc_mole_fraction_to_mass_fraction_from_sequence(
     mole_fractions: float | int | Sequence[float | int] | NDArray[np.number],
@@ -184,7 +145,7 @@ def calc_mole_fraction_to_mass_fraction_from_sequence(
         mole_fractions=mole_fractions,
         molecular_weights=molecular_weights,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -240,7 +201,7 @@ def calc_mole_fraction_to_mass_fraction_from_mapping(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -259,7 +220,8 @@ def calc_mole_fraction_to_mass_fraction_from_mapping(
         "molecular_weights": "Mapping of component keys to unit-aware molecular weights.",
     },
     outputs={"mass_fractions": "Mapping of component keys to mass fractions."},
-    tags=("conversion", "mole_fraction", "mass_fraction", "mapping", "unit_aware"),
+    tags=("conversion", "mole_fraction",
+          "mass_fraction", "mapping", "unit_aware"),
 )
 def calc_mole_fraction_to_mass_fraction_from_props(
     mole_fractions: Mapping[str, float | int],
@@ -300,7 +262,7 @@ def calc_mole_fraction_to_mass_fraction_from_props(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -319,7 +281,8 @@ def calc_mole_fraction_to_mass_fraction_from_props(
         "molecular_weights": "Molecular weights.",
     },
     outputs={"mole_fractions": "Mole fractions."},
-    tags=("conversion", "mass_fraction", "mole_fraction", "array_like", "numpy"),
+    tags=("conversion", "mass_fraction",
+          "mole_fraction", "array_like", "numpy"),
 )
 def calc_mass_fraction_to_mole_fraction(
     mass_fractions: float | int | Sequence[float | int] | NDArray[np.number],
@@ -344,8 +307,9 @@ def calc_mass_fraction_to_mole_fraction(
     AnnotatedValue[NDArray[np.float64]]
         Annotated mole fractions.
     """
-    value = _calc_mass_fraction_to_mole_fraction(mass_fractions, molecular_weights)
-    return _annotate(
+    value = _calc_mass_fraction_to_mole_fraction(
+        mass_fractions, molecular_weights)
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -364,7 +328,8 @@ def calc_mass_fraction_to_mole_fraction(
         "molecular_weights": "Sequence or NumPy array of molecular weights.",
     },
     outputs={"mole_fractions": "List of mole fractions."},
-    tags=("conversion", "mass_fraction", "mole_fraction", "sequence", "numeric"),
+    tags=("conversion", "mass_fraction",
+          "mole_fraction", "sequence", "numeric"),
 )
 def calc_mass_fraction_to_mole_fraction_from_sequence(
     mass_fractions: float | int | Sequence[float | int] | NDArray[np.number],
@@ -393,7 +358,7 @@ def calc_mass_fraction_to_mole_fraction_from_sequence(
         mass_fractions=mass_fractions,
         molecular_weights=molecular_weights,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -449,7 +414,7 @@ def calc_mass_fraction_to_mole_fraction_from_mapping(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -468,7 +433,8 @@ def calc_mass_fraction_to_mole_fraction_from_mapping(
         "molecular_weights": "Mapping of component keys to unit-aware molecular weights.",
     },
     outputs={"mole_fractions": "Mapping of component keys to mole fractions."},
-    tags=("conversion", "mass_fraction", "mole_fraction", "mapping", "unit_aware"),
+    tags=("conversion", "mass_fraction",
+          "mole_fraction", "mapping", "unit_aware"),
 )
 def calc_mass_fraction_to_mole_fraction_from_props(
     mass_fractions: Mapping[str, float | int],
@@ -509,7 +475,7 @@ def calc_mass_fraction_to_mole_fraction_from_props(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -562,7 +528,7 @@ def calc_molarities_to_molalities(
         molecular_weights=molecular_weights,
         solution_density=solution_density,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -615,7 +581,7 @@ def calc_molarities_to_molalities_from_sequence(
         molecular_weights=molecular_weights,
         solution_density=solution_density,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -676,7 +642,7 @@ def calc_molarities_to_molalities_from_mapping(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -745,7 +711,7 @@ def calc_molarities_to_molalities_from_props(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -793,7 +759,7 @@ def calc_molality_to_mole_fraction(
         molalities=molalities,
         solvent_molecular_weight=solvent_molecular_weight,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -841,7 +807,7 @@ def calc_molality_to_mole_fraction_from_sequence(
         molalities=molalities,
         solvent_molecular_weight=solvent_molecular_weight,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -901,7 +867,7 @@ def calc_molality_to_mole_fraction_from_mapping(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -967,7 +933,7 @@ def calc_molality_to_mole_fraction_from_props(
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
     )
-    return _annotate(
+    return to_annotated_value(
         value,
         name=name,
         description=description,
@@ -981,7 +947,8 @@ def calc_molality_to_mole_fraction_from_props(
     name="molarity_to_molality",
     description="Convert single-solute molarity to molality.",
     equation="b = C / (rho - C*M)",
-    inputs={"molarity": "Solute molarity.", "molecular_weight": "Molecular weight.", "solution_density": "Solution density."},
+    inputs={"molarity": "Solute molarity.", "molecular_weight": "Molecular weight.",
+            "solution_density": "Solution density."},
     outputs={"molality": "Solute molality."},
     tags=("conversion", "molarity", "molality", "scalar", "numeric"),
 )
@@ -1011,15 +978,17 @@ def calc_molarity_to_molality(
     AnnotatedValue[float]
         Annotated solute molality.
     """
-    value = _calc_molarity_to_molality(molarity, molecular_weight, solution_density)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_molality")
+    value = _calc_molarity_to_molality(
+        molarity, molecular_weight, solution_density)
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_molality")
 
 
 @calculation_info(
     name="molality_to_molarity",
     description="Convert single-solute molality to molarity.",
     equation="C = b*rho / (1 + b*M)",
-    inputs={"molality": "Solute molality.", "molecular_weight": "Molecular weight.", "solution_density": "Solution density."},
+    inputs={"molality": "Solute molality.", "molecular_weight": "Molecular weight.",
+            "solution_density": "Solution density."},
     outputs={"molarity": "Solute molarity."},
     tags=("conversion", "molality", "molarity", "scalar", "numeric"),
 )
@@ -1049,15 +1018,17 @@ def calc_molality_to_molarity(
     AnnotatedValue[float]
         Annotated solute molarity.
     """
-    value = _calc_molality_to_molarity(molality, molecular_weight, solution_density)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molality_to_molarity")
+    value = _calc_molality_to_molarity(
+        molality, molecular_weight, solution_density)
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molality_to_molarity")
 
 
 @calculation_info(
     name="mole_fraction_to_molality",
     description="Convert solute mole fraction to molality.",
     equation="b_i = x_i / (x_s*M_s)",
-    inputs={"solute_mole_fraction": "Solute mole fraction.", "solvent_mole_fraction": "Solvent mole fraction.", "solvent_molecular_weight": "Solvent molecular weight."},
+    inputs={"solute_mole_fraction": "Solute mole fraction.", "solvent_mole_fraction":
+            "Solvent mole fraction.", "solvent_molecular_weight": "Solvent molecular weight."},
     outputs={"molality": "Solute molality."},
     tags=("conversion", "mole_fraction", "molality", "scalar", "numeric"),
 )
@@ -1092,14 +1063,15 @@ def calc_mole_fraction_to_molality(
         solvent_mole_fraction,
         solvent_molecular_weight,
     )
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_molality")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_molality")
 
 
 @calculation_info(
     name="molarity_to_mass_fraction",
     description="Convert molarity to mass fraction.",
     equation="w_i = C_i*M_i / rho",
-    inputs={"molarity": "Solute molarity.", "molecular_weight": "Molecular weight.", "solution_density": "Solution density."},
+    inputs={"molarity": "Solute molarity.", "molecular_weight": "Molecular weight.",
+            "solution_density": "Solution density."},
     outputs={"mass_fraction": "Solute mass fraction."},
     tags=("conversion", "molarity", "mass_fraction", "scalar", "numeric"),
 )
@@ -1129,15 +1101,17 @@ def calc_molarity_to_mass_fraction(
     AnnotatedValue[float]
         Annotated mass fraction.
     """
-    value = _calc_molarity_to_mass_fraction(molarity, molecular_weight, solution_density)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_mass_fraction")
+    value = _calc_molarity_to_mass_fraction(
+        molarity, molecular_weight, solution_density)
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_mass_fraction")
 
 
 @calculation_info(
     name="mass_fraction_to_molarity",
     description="Convert mass fraction to molarity.",
     equation="C_i = w_i*rho / M_i",
-    inputs={"mass_fraction": "Solute mass fraction.", "solution_density": "Solution density.", "molecular_weight": "Molecular weight."},
+    inputs={"mass_fraction": "Solute mass fraction.",
+            "solution_density": "Solution density.", "molecular_weight": "Molecular weight."},
     outputs={"molarity": "Solute molarity."},
     tags=("conversion", "mass_fraction", "molarity", "scalar", "numeric"),
 )
@@ -1167,15 +1141,17 @@ def calc_mass_fraction_to_molarity(
     AnnotatedValue[float]
         Annotated molarity.
     """
-    value = _calc_mass_fraction_to_molarity(mass_fraction, solution_density, molecular_weight)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_molarity")
+    value = _calc_mass_fraction_to_molarity(
+        mass_fraction, solution_density, molecular_weight)
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_molarity")
 
 
 @calculation_info(
     name="molality_to_mass_fraction",
     description="Convert molality to mass fraction.",
     equation="w_i = b_i*M_i / (1 + b_i*M_i)",
-    inputs={"molality": "Solute molality.", "molecular_weight": "Molecular weight."},
+    inputs={"molality": "Solute molality.",
+            "molecular_weight": "Molecular weight."},
     outputs={"mass_fraction": "Solute mass fraction."},
     tags=("conversion", "molality", "mass_fraction", "scalar", "numeric"),
 )
@@ -1203,14 +1179,15 @@ def calc_molality_to_mass_fraction(
         Annotated mass fraction.
     """
     value = _calc_molality_to_mass_fraction(molality, molecular_weight)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molality_to_mass_fraction")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molality_to_mass_fraction")
 
 
 @calculation_info(
     name="mass_fraction_to_molality",
     description="Convert mass fraction to molality.",
     equation="b_i = w_i / (M_i*(1 - w_i))",
-    inputs={"mass_fraction": "Solute mass fraction.", "molecular_weight": "Molecular weight."},
+    inputs={"mass_fraction": "Solute mass fraction.",
+            "molecular_weight": "Molecular weight."},
     outputs={"molality": "Solute molality."},
     tags=("conversion", "mass_fraction", "molality", "scalar", "numeric"),
 )
@@ -1238,14 +1215,15 @@ def calc_mass_fraction_to_molality(
         Annotated molality.
     """
     value = _calc_mass_fraction_to_molality(mass_fraction, molecular_weight)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_molality")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_molality")
 
 
 @calculation_info(
     name="molarity_to_mass_concentration",
     description="Convert molarity to mass concentration.",
     equation="c_m,i = C_i*M_i",
-    inputs={"molarity": "Component molarity.", "molecular_weight": "Molecular weight."},
+    inputs={"molarity": "Component molarity.",
+            "molecular_weight": "Molecular weight."},
     outputs={"mass_concentration": "Component mass concentration."},
     tags=("conversion", "molarity", "mass_concentration", "scalar", "numeric"),
 )
@@ -1273,14 +1251,15 @@ def calc_molarity_to_mass_concentration(
         Annotated mass concentration.
     """
     value = _calc_molarity_to_mass_concentration(molarity, molecular_weight)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_mass_concentration")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_molarity_to_mass_concentration")
 
 
 @calculation_info(
     name="mass_concentration_to_molarity",
     description="Convert mass concentration to molarity.",
     equation="C_i = c_m,i / M_i",
-    inputs={"mass_concentration": "Component mass concentration.", "molecular_weight": "Molecular weight."},
+    inputs={"mass_concentration": "Component mass concentration.",
+            "molecular_weight": "Molecular weight."},
     outputs={"molarity": "Component molarity."},
     tags=("conversion", "mass_concentration", "molarity", "scalar", "numeric"),
 )
@@ -1307,8 +1286,9 @@ def calc_mass_concentration_to_molarity(
     AnnotatedValue[float]
         Annotated molarity.
     """
-    value = _calc_mass_concentration_to_molarity(mass_concentration, molecular_weight)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_concentration_to_molarity")
+    value = _calc_mass_concentration_to_molarity(
+        mass_concentration, molecular_weight)
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_concentration_to_molarity")
 
 
 @calculation_info(
@@ -1340,7 +1320,7 @@ def calc_mass_fraction_to_weight_percent(
         Annotated weight percent.
     """
     value = _calc_mass_fraction_to_weight_percent(mass_fraction)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_weight_percent")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_weight_percent")
 
 
 @calculation_info(
@@ -1349,7 +1329,8 @@ def calc_mass_fraction_to_weight_percent(
     equation="w = wt_percent / 100",
     inputs={"weight_percent": "Weight percent."},
     outputs={"mass_fraction": "Mass fraction."},
-    tags=("conversion", "weight_percent", "mass_fraction", "scalar", "numeric"),
+    tags=("conversion", "weight_percent",
+          "mass_fraction", "scalar", "numeric"),
 )
 def calc_weight_percent_to_mass_fraction(
     weight_percent: float | int,
@@ -1372,7 +1353,7 @@ def calc_weight_percent_to_mass_fraction(
         Annotated mass fraction.
     """
     value = _calc_weight_percent_to_mass_fraction(weight_percent)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_weight_percent_to_mass_fraction")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_weight_percent_to_mass_fraction")
 
 
 @calculation_info(
@@ -1404,7 +1385,7 @@ def calc_mole_fraction_to_mole_percent(
         Annotated mole percent.
     """
     value = _calc_mole_fraction_to_mole_percent(mole_fraction)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_mole_percent")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_mole_percent")
 
 
 @calculation_info(
@@ -1436,7 +1417,7 @@ def calc_mole_percent_to_mole_fraction(
         Annotated mole fraction.
     """
     value = _calc_mole_percent_to_mole_fraction(mole_percent)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_percent_to_mole_fraction")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_percent_to_mole_fraction")
 
 
 @calculation_info(
@@ -1468,7 +1449,7 @@ def calc_mass_fraction_to_ppm(
         Annotated mass-based ppm.
     """
     value = _calc_mass_fraction_to_ppm(mass_fraction)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_ppm")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_ppm")
 
 
 @calculation_info(
@@ -1500,7 +1481,7 @@ def calc_ppm_mass_to_mass_fraction(
         Annotated mass fraction.
     """
     value = _calc_ppm_mass_to_mass_fraction(ppm)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppm_mass_to_mass_fraction")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppm_mass_to_mass_fraction")
 
 
 @calculation_info(
@@ -1532,7 +1513,7 @@ def calc_mole_fraction_to_ppm(
         Annotated mole-based ppm.
     """
     value = _calc_mole_fraction_to_ppm(mole_fraction)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_ppm")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_ppm")
 
 
 @calculation_info(
@@ -1564,7 +1545,7 @@ def calc_ppm_mole_to_mole_fraction(
         Annotated mole fraction.
     """
     value = _calc_ppm_mole_to_mole_fraction(ppm)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppm_mole_to_mole_fraction")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppm_mole_to_mole_fraction")
 
 
 @calculation_info(
@@ -1596,7 +1577,7 @@ def calc_mass_fraction_to_ppb(
         Annotated mass-based ppb.
     """
     value = _calc_mass_fraction_to_ppb(mass_fraction)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_ppb")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mass_fraction_to_ppb")
 
 
 @calculation_info(
@@ -1628,7 +1609,7 @@ def calc_ppb_mass_to_mass_fraction(
         Annotated mass fraction.
     """
     value = _calc_ppb_mass_to_mass_fraction(ppb)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mass_to_mass_fraction")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mass_to_mass_fraction")
 
 
 @calculation_info(
@@ -1660,7 +1641,7 @@ def calc_mole_fraction_to_ppb(
         Annotated mole-based ppb.
     """
     value = _calc_mole_fraction_to_ppb(mole_fraction)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_ppb")
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_mole_fraction_to_ppb")
 
 
 @calculation_info(
@@ -1692,51 +1673,7 @@ def calc_ppb_mole_to_mole_fraction(
         Annotated mole fraction.
     """
     value = _calc_ppb_mole_to_mole_fraction(ppb)
-    return _annotate(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mole_to_mole_fraction")
-
-
-# SECTION: Compatibility aliases
-mole_fraction_to_mass_fraction = calc_mole_fraction_to_mass_fraction
-mapping_mole_fraction_to_mass_fraction = calc_mole_fraction_to_mass_fraction_from_mapping
-sequence_mole_fraction_to_mass_fraction = calc_mole_fraction_to_mass_fraction_from_sequence
-mapping_mole_fraction_to_mass_fraction_with_units = calc_mole_fraction_to_mass_fraction_from_props
-sequence_mole_fraction_to_mass_fraction_with_units = calc_mole_fraction_to_mass_fraction_from_props
-mass_fraction_to_mole_fraction = calc_mass_fraction_to_mole_fraction
-mapping_mass_fraction_to_mole_fraction = calc_mass_fraction_to_mole_fraction_from_mapping
-sequence_mass_fraction_to_mole_fraction = calc_mass_fraction_to_mole_fraction_from_sequence
-mapping_mass_fraction_to_mole_fraction_with_units = calc_mass_fraction_to_mole_fraction_from_props
-sequence_mass_fraction_to_mole_fraction_with_units = calc_mass_fraction_to_mole_fraction_from_props
-molarity_to_molality = calc_molarity_to_molality
-molality_to_molarity = calc_molality_to_molarity
-molarities_to_molalities = calc_molarities_to_molalities
-mapping_molarities_to_molalities = calc_molarities_to_molalities_from_mapping
-sequence_molarities_to_molalities = calc_molarities_to_molalities_from_sequence
-mapping_molarities_to_molalities_with_units = calc_molarities_to_molalities_from_props
-sequence_molarities_to_molalities_with_units = calc_molarities_to_molalities_from_props
-molality_to_mole_fraction = calc_molality_to_mole_fraction
-mapping_molality_to_mole_fraction = calc_molality_to_mole_fraction_from_mapping
-sequence_molality_to_mole_fraction = calc_molality_to_mole_fraction_from_sequence
-mapping_molality_to_mole_fraction_with_units = calc_molality_to_mole_fraction_from_props
-sequence_molality_to_mole_fraction_with_units = calc_molality_to_mole_fraction_from_props
-mole_fraction_to_molality = calc_mole_fraction_to_molality
-molarity_to_mass_fraction = calc_molarity_to_mass_fraction
-mass_fraction_to_molarity = calc_mass_fraction_to_molarity
-molality_to_mass_fraction = calc_molality_to_mass_fraction
-mass_fraction_to_molality = calc_mass_fraction_to_molality
-molarity_to_mass_concentration = calc_molarity_to_mass_concentration
-mass_concentration_to_molarity = calc_mass_concentration_to_molarity
-mass_fraction_to_weight_percent = calc_mass_fraction_to_weight_percent
-weight_percent_to_mass_fraction = calc_weight_percent_to_mass_fraction
-mole_fraction_to_mole_percent = calc_mole_fraction_to_mole_percent
-mole_percent_to_mole_fraction = calc_mole_percent_to_mole_fraction
-mass_fraction_to_ppm = calc_mass_fraction_to_ppm
-ppm_mass_to_mass_fraction = calc_ppm_mass_to_mass_fraction
-mole_fraction_to_ppm = calc_mole_fraction_to_ppm
-ppm_mole_to_mole_fraction = calc_ppm_mole_to_mole_fraction
-mass_fraction_to_ppb = calc_mass_fraction_to_ppb
-ppb_mass_to_mass_fraction = calc_ppb_mass_to_mass_fraction
-mole_fraction_to_ppb = calc_mole_fraction_to_ppb
-ppb_mole_to_mole_fraction = calc_ppb_mole_to_mole_fraction
+    return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mole_to_mole_fraction")
 
 
 # SECTION: Public exports
@@ -1778,45 +1715,4 @@ __all__ = [
     "calc_ppb_mass_to_mass_fraction",
     "calc_mole_fraction_to_ppb",
     "calc_ppb_mole_to_mole_fraction",
-    "mole_fraction_to_mass_fraction",
-    "mapping_mole_fraction_to_mass_fraction",
-    "sequence_mole_fraction_to_mass_fraction",
-    "mapping_mole_fraction_to_mass_fraction_with_units",
-    "sequence_mole_fraction_to_mass_fraction_with_units",
-    "mass_fraction_to_mole_fraction",
-    "mapping_mass_fraction_to_mole_fraction",
-    "sequence_mass_fraction_to_mole_fraction",
-    "mapping_mass_fraction_to_mole_fraction_with_units",
-    "sequence_mass_fraction_to_mole_fraction_with_units",
-    "molarity_to_molality",
-    "molality_to_molarity",
-    "molarities_to_molalities",
-    "mapping_molarities_to_molalities",
-    "sequence_molarities_to_molalities",
-    "mapping_molarities_to_molalities_with_units",
-    "sequence_molarities_to_molalities_with_units",
-    "molality_to_mole_fraction",
-    "mapping_molality_to_mole_fraction",
-    "sequence_molality_to_mole_fraction",
-    "mapping_molality_to_mole_fraction_with_units",
-    "sequence_molality_to_mole_fraction_with_units",
-    "mole_fraction_to_molality",
-    "molarity_to_mass_fraction",
-    "mass_fraction_to_molarity",
-    "molality_to_mass_fraction",
-    "mass_fraction_to_molality",
-    "molarity_to_mass_concentration",
-    "mass_concentration_to_molarity",
-    "mass_fraction_to_weight_percent",
-    "weight_percent_to_mass_fraction",
-    "mole_fraction_to_mole_percent",
-    "mole_percent_to_mole_fraction",
-    "mass_fraction_to_ppm",
-    "ppm_mass_to_mass_fraction",
-    "mole_fraction_to_ppm",
-    "ppm_mole_to_mole_fraction",
-    "mass_fraction_to_ppb",
-    "ppb_mass_to_mass_fraction",
-    "mole_fraction_to_ppb",
-    "ppb_mole_to_mole_fraction",
 ]
