@@ -20,12 +20,9 @@ from ..utils.conversions import (
 from ..utils.tools import to_annotated_value
 from .core.charge_balance import (
     _calc_charge_balance,
-    _calc_charge_balance_from_sequence,
     _calc_charge_balance_from_props,
     _calc_charge_balance_from_mapping,
-    _calc_charge_balance_from_props,
     _check_electroneutrality,
-    _check_electroneutrality_from_sequence,
     _check_electroneutrality_from_mapping,
     _check_electroneutrality_from_props
 )
@@ -159,10 +156,10 @@ def calc_charge_balance_from_sequence(
         Annotated charge-balance residual for the sequence.
     """
     # SECTION: Calculate value
-    value = _calc_charge_balance_from_sequence(
+    value = float(_calc_charge_balance(
         concentrations=concentrations,
         charges=charges,
-    )
+    ))
 
     # SECTION: Build annotated value
     return to_annotated_value(
@@ -171,7 +168,7 @@ def calc_charge_balance_from_sequence(
         description=description,
         unit=unit,
         symbol=symbol,
-        implementation="_calc_charge_balance_from_sequence",
+        implementation="_calc_charge_balance",
     )
 
 
@@ -264,7 +261,7 @@ def calc_charge_balance_from_mapping(
 )
 def calc_charge_balance_from_props(
     concentrations: Mapping[str, CustomProp],
-    charges: Mapping[str, float | int],
+    charges: Mapping[str, CustomProp],
     output_concentration_unit: str,
     unit_conversion_fn: UnitConversionFn | None = None,
     components: Optional[Sequence[Component]] = None,
@@ -283,7 +280,7 @@ def calc_charge_balance_from_props(
     ----------
     concentrations : Mapping[str, CustomProp]
         Unit-aware species concentrations keyed by component identifier.
-    charges : Mapping[str, float | int]
+    charges : Mapping[str, CustomProp]
         Numeric species charges keyed by component identifier.
     output_concentration_unit : str
         Unit used to normalize concentration values before calculation.
@@ -461,11 +458,11 @@ def check_electroneutrality_from_sequence(
         Annotated boolean result for the sequence check.
     """
     # SECTION: Check electroneutrality
-    result = _check_electroneutrality_from_sequence(
+    result = bool(_check_electroneutrality(
         concentrations=concentrations,
         charges=charges,
         tolerance=tolerance,
-    )
+    ))
 
     # SECTION: Build annotated boolean value
     return to_annotated_value(
@@ -571,7 +568,7 @@ def check_electroneutrality_from_mapping(
 )
 def check_electroneutrality_from_props(
     concentrations: Mapping[str, CustomProp],
-    charges: Mapping[str, float | int],
+    charges: Mapping[str, CustomProp],
     output_concentration_unit: str,
     tolerance: float = 1e-12,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -591,7 +588,7 @@ def check_electroneutrality_from_props(
     ----------
     concentrations : Mapping[str, CustomProp]
         Unit-aware species concentrations keyed by component identifier.
-    charges : Mapping[str, float | int]
+    charges : Mapping[str, CustomProp]
         Numeric species charges keyed by component identifier.
     output_concentration_unit : str
         Unit used to normalize concentration values before checking.
@@ -642,27 +639,16 @@ def check_electroneutrality_from_props(
     )
 
 
-# =====================================================================
-# *** Aliases
-# =====================================================================
-
-calc_mapping_charge_balance = calc_charge_balance_from_mapping
-calc_sequence_charge_balance = calc_charge_balance_from_sequence
-
-
 # SECTION: Public exports
 __all__ = [
-    # public
+    # charge balance
     "calc_charge_balance",
     "calc_charge_balance_from_sequence",
     "calc_charge_balance_from_mapping",
     "calc_charge_balance_from_props",
+    # electroneutrality
     "check_electroneutrality",
     "check_electroneutrality_from_sequence",
     "check_electroneutrality_from_mapping",
     "check_electroneutrality_from_props",
-
-    # compatibility
-    "calc_mapping_charge_balance",
-    "calc_sequence_charge_balance",
 ]

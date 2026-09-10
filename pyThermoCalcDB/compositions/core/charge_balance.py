@@ -141,41 +141,6 @@ def _calc_charge_balance(
     return cast(NDArray[np.float64], np.sum(values, axis=1))
 
 
-# ! ::: Sequence adapter
-
-def _calc_charge_balance_from_sequence(
-    concentrations: Sequence[float | int],
-    charges: Sequence[float | int],
-) -> float:
-    """
-    Calculate charge-balance residual from numeric sequence inputs.
-
-    Parameters
-    ----------
-    concentrations : Sequence[float | int]
-        Species concentrations in sequence order.
-    charges : Sequence[float | int]
-        Species charges aligned with ``concentrations``.
-
-    Returns
-    -------
-    float
-        Charge-balance residual for the sequence.
-    """
-    # SECTION: Validate inputs
-    non_negative(concentrations, "concentrations")
-    same_shape(concentrations, charges)
-
-    # SECTION: Calculate charge-balance residual
-    return cast(
-        float,
-        _calc_charge_balance(
-            concentrations,
-            charges,
-        ),
-    )
-
-
 # ! ::: Mapping adapter
 
 def _calc_charge_balance_from_mapping(
@@ -216,7 +181,7 @@ def _calc_charge_balance_from_mapping(
 
 def _calc_charge_balance_from_props(
     concentrations: Mapping[str, CustomProp],
-    charges: Mapping[str, float | int],
+    charges: Mapping[str, CustomProp],
     output_concentration_unit: str,
     unit_conversion_fn: UnitConversionFn | None = None,
     components: Optional[Sequence[Component]] = None,
@@ -258,6 +223,11 @@ def _calc_charge_balance_from_props(
         output_concentration_unit,
         unit_conversion_fn=conversion_fn,
     )
+    normalized_charges = to_dict(
+        charges,
+        None,
+        None,
+    )
 
     # ? Component metadata can remap keys and enforce component order.
     normalized_concentrations = _configure_component_values(
@@ -269,7 +239,7 @@ def _calc_charge_balance_from_props(
         "concentrations",
     )
     normalized_charges = _configure_component_values(
-        dict(charges),
+        normalized_charges,
         list(components) if components is not None else None,
         component_key,
         case_sensitive,
@@ -333,45 +303,6 @@ def _check_electroneutrality(
     return bool(is_neutral)
 
 
-# ! ::: Sequence check adapter
-
-def _check_electroneutrality_from_sequence(
-    concentrations: Sequence[float | int],
-    charges: Sequence[float | int],
-    tolerance: float = 1e-12,
-) -> bool:
-    """
-    Check electroneutrality from numeric sequence inputs.
-
-    Parameters
-    ----------
-    concentrations : Sequence[float | int]
-        Species concentrations in sequence order.
-    charges : Sequence[float | int]
-        Species charges aligned with ``concentrations``.
-    tolerance : float, optional
-        Maximum absolute charge-balance residual allowed.
-
-    Returns
-    -------
-    bool
-        ``True`` when the sequence residual is within tolerance.
-    """
-    # SECTION: Validate inputs
-    non_negative(concentrations, "concentrations")
-    same_shape(concentrations, charges)
-
-    # SECTION: Check electroneutrality
-    return cast(
-        bool,
-        _check_electroneutrality(
-            concentrations=concentrations,
-            charges=charges,
-            tolerance=tolerance,
-        ),
-    )
-
-
 # ! ::: Mapping check adapter
 
 def _check_electroneutrality_from_mapping(
@@ -416,7 +347,7 @@ def _check_electroneutrality_from_mapping(
 
 def _check_electroneutrality_from_props(
     concentrations: Mapping[str, CustomProp],
-    charges: Mapping[str, float | int],
+    charges: Mapping[str, CustomProp],
     output_concentration_unit: str,
     tolerance: float = 1e-12,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -461,6 +392,11 @@ def _check_electroneutrality_from_props(
         output_concentration_unit,
         unit_conversion_fn=conversion_fn,
     )
+    normalized_charges = to_dict(
+        charges,
+        None,
+        None,
+    )
 
     # ? Component metadata can remap keys and enforce component order.
     normalized_concentrations = _configure_component_values(
@@ -472,7 +408,7 @@ def _check_electroneutrality_from_props(
         "concentrations",
     )
     normalized_charges = _configure_component_values(
-        dict(charges),
+        normalized_charges,
         list(components) if components is not None else None,
         component_key,
         case_sensitive,
@@ -501,11 +437,9 @@ def _check_electroneutrality_from_props(
 __all__ = [
     # internal
     "_calc_charge_balance",
-    "_calc_charge_balance_from_sequence",
     "_calc_charge_balance_from_mapping",
     "_calc_charge_balance_from_props",
     "_check_electroneutrality",
-    "_check_electroneutrality_from_sequence",
     "_check_electroneutrality_from_mapping",
     "_check_electroneutrality_from_props",
 ]
