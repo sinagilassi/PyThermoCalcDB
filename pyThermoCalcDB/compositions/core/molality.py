@@ -1,7 +1,7 @@
 # import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, overload, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -102,10 +102,32 @@ def _validate_moles_and_mass(
 # ======================================================================
 
 # ! ::: Molality from array-like inputs
+@overload
 def _calc_molalities(
     component_moles: Sequence[float | int] | NDArray[np.number],
     solvent_mass: float | int | NDArray[np.number],
+    *,
+    as_list: Literal[False] = False,
 ) -> NDArray[np.float64]:
+    ...
+
+
+@overload
+def _calc_molalities(
+    component_moles: Sequence[float | int],
+    solvent_mass: float | int,
+    *,
+    as_list: Literal[True],
+) -> list[float]:
+    ...
+
+
+def _calc_molalities(
+    component_moles: Sequence[float | int] | NDArray[np.number],
+    solvent_mass: float | int | NDArray[np.number],
+    *,
+    as_list: bool = False,
+) -> NDArray[np.float64] | list[float]:
     """
     Calculate molalities using NumPy vectorization.
 
@@ -117,11 +139,14 @@ def _calc_molalities(
     solvent_mass : float | int | NDArray[np.number]
         Solvent mass. Must be a scalar or have a compatible shape with
         ``component_moles``.
+    as_list : bool, optional
+        Return molalities as a Python list instead of a NumPy array.
 
     Returns
     -------
-    NDArray[np.floating]
-        Molalities with the same shape as ``component_moles``.
+    NDArray[np.floating] | list[float]
+        Molalities with the same shape as ``component_moles``. The default
+        return type is a NumPy array.
     """
     # set
     moles: NDArray[np.float64] = np.asarray(component_moles, dtype=np.float64)
@@ -130,35 +155,10 @@ def _calc_molalities(
     # validate
     mass = _validate_moles_and_mass(moles, mass)
 
-    return cast(NDArray[np.float64], moles / mass)
-
-
-# ! ::: Molality from sequence
-def _calc_molalities_from_sequence(
-    component_moles: Sequence[float | int],
-    solvent_mass: float,
-) -> list[float]:
-    """
-    Calculate the molality of each component in a solution given the component
-    moles and the solvent mass.
-
-    Parameters
-    ----------
-    component_moles : Sequence[float | int]
-        A sequence of moles for each component.
-    solvent_mass : float
-        The solvent mass.
-
-    Returns
-    -------
-    list[float]
-        A list of molality values for each component.
-    """
-    # calc
-    return _calc_molalities(
-        component_moles,
-        solvent_mass
-    ).tolist()
+    molalities = cast(NDArray[np.float64], moles / mass)
+    if as_list:
+        return cast(list[float], molalities.tolist())
+    return molalities
 
 
 # ! ::: Molality from mapping
@@ -198,66 +198,8 @@ def _calc_molalities_from_mapping(
 
 
 # ! ::: Molality with solvent mass as CustomProp
+
 def _calc_molalities_from_props(
-    component_moles: Mapping[str, CustomProp],
-    solvent_mass: CustomProp,
-    output_unit: str = 'mol/kg',
-) -> dict[str, float]:
-    """
-    Calculate the molality of each component in a solution given the component
-    moles and the solvent mass as a CustomProp.
-
-    Parameters
-    ----------
-    component_moles : Mapping[str, CustomProp]
-        A mapping of component names to their respective mole amounts.
-    solvent_mass : CustomProp
-        The solvent mass as a CustomProp object.
-    output_unit : str, optional
-        The unit for the output molality values. Defaults to 'mol/kg'.
-
-    Returns
-    -------
-    dict[str, float]
-        A dictionary mapping component names to their respective molality
-        values.
-
-    Notes
-    -----
-    - The solvent mass is expected to be provided as a CustomProp object. If
-    the output_unit is not specified, it defaults to mol/kg.
-    - Component mole values are expected to be CustomProp objects so their
-    units can be converted to the mole unit from output_unit.
-    """
-    # SECTION: set default units for moles and mass
-    units_ = _to_units(output_unit)
-    # >> set
-    mole_unit = units_[0]
-    mass_unit = units_[1]
-
-    # NOTE: component moles
-    # ! convert component moles to the specified unit if necessary
-    component_moles_dict: dict[str, float] = _to_moles(
-        component_moles=component_moles,
-        output_unit=mole_unit
-    )
-
-    # NOTE: solvent mass unit should match output unit denominator
-    # ! convert solvent mass to the specified unit
-    solvent_mass_scalar = _to_mass(
-        solvent_mass=solvent_mass,
-        output_unit=mass_unit
-    )
-
-    # SECTION: calculate molality for each component
-    return _calc_molalities_from_mapping(
-        component_moles=component_moles_dict,
-        solvent_mass=solvent_mass_scalar,
-    )
-
-
-# ! ::: Molality with component ID mapping and sorting
-def _calc_component_molalities_from_props(
     component_moles: Mapping[str, CustomProp],
     solvent_mass: CustomProp,
     output_unit: str = 'mol/kg',
@@ -361,8 +303,6 @@ def _calc_component_molalities_from_props(
 # all
 __all__ = [
     "_calc_molalities",
-    "_calc_molalities_from_sequence",
     "_calc_molalities_from_mapping",
     "_calc_molalities_from_props",
-    "_calc_component_molalities_from_props",
 ]
