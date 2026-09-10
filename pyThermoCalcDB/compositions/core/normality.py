@@ -1,8 +1,10 @@
 """Normality and equivalent-concentration helpers."""
 
-# import libs
-import math
+from collections.abc import Sequence
+from typing import Literal, overload, cast
 
+import numpy as np
+from numpy.typing import NDArray
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp
 from pythermodb_settings.models.units import UnitConversionFn
@@ -16,20 +18,16 @@ from ...utils.conversions import _resolve_unit_conversion_fn, _to_units
 # ======================================================================
 
 
-def _validate_positive_scalar(
-    value: float | int,
+def _validate_positive_values(
+    values: NDArray[np.float64],
     name: str,
-) -> float:
-    """Validate and normalize a positive numeric scalar."""
-    value_ = float(value)
+) -> None:
+    """Validate finite positive numeric scalar or array values."""
+    if not np.all(np.isfinite(values)):
+        raise ValueError(f"{name} must contain finite values.")
 
-    if not math.isfinite(value_):
-        raise ValueError(f"{name} must be finite.")
-
-    if value_ <= 0:
+    if np.any(values <= 0):
         raise ValueError(f"{name} must be greater than zero.")
-
-    return value_
 
 
 def _molarity_unit_from_normality_unit(
@@ -43,24 +41,60 @@ def _molarity_unit_from_normality_unit(
 # ======================================================================
 # *** Internal deterministic calculations
 # ======================================================================
+@overload
 def _calc_normality(
     molarity: float | int,
     equivalence_factor: float | int,
+    *,
+    as_list: Literal[False] = False,
 ) -> float:
+    ...
+
+
+@overload
+def _calc_normality(
+    molarity: Sequence[float | int] | NDArray[np.number],
+    equivalence_factor: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    as_list: Literal[False] = False,
+) -> NDArray[np.float64]:
+    ...
+
+
+@overload
+def _calc_normality(
+    molarity: Sequence[float | int],
+    equivalence_factor: float | int | Sequence[float | int],
+    *,
+    as_list: Literal[True],
+) -> list[float]:
+    ...
+
+
+def _calc_normality(
+    molarity: float | int | Sequence[float | int] | NDArray[np.number],
+    equivalence_factor: float | int | Sequence[float | int] | NDArray[np.number],
+    *,
+    as_list: bool = False,
+) -> float | NDArray[np.float64] | list[float]:
     """Calculate normality from numeric molarity and equivalence factor.
 
     Parameters
     ----------
-    molarity : float | int
+    molarity : float | int | Sequence[float | int] | NDArray[np.number]
         Molar concentration of the solute on the desired basis.
-    equivalence_factor : float | int
+    equivalence_factor : float | int | Sequence[float | int] | NDArray[np.number]
         Reaction-context equivalence factor. Must be supplied by the caller and
         must be greater than zero.
+    as_list : bool, optional
+        Return sequence calculations as a Python list instead of a NumPy array.
 
     Returns
     -------
-    float
-        Normality on the same volume basis as ``molarity``.
+    float | NDArray[np.float64] | list[float]
+        Normality on the same volume basis as ``molarity``. Scalar inputs return
+        a float, array-like inputs return a NumPy array by default, and
+        ``as_list=True`` returns a Python list.
 
     Notes
     -----
@@ -68,14 +102,29 @@ def _calc_normality(
     not carry unit metadata, so no unit conversion or unit inference is done.
     """
     # SECTION: Validate inputs
-    molarity_value = _validate_positive_scalar(molarity, "molarity")
-    equivalence_factor_value = _validate_positive_scalar(
-        equivalence_factor,
-        "equivalence_factor",
+    molarity_values: NDArray[np.float64] = np.asarray(
+        molarity,
+        dtype=np.float64,
     )
+    equivalence_factor_values: NDArray[np.float64] = np.asarray(
+        equivalence_factor,
+        dtype=np.float64,
+    )
+    _validate_positive_values(molarity_values, "molarity")
+    _validate_positive_values(equivalence_factor_values, "equivalence_factor")
 
     # SECTION: Calculate normality
-    return molarity_value * equivalence_factor_value
+    normality = cast(
+        NDArray[np.float64],
+        molarity_values * equivalence_factor_values,
+    )
+    if as_list:
+        if normality.ndim == 0:
+            return [float(normality)]
+        return cast(list[float], normality.tolist())
+    if normality.ndim == 0:
+        return float(normality)
+    return normality
 
 
 def _calc_normality_from_props(
