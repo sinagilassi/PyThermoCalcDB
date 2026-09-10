@@ -3,7 +3,7 @@ from .fractions import (
     calc_fractions,
     calc_fractions_from_sequence,
     calc_fractions_from_mapping,
-    calc_component_fractions,
+    calc_fractions_from_props,
 )
 
 # NOTE: molarity
@@ -40,8 +40,6 @@ from .ionic_strength_molality import (
     calc_ionic_strength_molality_from_mapping,
     calc_ionic_strength_molality_from_sequence,
     calc_ionic_strength_molality_from_props,
-    calc_ionic_strength_molality_with_components_from_mapping,
-    calc_ionic_strength_molality_with_components_from_sequence,
 )
 
 from .ionic_strength_molarity import (
@@ -105,12 +103,10 @@ from .concentration import (
     calc_mass_concentrations_from_sequence,
     calc_mass_concentrations_from_mapping,
     calc_mass_concentrations_from_props,
-    calc_component_mass_concentration_from_props,
     calc_molar_concentrations,
     calc_molar_concentrations_from_sequence,
     calc_molar_concentrations_from_mapping,
     calc_molar_concentrations_from_props,
-    calc_component_molar_concentrations_from_props,
 )
 
 __all__ = [
@@ -118,7 +114,7 @@ __all__ = [
     "calc_fractions",
     "calc_fractions_from_sequence",
     "calc_fractions_from_mapping",
-    "calc_component_fractions",
+    "calc_fractions_from_props",
     # ? molarity
     "calc_molarities",
     "calc_molarities_from_sequence",
@@ -147,8 +143,6 @@ __all__ = [
     "calc_ionic_strength_molality_from_sequence",
     "calc_ionic_strength_molality_from_mapping",
     "calc_ionic_strength_molality_from_props",
-    "calc_ionic_strength_molality_with_components_from_mapping",
-    "calc_ionic_strength_molality_with_components_from_sequence",
     "calc_ionic_strength_molarity",
     "calc_ionic_strength_molarity_from_sequence",
     "calc_ionic_strength_molarity_from_mapping",
@@ -196,10 +190,8 @@ __all__ = [
     "calc_mass_concentrations_from_sequence",
     "calc_mass_concentrations_from_mapping",
     "calc_mass_concentrations_from_props",
-    "calc_component_mass_concentration_from_props",
     "calc_molar_concentrations",
     "calc_molar_concentrations_from_sequence",
     "calc_molar_concentrations_from_mapping",
     "calc_molar_concentrations_from_props",
-    "calc_component_molar_concentrations_from_props",
 ]
