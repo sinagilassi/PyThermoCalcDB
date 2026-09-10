@@ -12,7 +12,6 @@ from .molarity import (
     calc_molarities_from_sequence,
     calc_molarities_from_mapping,
     calc_molarities_from_props,
-    calc_component_molarities_from_props,
 )
 
 # NOTE: molality
@@ -55,6 +54,7 @@ from .ionic_strength_molarity import (
 # NOTE: equivalent concentration
 from .normality import (
     calc_normality,
+    calc_normality_from_sequence,
     calc_normality_from_props,
 )
 
@@ -124,7 +124,6 @@ __all__ = [
     "calc_molarities_from_sequence",
     "calc_molarities_from_mapping",
     "calc_molarities_from_props",
-    "calc_component_molarities_from_props",
     # ? molality
     "calc_molalities",
     "calc_molalities_from_sequence",
@@ -132,6 +131,7 @@ __all__ = [
     "calc_molalities_from_props",
     # ? normality
     "calc_normality",
+    "calc_normality_from_sequence",
     "calc_normality_from_props",
     # ? charge balance
     "calc_charge_balance",

@@ -346,7 +346,7 @@ def calc_molarities_from_props(
         description=description,
         unit=output_unit,  # ! set output unit
         symbol=symbol,
-        implementation="_calc_component_molarities_from_props"
+        implementation="_calc_molarities_from_props"
     )
 
 
