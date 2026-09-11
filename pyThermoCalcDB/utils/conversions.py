@@ -1,12 +1,12 @@
 # import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import List, Optional, Dict, Any, cast
+from typing import List, Optional, Dict, Any, cast, TypeAlias
 import numpy as np
 from numpy.typing import NDArray
 from pythermodb_settings.utils import config_components_values, get_unit
 from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, UnitConversionFn, Component, ComponentKey, ScalarValue
-from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar, pos, to_scalar
+from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar, pos, to_scalar, to_dict, to_values
 from pycuc import convert_from_to
 # locals
 
@@ -14,7 +14,8 @@ from pycuc import convert_from_to
 logger = logging.getLogger(__name__)
 
 # SECTION: Numeric helper aliases
-NumericArrayInput = float | int | Sequence[float | int] | NDArray[np.number]
+NumericArrayInput: TypeAlias = \
+    float | int | Sequence[float | int] | NDArray[np.number]
 
 
 # SECTION: Unit conversion function resolver
@@ -157,7 +158,8 @@ def _validate_same_array_shape(
     """Validate identical array shapes for pairwise component calculations."""
     # ? Pairwise mixture rules need component arrays aligned by shape.
     if left.shape != right.shape:
-        raise ValueError(f"{left_name} and {right_name} must have the same shape.")
+        raise ValueError(
+            f"{left_name} and {right_name} must have the same shape.")
 
 
 def _validate_same_mapping_keys(
@@ -169,7 +171,8 @@ def _validate_same_mapping_keys(
     """Validate matching component keys for pairwise mapping calculations."""
     # ? Mapping adapters must preserve component identity before array math.
     if set(left) != set(right):
-        raise ValueError(f"{left_name} and {right_name} must have the same component keys.")
+        raise ValueError(
+            f"{left_name} and {right_name} must have the same component keys.")
 
 
 # SECTION: Unit handling helpers
@@ -440,7 +443,7 @@ def _to_molecular_weight(
 
 
 def _scalar(
-    value: ScalarValue,
+    value: float | int | CustomProp,
     name: str,
     output_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -478,8 +481,31 @@ def _configure_component_values(
     case_sensitive: bool,
     sort_by_components_order: bool,
     name: str,
+    extract_values: bool = True,
 ) -> dict[str, float]:
     """Remap and order mapping values using component metadata when requested.
+
+    Parameters
+    ----------
+    values : Dict[str, Any] | Mapping[str, Any]
+        The input values keyed by component names.
+    components : Optional[List[Component]]
+        The list of component metadata.
+    component_key : Optional[ComponentKey]
+        The key to use for mapping components.
+    case_sensitive : bool
+        Whether the component key matching should be case-sensitive.
+    sort_by_components_order : bool
+        Whether to sort the output by the order of components.
+    name : str
+        The name of the values being configured, used for error messages.
+    extract_values : bool, optional
+        Whether to extract the values from the configured component mapping. Default is True.
+
+    Returns
+    -------
+    dict[str, float]
+        The configured component values, optionally extracted from the component mapping.
 
     Notes
     -----
@@ -492,8 +518,9 @@ def _configure_component_values(
 
     # NOTE: Component metadata is required only for key remapping.
     if not components:
-        raise ValueError(
+        logger.warning(
             f"component_key is provided but components is empty for {name}.")
+        components = []
 
     # SECTION: Remap values through pythermodb-settings utilities
     component_values = config_components_values(
@@ -502,6 +529,7 @@ def _configure_component_values(
         component_key=component_key,
         case_sensitive=case_sensitive,
         sort_by_components_order=sort_by_components_order,
+        extract_values=extract_values,
     )
     if component_values is None:
         raise ValueError(f"Failed to configure {name} component values.")
@@ -523,3 +551,21 @@ def _validate_same_keys(left: Mapping[str, float], right: Mapping[str, float]) -
     if set(left) != set(right):
         raise ValueError(
             "concentrations and charges must have the same component keys.")
+
+# ! ::: to values
+
+
+def _to_values(
+        data: Mapping[str, float | int | CustomProp] | Dict[str, float | int | CustomProp],
+        name: str,
+        output_unit: str | None = None,
+        unit_conversion_fn: UnitConversionFn | None = None,
+):
+    try:
+        return to_values(
+            data=data,
+            output_unit=output_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to convert {name} to values: {e}")
