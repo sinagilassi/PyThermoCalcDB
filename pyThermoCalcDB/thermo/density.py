@@ -7,11 +7,22 @@ from pythermodb_settings.models import (
     CustomProp,
 )
 import pycuc
+from ..utils.conversions import (
+    _pos, _scalar
+)
 # locals
+from .core.density import (
+    _calc_ideal_gas_density,
+    _calc_ideal_gas_molar_volume,
+    _calc_gas_molar_volume_from_z,
+    _calc_gas_density_from_z,
+)
 
 
 # NOTE: set up logger
 logger = logging.getLogger(__name__)
+
+# ! ::: Rackett equation for liquid density
 
 
 def rackett(
@@ -140,13 +151,12 @@ def rackett(
         return None
 
 
-# SECTION: Ideal-gas and reciprocal-density helpers
+# ! ::: Ideal-gas and reciprocal-density helpers
 
 def calc_ideal_gas_density(
         pressure: Pressure,
         molecular_weight: CustomProp,
         temperature: Temperature,
-        universal_gas_constant: float = 8.31446261815324,
         output_unit: str = "kg/m3",
 ) -> Optional[CustomProp]:
     """Calculate ideal-gas density from pressure, molecular weight, and temperature.
@@ -159,8 +169,6 @@ def calc_ideal_gas_density(
         Molecular weight. Converted to kg/mol before calculation.
     temperature : Temperature
         Gas temperature. Converted to K before calculation.
-    universal_gas_constant : float, optional
-        Gas constant in J/mol/K. Defaults to 8.31446261815324.
     output_unit : str, optional
         Desired density unit. Defaults to kg/m3.
 
@@ -181,22 +189,32 @@ def calc_ideal_gas_density(
                 "Pressure, temperature, and molecular weight must be positive.")
             return None
 
+        # NOTE: pressure in Pa
         p_value = pressure.value
         if pressure.unit != "Pa":
             p_value = pycuc.convert_from_to(p_value, pressure.unit, "Pa")
 
+        # NOTE: temperature in K
         t_value = temperature.value
         if temperature.unit != "K":
             t_value = pycuc.convert_from_to(t_value, temperature.unit, "K")
 
+        # NOTE: molecular weight in kg/mol
         mw_value = float(molecular_weight.value)
         if molecular_weight.unit != "kg/mol":
             mw_value = pycuc.convert_from_to(
                 mw_value, molecular_weight.unit, "kg/mol")
 
         # SECTION: Calculate ideal-gas density
-        density_value = p_value * mw_value / (universal_gas_constant * t_value)
+        # ! in kg/m3
+        density_value = _calc_ideal_gas_density(
+            pressure=p_value,
+            molecular_weight=mw_value,
+            temperature=t_value,
+        )
         density_unit = "kg/m3"
+
+        # SECTION: Convert to desired output unit if necessary
         if output_unit != density_unit:
             density_value = pycuc.convert_from_to(
                 density_value, density_unit, output_unit)
@@ -207,11 +225,12 @@ def calc_ideal_gas_density(
         logger.error(f"Error in ideal gas density calculation: {e}")
         return None
 
+#  ! ::: Ideal-gas molar volume calculation
+
 
 def calc_ideal_gas_molar_volume(
         temperature: Temperature,
         pressure: Pressure,
-        universal_gas_constant: float = 8.31446261815324,
         output_unit: str = "m3/mol",
 ) -> Optional[CustomProp]:
     """Calculate ideal-gas molar volume from temperature and pressure.
@@ -222,8 +241,6 @@ def calc_ideal_gas_molar_volume(
         Gas temperature. Converted to K before calculation.
     pressure : Pressure
         Gas pressure. Converted to Pa before calculation.
-    universal_gas_constant : float, optional
-        Gas constant in J/mol/K. Defaults to 8.31446261815324.
     output_unit : str, optional
         Desired molar-volume unit. Defaults to m3/mol.
 
@@ -243,17 +260,25 @@ def calc_ideal_gas_molar_volume(
             logger.warning("Pressure and temperature must be positive.")
             return None
 
+        # NOTE: pressure in Pa
         p_value = pressure.value
         if pressure.unit != "Pa":
             p_value = pycuc.convert_from_to(p_value, pressure.unit, "Pa")
 
+        # NOTE: temperature in K
         t_value = temperature.value
         if temperature.unit != "K":
             t_value = pycuc.convert_from_to(t_value, temperature.unit, "K")
 
         # SECTION: Calculate ideal-gas molar volume
-        volume_value = universal_gas_constant * t_value / p_value
+        volume_value = _calc_ideal_gas_molar_volume(
+            temperature=t_value,
+            pressure=p_value,
+            output_unit=output_unit,
+        )
         volume_unit = "m3/mol"
+
+        # SECTION: Convert to desired output unit if necessary
         if output_unit != volume_unit:
             volume_value = pycuc.convert_from_to(
                 volume_value, volume_unit, output_unit)
@@ -264,51 +289,13 @@ def calc_ideal_gas_molar_volume(
         logger.error(f"Error in ideal gas molar volume calculation: {e}")
         return None
 
-# SECTION: Compressibility-factor gas relations
-
-def _scalar_value(
-        value,
-        name: str,
-        output_unit: str | None = None,
-        unit_conversion_fn=None,
-) -> float:
-    """Convert scalar input to float, optionally normalizing units."""
-    # NOTE: Import locally to keep legacy module imports stable.
-    from pythermodb_settings.utils.quantity import to_scalar
-    from ..utils.conversions import _resolve_unit_conversion_fn
-
-    return to_scalar(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _positive_scalar_value(
-        value,
-        name: str,
-        output_unit: str | None = None,
-        unit_conversion_fn=None,
-) -> float:
-    """Convert scalar input to a positive float, optionally normalizing units."""
-    # NOTE: Import locally to keep legacy module imports stable.
-    from pythermodb_settings.utils.quantity import pos
-    from ..utils.conversions import _resolve_unit_conversion_fn
-
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
+# ! ::: Compressibility-factor gas relations
 
 
 def calc_gas_molar_volume_from_z(
         temperature: Temperature,
         pressure: Pressure,
-        compressibility_factor,
-        universal_gas_constant: float = 8.31446261815324,
+        compressibility_factor: float,
         output_unit: str = "m3/mol",
         unit_conversion_fn=None,
 ) -> CustomProp:
@@ -322,8 +309,6 @@ def calc_gas_molar_volume_from_z(
         Gas pressure. Converted to Pa before calculation.
     compressibility_factor : float | int | CustomProp
         Supplied compressibility factor ``Z``. Must be greater than zero.
-    universal_gas_constant : float, optional
-        Gas constant in J/mol/K. Defaults to ``8.31446261815324``.
     output_unit : str, optional
         Desired molar-volume unit. Defaults to ``m3/mol``.
     unit_conversion_fn : callable, optional
@@ -347,12 +332,14 @@ def calc_gas_molar_volume_from_z(
     # SECTION: Validate and normalize inputs
     conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
 
+    # NOTE: pressure in Pa
     p_value = float(pressure.value)
     if pressure.unit != "Pa":
         p_value = float(conversion_fn(p_value, pressure.unit, "Pa"))
     if p_value <= 0.0:
         raise ValueError("pressure must be greater than zero.")
 
+    # NOTE: temperature in K
     t_value = float(temperature.value)
     if temperature.unit != "K":
         t_value = float(conversion_fn(t_value, temperature.unit, "K"))
@@ -360,25 +347,34 @@ def calc_gas_molar_volume_from_z(
         raise ValueError("temperature must be greater than zero K.")
 
     # ! Z is supplied by a model/source; this function does not calculate it.
-    z_value = _positive_scalar_value(compressibility_factor, "compressibility_factor")
-    r_value = _positive_scalar_value(universal_gas_constant, "universal_gas_constant")
+    z_value = _scalar(
+        compressibility_factor,
+        "compressibility_factor"
+    )
 
     # SECTION: Calculate molar volume
-    volume_value = z_value * r_value * t_value / p_value
+    volume_value = _calc_gas_molar_volume_from_z(
+        temperature=t_value,
+        pressure=p_value,
+        compressibility_factor=z_value,
+    )
     volume_unit = "m3/mol"
+
+    # SECTION: Convert output unit if necessary
     if output_unit != volume_unit:
         volume_value = conversion_fn(volume_value, volume_unit, output_unit)
         volume_unit = output_unit
 
     return CustomProp(value=volume_value, unit=volume_unit)
 
+# ! ::: Calculate real-gas density from a supplied compressibility factor
+
 
 def calc_gas_density_from_z(
         pressure: Pressure,
         molecular_weight: CustomProp,
         temperature: Temperature,
-        compressibility_factor,
-        universal_gas_constant: float = 8.31446261815324,
+        compressibility_factor: float | int,
         output_unit: str = "kg/m3",
         unit_conversion_fn=None,
 ) -> CustomProp:
@@ -392,10 +388,8 @@ def calc_gas_density_from_z(
         Molecular weight. Converted to ``kg/mol`` before calculation.
     temperature : Temperature
         Gas temperature. Converted to K before calculation.
-    compressibility_factor : float | int | CustomProp
+    compressibility_factor : float | int
         Supplied compressibility factor ``Z``. Must be greater than zero.
-    universal_gas_constant : float, optional
-        Gas constant in J/mol/K. Defaults to ``8.31446261815324``.
     output_unit : str, optional
         Desired density unit. Defaults to ``kg/m3``.
     unit_conversion_fn : callable, optional
@@ -420,29 +414,40 @@ def calc_gas_density_from_z(
     # SECTION: Validate and normalize inputs
     conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
 
+    # NOTE: pressure in Pa
     p_value = float(pressure.value)
     if pressure.unit != "Pa":
         p_value = float(conversion_fn(p_value, pressure.unit, "Pa"))
     if p_value <= 0.0:
         raise ValueError("pressure must be greater than zero.")
 
+    # NOTE: temperature in K
     t_value = float(temperature.value)
     if temperature.unit != "K":
         t_value = float(conversion_fn(t_value, temperature.unit, "K"))
     if t_value <= 0.0:
         raise ValueError("temperature must be greater than zero K.")
 
-    mw_value = _positive_scalar_value(
+    # NOTE: molecular weight in kg/mol
+    mw_value = _pos(
         molecular_weight,
         "molecular_weight",
         "kg/mol",
         unit_conversion_fn,
     )
-    z_value = _positive_scalar_value(compressibility_factor, "compressibility_factor")
-    r_value = _positive_scalar_value(universal_gas_constant, "universal_gas_constant")
+    # NOTE: compressibility factor must be positive
+    z_value = _pos(
+        compressibility_factor, "compressibility_factor")
 
     # SECTION: Calculate density
-    density_value = p_value * mw_value / (z_value * r_value * t_value)
+    density_value = _calc_gas_density_from_z(
+        pressure=p_value,
+        molecular_weight=mw_value,
+        temperature=t_value,
+        compressibility_factor=z_value,
+    )
+
+    # SECTION: Convert density to desired output unit if necessary
     density_unit = "kg/m3"
     if output_unit != density_unit:
         density_value = conversion_fn(density_value, density_unit, output_unit)
@@ -450,3 +455,12 @@ def calc_gas_density_from_z(
 
     return CustomProp(value=density_value, unit=density_unit)
 
+
+# all
+__all__ = [
+    "rackett",
+    "calc_ideal_gas_density",
+    "calc_gas_density_from_z",
+    "calc_ideal_gas_molar_volume",
+    "calc_gas_molar_volume_from_z",
+]
