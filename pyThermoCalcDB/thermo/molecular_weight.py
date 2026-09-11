@@ -1,10 +1,9 @@
 # import libs
 import logging
 from typing import Optional
-from pyreactlab_core.core import parse_elemental_composition, parse_ionic_charge
 from pythermodb_settings.models import CustomProp
 # ! locals
-from ..configs.atomic_weights import ATOMIC_WEIGHTS, ELECTRON_MOLAR_MASS
+from .core.molecular_weight import _calc_molecular_weight
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
@@ -91,47 +90,12 @@ def calc_molecular_weight(
     0.000548579909065
     """
     try:
-        # SECTION: elemental composition
-        composition = parse_elemental_composition(formula)
-        # >> check
-        if composition is None or not isinstance(composition, dict):
-            logger.warning(
-                f"Failed to parse elemental composition for formula '{formula}'."
-            )
-            return None
-
-        molecular_weight = 0.0
-
-        # SECTION: atomic contribution
-        for element, count in composition.items():
-
-            if element not in ATOMIC_WEIGHTS:
-                logger.warning(
-                    f"Atomic weight is not available for element '{element}'."
-                )
-                return None
-
-            molecular_weight += (
-                ATOMIC_WEIGHTS[element] * count
-            )
-
-        # SECTION: electron-mass correction
-        if include_electron_mass:
-            charge = parse_ionic_charge(formula)
-            # >> check
-            if charge is None:
-                logger.warning(
-                    f"Failed to parse ionic charge for formula '{formula}'."
-                )
-                return None
-
-            molecular_weight -= (
-                charge * ELECTRON_MOLAR_MASS
-            )
-
-        # NOTE: round the result to the specified number of decimal digits
-        if decimal_digits is not None:
-            molecular_weight = round(molecular_weight, decimal_digits)
+        # SECTION: calc
+        molecular_weight = _calc_molecular_weight(
+            formula=formula,
+            include_electron_mass=include_electron_mass,
+            decimal_digits=decimal_digits,
+        )
 
         # res
         res = CustomProp(
