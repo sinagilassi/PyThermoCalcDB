@@ -3,44 +3,24 @@
 # import libs
 from collections.abc import Mapping, Sequence
 from typing import Optional, List
-from pycuc import convert_from_to
 from pythermodb_settings.models import CustomProp, Component, ComponentKey
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.quantity import to_dict, to_list
 from pythermodb_settings.utils.validators import fractions, non_negative, positive, same_shape
 # locals
-from ..utils.conversions import _resolve_unit_conversion_fn
-
-# SECTION: Internal helpers
-
-
-def _configure_component_values(
-    values: Mapping[str, float],
-    components: Optional[List[Component]],
-    component_key: Optional[ComponentKey],
-    case_sensitive: bool,
-    sort_by_components_order: bool,
-    name: str,
-) -> dict[str, float]:
-    """Remap and order mapping values using component metadata when requested."""
-    # ! If no component key is provided, preserve original keys and order.
-    if component_key is None:
-        return dict(values)
-    if not components:
-        raise ValueError(
-            f"component_key is provided but components is empty for {name}.")
-    component_values = config_components_values(
-        values=dict(values),
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order,
-    )
-    if component_values is None:
-        raise ValueError(f"Failed to configure {name} component values.")
-    component_values_dict, _ = component_values
-    return component_values_dict
+from ..utils.conversions import (
+    _all_custom_props,
+    _configure_component_values,
+    _resolve_unit_conversion_fn,
+)
+from .core.volume_fraction import (
+    _calc_mass_fraction_to_volume_fraction,
+    _calc_mass_fraction_to_volume_fraction_from_mapping,
+    _calc_mass_fraction_to_volume_fraction_from_props,
+    _calc_volume_fractions,
+    _calc_volume_fractions_from_mapping,
+    _calc_volume_fractions_from_props,
+)
 
 
 # SECTION: Direct volume fractions
@@ -91,28 +71,37 @@ def calc_volume_fractions(
 
     # SECTION: Mapping implementation
     if isinstance(volumes, Mapping):
+        if _all_custom_props(volumes):
+            return _calc_volume_fractions_from_props(
+                volumes,
+                output_volume_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
         volume_values = to_dict(
-            volumes, output_volume_unit, unit_conversion_fn=conversion_fn)
+            volumes,
+            output_volume_unit,
+            unit_conversion_fn=conversion_fn,
+        )
         volume_values = _configure_component_values(
             volume_values,
             components,
             component_key,
             case_sensitive,
             sort_by_components_order,
-            "volumes"
+            "volumes",
         )
-        total = sum(volume_values.values())
-        if total <= 0.0:
-            raise ValueError("Total volume must be positive.")
-        return {key: value / total for key, value in volume_values.items()}
+        return _calc_volume_fractions_from_mapping(volume_values)
 
     # SECTION: Sequence implementation
     volume_values = to_list(volumes, output_volume_unit,
                             unit_conversion_fn=conversion_fn)
-    total = sum(volume_values)
-    if total <= 0.0:
-        raise ValueError("Total volume must be positive.")
-    return [value / total for value in volume_values]
+    return _calc_volume_fractions(volume_values).tolist()
 
 
 # SECTION: Ideal volume-additivity conversion
@@ -170,21 +159,30 @@ def mass_fraction_to_volume_fraction(
 
     # SECTION: Mapping implementation
     if isinstance(mass_fractions, Mapping) and isinstance(densities, Mapping):
+        if _all_custom_props(mass_fractions) and _all_custom_props(densities):
+            return _calc_mass_fraction_to_volume_fraction_from_props(
+                mass_fractions,
+                densities,
+                output_density_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
         w = to_dict(mass_fractions, unit_conversion_fn=conversion_fn)
         rho = to_dict(
             densities,
             output_density_unit,
-            unit_conversion_fn=conversion_fn
+            unit_conversion_fn=conversion_fn,
         )
         w = _configure_component_values(
             w, components, component_key, case_sensitive, sort_by_components_order, "mass_fractions")
         rho = _configure_component_values(
             rho, components, component_key, case_sensitive, sort_by_components_order, "densities")
-        partial_volumes = {key: w[key] / rho[key] for key in w}
-        total_volume = sum(partial_volumes.values())
-        if total_volume <= 0.0:
-            raise ValueError("Total ideal partial volume must be positive.")
-        return {key: value / total_volume for key, value in partial_volumes.items()}
+        return _calc_mass_fraction_to_volume_fraction_from_mapping(w, rho)
 
     if isinstance(mass_fractions, Mapping) or isinstance(densities, Mapping):
         raise TypeError(
@@ -196,11 +194,7 @@ def mass_fraction_to_volume_fraction(
         densities, output_density_unit,
         unit_conversion_fn=conversion_fn
     )
-    partial_volumes = [w_i / rho_i for w_i, rho_i in zip(w, rho)]
-    total_volume = sum(partial_volumes)
-    if total_volume <= 0.0:
-        raise ValueError("Total ideal partial volume must be positive.")
-    return [value / total_volume for value in partial_volumes]
+    return _calc_mass_fraction_to_volume_fraction(w, rho).tolist()
 
 
 # SECTION: Public exports

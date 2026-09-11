@@ -7,48 +7,22 @@ from typing import Optional, List
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp, Component, ComponentKey
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.quantity import to_dict, to_list
 from pythermodb_settings.utils.validators import fractions, positive, same_shape
 # locals
-from ..utils.conversions import _resolve_unit_conversion_fn
-
-
-# SECTION: Internal helpers
-
-def _configure_component_values(
-    values: Mapping[str, float],
-    components: Optional[List[Component]],
-    component_key: Optional[ComponentKey],
-    case_sensitive: bool,
-    sort_by_components_order: bool,
-    name: str,
-) -> dict[str, float]:
-    """Remap and order mapping values using component metadata when requested."""
-    # ! When no component key is requested, preserve caller mapping keys/order.
-    if component_key is None:
-        return dict(values)
-
-    # NOTE: Component metadata is required only for key remapping.
-    if not components:
-        raise ValueError(
-            f"component_key is provided but components is empty for {name}."
-        )
-
-    # SECTION: Remap values through pythermodb-settings utilities
-    component_values = config_components_values(
-        values=dict(values),
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order,
-    )
-    if component_values is None:
-        raise ValueError(f"Failed to configure {name} component values.")
-
-    # NOTE: config_components_values returns both dict and ordered list.
-    component_values_dict, _ = component_values
-    return component_values_dict
+from ..utils.conversions import (
+    _all_custom_props,
+    _configure_component_values,
+    _resolve_unit_conversion_fn,
+)
+from .core.molecular_weight import (
+    _calc_mixture_molecular_weight_from_mass_fraction_mapping,
+    _calc_mixture_molecular_weight_from_mass_fractions_from_props,
+    _calc_mixture_molecular_weight_from_mass_fractions,
+    _calc_mixture_molecular_weight_from_mole_fraction_mapping,
+    _calc_mixture_molecular_weight_from_mole_fractions_from_props,
+    _calc_mixture_molecular_weight_from_mole_fractions,
+)
 
 
 # SECTION: Mole-fraction basis
@@ -105,6 +79,19 @@ def calc_mixture_molecular_weight_from_mole_fractions(
 
     # SECTION: Mapping implementation
     if isinstance(mole_fractions, Mapping) and isinstance(molecular_weights, Mapping):
+        if _all_custom_props(mole_fractions) and _all_custom_props(molecular_weights):
+            return _calc_mixture_molecular_weight_from_mole_fractions_from_props(
+                mole_fractions,
+                molecular_weights,
+                output_molecular_weight_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
         x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
         mw = to_dict(
             molecular_weights,
@@ -112,12 +99,10 @@ def calc_mixture_molecular_weight_from_mole_fractions(
             unit_conversion_fn=conversion_fn,
         )
         x = _configure_component_values(
-            x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions"
-        )
+            x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions")
         mw = _configure_component_values(
-            mw, components, component_key, case_sensitive, sort_by_components_order, "molecular_weights"
-        )
-        return sum(x[key] * mw[key] for key in x)
+            mw, components, component_key, case_sensitive, sort_by_components_order, "molecular_weights")
+        return _calc_mixture_molecular_weight_from_mole_fraction_mapping(x, mw)
 
     # ! Mixed mapping/sequence input is ambiguous.
     if isinstance(mole_fractions, Mapping) or isinstance(molecular_weights, Mapping):
@@ -130,7 +115,7 @@ def calc_mixture_molecular_weight_from_mole_fractions(
         output_molecular_weight_unit,
         unit_conversion_fn=conversion_fn,
     )
-    return sum(x_i * mw_i for x_i, mw_i in zip(x, mw))
+    return float(_calc_mixture_molecular_weight_from_mole_fractions(x, mw))
 
 
 # SECTION: Mass-fraction basis
@@ -194,6 +179,19 @@ def calc_mixture_molecular_weight_from_mass_fractions(
 
     # SECTION: Mapping implementation
     if isinstance(mass_fractions, Mapping) and isinstance(molecular_weights, Mapping):
+        if _all_custom_props(mass_fractions) and _all_custom_props(molecular_weights):
+            return _calc_mixture_molecular_weight_from_mass_fractions_from_props(
+                mass_fractions,
+                molecular_weights,
+                output_molecular_weight_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
         w = to_dict(mass_fractions, unit_conversion_fn=conversion_fn)
         mw = to_dict(
             molecular_weights,
@@ -201,12 +199,10 @@ def calc_mixture_molecular_weight_from_mass_fractions(
             unit_conversion_fn=conversion_fn,
         )
         w = _configure_component_values(
-            w, components, component_key, case_sensitive, sort_by_components_order, "mass_fractions"
-        )
+            w, components, component_key, case_sensitive, sort_by_components_order, "mass_fractions")
         mw = _configure_component_values(
-            mw, components, component_key, case_sensitive, sort_by_components_order, "molecular_weights"
-        )
-        denominator = sum(w[key] / mw[key] for key in w)
+            mw, components, component_key, case_sensitive, sort_by_components_order, "molecular_weights")
+        return _calc_mixture_molecular_weight_from_mass_fraction_mapping(w, mw)
     elif isinstance(mass_fractions, Mapping) or isinstance(molecular_weights, Mapping):
         # ! Mixed mapping/sequence input is ambiguous.
         raise TypeError("Both component inputs must be mappings or both sequences.")
@@ -218,12 +214,7 @@ def calc_mixture_molecular_weight_from_mass_fractions(
             output_molecular_weight_unit,
             unit_conversion_fn=conversion_fn,
         )
-        denominator = sum(w_i / mw_i for w_i, mw_i in zip(w, mw))
-
-    # NOTE: A zero denominator means all supplied fractions are zero.
-    if denominator <= 0.0:
-        raise ValueError("The reciprocal molecular-weight sum must be positive.")
-    return 1.0 / denominator
+        return float(_calc_mixture_molecular_weight_from_mass_fractions(w, mw))
 
 
 # SECTION: Legacy compatibility wrappers

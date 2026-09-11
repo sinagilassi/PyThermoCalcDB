@@ -3,42 +3,21 @@
 # import libs
 from collections.abc import Mapping, Sequence
 from typing import Optional, List
-from pycuc import convert_from_to
 from pythermodb_settings.models import CustomProp, Component, ComponentKey
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.quantity import to_dict, to_list
 from pythermodb_settings.utils.validators import fractions, positive, same_shape
 # locals
-from ..utils.conversions import _resolve_unit_conversion_fn
-
-
-def _configure_component_values(
-    values: Mapping[str, float],
-    components: Optional[List[Component]],
-    component_key: Optional[ComponentKey],
-    case_sensitive: bool,
-    sort_by_components_order: bool,
-    name: str,
-) -> dict[str, float]:
-    """Remap and order mapping values using component metadata when requested."""
-    # ! If no component key is provided, preserve original keys and order.
-    if component_key is None:
-        return dict(values)
-    if not components:
-        raise ValueError(
-            f"component_key is provided but components is empty for {name}.")
-    component_values = config_components_values(
-        values=dict(values),
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order,
-    )
-    if component_values is None:
-        raise ValueError(f"Failed to configure {name} component values.")
-    component_values_dict, _ = component_values
-    return component_values_dict
+from ..utils.conversions import (
+    _all_custom_props,
+    _configure_component_values,
+    _resolve_unit_conversion_fn,
+)
+from .core.heat_capacity import (
+    _calc_ideal_mixture_heat_capacity,
+    _calc_ideal_mixture_heat_capacity_from_mapping,
+    _calc_ideal_mixture_heat_capacity_from_props,
+)
 
 
 # SECTION: Ideal heat-capacity mixing rule
@@ -95,17 +74,30 @@ def calc_ideal_mixture_heat_capacity(
 
     # SECTION: Mapping implementation
     if isinstance(fraction_values, Mapping) and isinstance(heat_capacities, Mapping):
+        if _all_custom_props(fraction_values) and _all_custom_props(heat_capacities):
+            return _calc_ideal_mixture_heat_capacity_from_props(
+                fraction_values,
+                heat_capacities,
+                output_heat_capacity_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
         fr = to_dict(fraction_values, unit_conversion_fn=conversion_fn)
         cp = to_dict(
             heat_capacities,
             output_heat_capacity_unit,
-            unit_conversion_fn=conversion_fn
+            unit_conversion_fn=conversion_fn,
         )
         fr = _configure_component_values(
             fr, components, component_key, case_sensitive, sort_by_components_order, "fractions")
         cp = _configure_component_values(
             cp, components, component_key, case_sensitive, sort_by_components_order, "heat_capacities")
-        return sum(fr[key] * cp[key] for key in fr)
+        return _calc_ideal_mixture_heat_capacity_from_mapping(fr, cp)
 
     if isinstance(fraction_values, Mapping) or isinstance(heat_capacities, Mapping):
         raise TypeError(
@@ -118,7 +110,7 @@ def calc_ideal_mixture_heat_capacity(
         output_heat_capacity_unit,
         unit_conversion_fn=conversion_fn
     )
-    return sum(fr_i * cp_i for fr_i, cp_i in zip(fr, cp))
+    return float(_calc_ideal_mixture_heat_capacity(fr, cp))
 
 
 # SECTION: Public exports

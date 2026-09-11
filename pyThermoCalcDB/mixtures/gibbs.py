@@ -1,52 +1,28 @@
 """Ideal Gibbs-energy-of-mixing helpers."""
 
 # import libs
-import math
 from collections.abc import Mapping, Sequence
 from typing import Optional, List
 
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp, Component, ComponentKey, ScalarValue, Temperature
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils import config_components_values
 from pythermodb_settings.utils.quantity import pos, to_dict, to_list
 from pythermodb_settings.utils.validators import fractions
 # locals
 from ..configs.constants import R_J_molK
-from ..utils.conversions import _resolve_unit_conversion_fn
-
-
-# SECTION: Internal helpers
-
-def _configure_component_values(
-    values: Mapping[str, float],
-    components: Optional[List[Component]],
-    component_key: Optional[ComponentKey],
-    case_sensitive: bool,
-    sort_by_components_order: bool,
-    name: str,
-) -> dict[str, float]:
-    """Remap and order mapping values using component metadata when requested."""
-    # ! When no component key is requested, preserve caller mapping keys/order.
-    if component_key is None:
-        return dict(values)
-
-    # NOTE: Component metadata is required only for key remapping.
-    if not components:
-        raise ValueError(f"component_key is provided but components is empty for {name}.")
-
-    # SECTION: Remap values through pythermodb-settings utilities
-    component_values = config_components_values(
-        values=dict(values),
-        components=components,
-        component_key=component_key,
-        case_sensitive=case_sensitive,
-        sort_by_components_order=sort_by_components_order,
-    )
-    if component_values is None:
-        raise ValueError(f"Failed to configure {name} component values.")
-    component_values_dict, _ = component_values
-    return component_values_dict
+from ..utils.conversions import (
+    _all_custom_props,
+    _configure_component_values,
+    _resolve_unit_conversion_fn,
+)
+from .core.gibbs import (
+    _calc_ideal_gibbs_energy_of_mixing,
+    _calc_ideal_gibbs_energy_of_mixing_from_props,
+    _calc_ideal_molar_gibbs_energy_of_mixing,
+    _calc_ideal_molar_gibbs_energy_of_mixing_from_mapping,
+    _calc_ideal_molar_gibbs_energy_of_mixing_from_props,
+)
 
 
 def _temperature_k(
@@ -65,13 +41,6 @@ def _temperature_k(
     if value <= 0.0:
         raise ValueError("temperature must be greater than zero K.")
     return value
-
-
-def _x_log_x_sum(values: Mapping[str, float] | Sequence[float]) -> float:
-    """Return sum(x_i*ln(x_i)), using the x*ln(x) -> 0 limit at x = 0."""
-    # NOTE: Skip zero fractions to avoid log(0).
-    iterable = values.values() if isinstance(values, Mapping) else values
-    return sum(value * math.log(value) for value in iterable if value > 0.0)
 
 
 # SECTION: Ideal molar Gibbs energy of mixing
@@ -123,20 +92,34 @@ def calc_ideal_molar_gibbs_energy_of_mixing(
     # SECTION: Validate inputs
     fractions(mole_fractions, "mole_fractions")
     r = pos(gas_constant, "gas_constant")
-    temperature_k = _temperature_k(temperature, unit_conversion_fn)
     conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
 
     # SECTION: Normalize composition input
     if isinstance(mole_fractions, Mapping):
+        if _all_custom_props(mole_fractions):
+            return _calc_ideal_molar_gibbs_energy_of_mixing_from_props(
+                mole_fractions,
+                temperature,
+                r,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
+        temperature_k = _temperature_k(temperature, conversion_fn)
         x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
         x = _configure_component_values(
             x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions"
         )
-    else:
-        x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
+        return _calc_ideal_molar_gibbs_energy_of_mixing_from_mapping(x, temperature_k, r)
 
     # SECTION: Calculate ideal molar Gibbs energy of mixing
-    return r * temperature_k * _x_log_x_sum(x)
+    temperature_k = _temperature_k(temperature, conversion_fn)
+    x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
+    return float(_calc_ideal_molar_gibbs_energy_of_mixing(x, temperature_k, r))
 
 
 # SECTION: Total ideal Gibbs energy of mixing
@@ -188,24 +171,48 @@ def calc_ideal_gibbs_energy_of_mixing(
     Equation: ``delta_G_mix,total = n_total*delta_G_mix,molar``.
     """
     # SECTION: Normalize total amount
+    r = pos(gas_constant, "gas_constant")
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    if isinstance(mole_fractions, Mapping):
+        if isinstance(total_moles, CustomProp) and _all_custom_props(mole_fractions):
+            return _calc_ideal_gibbs_energy_of_mixing_from_props(
+                total_moles,
+                mole_fractions,
+                temperature,
+                r,
+                output_total_moles_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
+        n_total = pos(
+            total_moles,
+            "total_moles",
+            output_total_moles_unit,
+            unit_conversion_fn=conversion_fn,
+        )
+        temperature_k = _temperature_k(temperature, conversion_fn)
+        x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
+        x = _configure_component_values(
+            x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions"
+        )
+        return float(_calc_ideal_gibbs_energy_of_mixing(n_total, list(x.values()), temperature_k, r))
+
+    # SECTION: Scale molar Gibbs energy by total moles
     n_total = pos(
         total_moles,
         "total_moles",
         output_total_moles_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+        unit_conversion_fn=conversion_fn,
     )
-
-    # SECTION: Scale molar Gibbs energy by total moles
-    return n_total * calc_ideal_molar_gibbs_energy_of_mixing(
-        mole_fractions,
-        temperature,
-        gas_constant,
-        unit_conversion_fn,
-        components,
-        component_key,
-        case_sensitive,
-        sort_by_components_order,
-    )
+    temperature_k = _temperature_k(temperature, conversion_fn)
+    x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
+    return float(_calc_ideal_gibbs_energy_of_mixing(n_total, x, temperature_k, r))
 
 
 # SECTION: Public exports

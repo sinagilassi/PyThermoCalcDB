@@ -1,7 +1,9 @@
 # import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
+import numpy as np
+from numpy.typing import NDArray
 from pythermodb_settings.utils import config_components_values, get_unit
 from pythermodb_settings.models import Temperature, CustomProp, ComponentMoles, UnitConversionFn, Component, ComponentKey, ScalarValue
 from pythermodb_settings.utils.quantity import to_amounts, to_custom_props_mapping, to_custom_prop_scalar, pos, to_scalar
@@ -10,6 +12,9 @@ from pycuc import convert_from_to
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
+
+# SECTION: Numeric helper aliases
+NumericArrayInput = float | int | Sequence[float | int] | NDArray[np.number]
 
 
 # SECTION: Unit conversion function resolver
@@ -32,6 +37,26 @@ def _contains_custom_prop(
 ) -> bool:
     """Return True when component values carry explicit unit metadata."""
     return any(isinstance(value, CustomProp) for value in _iter_values(values))
+
+
+def _all_custom_props(values: Mapping[str, float | int | CustomProp]) -> bool:
+    """Return True when every mapping value is a ``CustomProp``."""
+    # ? Public wrappers use this to choose props-only adapters.
+    return all(isinstance(value, CustomProp) for value in values.values())
+
+
+def _validate_custom_prop_mapping(values: Mapping[str, object], name: str) -> None:
+    """Validate that all mapping values are ``CustomProp`` objects."""
+    # ! Props adapters accept only fully unit-aware CustomProp mappings.
+    if not all(isinstance(value, CustomProp) for value in values.values()):
+        raise TypeError(f"{name} must be a mapping of CustomProp values.")
+
+
+def _validate_custom_prop_scalar(value: object, name: str) -> None:
+    """Validate that a scalar props-adapter input is a ``CustomProp`` object."""
+    # ! Scalar props adapters accept only unit-aware CustomProp scalars.
+    if not isinstance(value, CustomProp):
+        raise TypeError(f"{name} must be a CustomProp value.")
 
 
 def _resolve_result_unit(
@@ -59,6 +84,92 @@ def _resolve_result_unit(
         )
 
     return str(unit_info["unit"]) if unit_info["unit"] is not None else None
+
+
+# SECTION: NumPy numeric helpers
+
+def _as_float_array(
+    values: NumericArrayInput,
+    name: str,
+) -> NDArray[np.float64]:
+    """Convert an array-like numeric input to a finite float64 NumPy array."""
+    # NOTE: Core kernels operate on finite NumPy float arrays.
+    arr = np.asarray(values, dtype=np.float64)
+    if arr.ndim == 0:
+        raise ValueError(f"{name} must contain component values.")
+    if arr.ndim > 2:
+        raise ValueError(f"{name} must be one- or two-dimensional.")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} values must be finite.")
+    return cast(NDArray[np.float64], arr)
+
+
+def _return_scalar_if_zero_dim(
+    value: float | np.float64 | NDArray[np.float64],
+) -> float | NDArray[np.float64]:
+    """Return a Python float for 0-D results and a float64 array otherwise."""
+    # NOTE: Preserves scalar return behavior for component reductions.
+    arr = np.asarray(value, dtype=np.float64)
+    if arr.ndim == 0:
+        return float(arr)
+    return cast(NDArray[np.float64], arr)
+
+
+def _validate_fraction_array(values: NDArray[np.float64], name: str) -> None:
+    """Validate non-negative fractions that close along the last axis."""
+    # ! Fractions are component-wise and must close along the last axis.
+    if np.any(values < 0.0):
+        raise ValueError(f"{name} must be non-negative.")
+    totals = np.sum(values, axis=-1)
+    if not np.allclose(totals, 1.0):
+        raise ValueError(f"{name} must sum to 1.0 along the component axis.")
+
+
+def _validate_non_negative_array(values: NDArray[np.float64], name: str) -> None:
+    """Validate non-negative numeric array values."""
+    # ! Negative component values are outside the supported physical domain.
+    if np.any(values < 0.0):
+        raise ValueError(f"{name} must be non-negative.")
+
+
+def _validate_positive_array(values: NDArray[np.float64], name: str) -> None:
+    """Validate strictly positive numeric array values."""
+    # ! Denominators and positive physical properties cannot be zero or negative.
+    if np.any(values <= 0.0):
+        raise ValueError(f"{name} values must be greater than zero.")
+
+
+def _validate_positive_scalar(value: float | int, name: str) -> float:
+    """Validate and return a strictly positive finite scalar."""
+    # ! Scalar physical inputs cannot be NaN, infinite, zero, or negative.
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be greater than zero.")
+    return scalar
+
+
+def _validate_same_array_shape(
+    left: NDArray[np.float64],
+    right: NDArray[np.float64],
+    left_name: str,
+    right_name: str,
+) -> None:
+    """Validate identical array shapes for pairwise component calculations."""
+    # ? Pairwise mixture rules need component arrays aligned by shape.
+    if left.shape != right.shape:
+        raise ValueError(f"{left_name} and {right_name} must have the same shape.")
+
+
+def _validate_same_mapping_keys(
+    left: Mapping[str, object],
+    right: Mapping[str, object],
+    left_name: str,
+    right_name: str,
+) -> None:
+    """Validate matching component keys for pairwise mapping calculations."""
+    # ? Mapping adapters must preserve component identity before array math.
+    if set(left) != set(right):
+        raise ValueError(f"{left_name} and {right_name} must have the same component keys.")
 
 
 # SECTION: Unit handling helpers
