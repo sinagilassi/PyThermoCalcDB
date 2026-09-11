@@ -1,6 +1,7 @@
 import math
 import unittest
 
+import numpy as np
 from pythermodb_settings.models import CustomProp, Pressure, Temperature
 
 from pythermocalcdb.compositions import (
@@ -30,6 +31,11 @@ from pythermocalcdb.reactions import (
     calc_reaction_entropy_std_from_enthalpy_gibbs,
     calc_reaction_gibbs_energy,
     calc_reaction_quotient,
+)
+from pythermocalcdb.reactions.core import (
+    _calc_log_equilibrium_constant,
+    _calc_log_reaction_quotient,
+    _calc_reaction_entropy_std,
 )
 from pythermocalcdb.thermo import (
     calc_chemical_potential_from_activity,
@@ -87,6 +93,22 @@ class TestLowLevelThermoExtensions(unittest.TestCase):
             log_reaction_quotient=ln_k,
         )
         self.assertTrue(math.isclose(delta_g, 0.0, abs_tol=1e-12))
+
+    def test_reaction_core_vectorized_primitives(self):
+        entropy = _calc_reaction_entropy_std(
+            np.array([[-1.0, 1.0], [-2.0, 1.0]]),
+            np.array([[10.0, 20.0], [10.0, 25.0]]),
+        )
+        self.assertEqual(entropy.tolist(), [10.0, 5.0])
+
+        ln_q = _calc_log_reaction_quotient(
+            [[-1.0, 1.0], [-1.0, 1.0]],
+            [[2.0, 8.0], [4.0, 16.0]],
+        )
+        self.assertTrue(np.allclose(ln_q, [math.log(4.0), math.log(4.0)]))
+
+        ln_k = _calc_log_equilibrium_constant([0.0, 1000.0], [298.15, 350.0])
+        self.assertTrue(np.allclose(ln_k, [0.0, -1000.0 / (8.314462618 * 350.0)]))
 
     def test_vant_hoff_primitives(self):
         t1 = Temperature(value=298.15, unit="K")

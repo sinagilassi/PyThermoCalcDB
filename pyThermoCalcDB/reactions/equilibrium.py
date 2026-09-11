@@ -1,8 +1,8 @@
 """Reaction equilibrium primitives."""
 
 # import libs
-import math
 from collections.abc import Mapping, Sequence
+import math
 
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp, ScalarValue, Temperature
@@ -11,6 +11,18 @@ from pythermodb_settings.utils.quantity import pos, to_dict, to_list, to_scalar
 # locals
 from ..configs.constants import R_J_molK
 from ..utils.conversions import _resolve_unit_conversion_fn
+from .core.equilibrium import (
+    _calc_dlnK_dT,
+    _calc_equilibrium_constant,
+    _calc_equilibrium_constant_at_temperature,
+    _calc_log_equilibrium_constant,
+    _calc_log_reaction_quotient,
+    _calc_log_reaction_quotient_from_mapping,
+    _calc_reaction_gibbs_energy,
+    _calc_reaction_quotient,
+    _calc_reaction_quotient_from_mapping,
+    _temperature_k,
+)
 
 
 # SECTION: Internal scalar helpers
@@ -43,31 +55,6 @@ def _pos(
         output_unit,
         unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
     )
-
-
-def _temperature_k(
-    temperature: Temperature,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Return absolute temperature in K."""
-    # SECTION: Normalize temperature
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-    value = float(temperature.value)
-    unit = temperature.unit.strip()
-    if unit != "K":
-        value = float(conversion_fn(value, unit, "K"))
-
-    # ! Log/equilibrium thermodynamic identities require T > 0 K.
-    if value <= 0.0:
-        raise ValueError("temperature must be greater than zero K.")
-    return value
-
-
-def _same_keys(left: Mapping[str, float], right: Mapping[str, float]) -> None:
-    """Validate matching mapping keys."""
-    # ? Mismatched keys usually indicate a missing species activity or coefficient.
-    if set(left) != set(right):
-        raise ValueError("mapping inputs must have the same component keys.")
 
 
 # SECTION: Equilibrium constant
@@ -121,7 +108,7 @@ def calc_log_equilibrium_constant(
     r = _pos(gas_constant, "gas_constant")
 
     # NOTE: ln(K) is exposed to avoid unnecessary exp overflow/underflow.
-    return -dg / (r * temperature_k)
+    return float(_calc_log_equilibrium_constant(dg, temperature_k, r))
 
 
 def calc_equilibrium_constant(
@@ -156,16 +143,18 @@ def calc_equilibrium_constant(
     Equation: ``K = exp(-delta_G_rxn_std/(R*T))``. Activities defining ``K``
     are assumed dimensionless relative to their standard states.
     """
-    # SECTION: Calculate from logarithmic form
-    return math.exp(
-        calc_log_equilibrium_constant(
-            delta_g_reaction_std,
-            temperature,
-            output_delta_g_unit,
-            gas_constant,
-            unit_conversion_fn,
-        )
+    # SECTION: Normalize inputs
+    dg = _scalar(
+        delta_g_reaction_std,
+        "delta_g_reaction_std",
+        output_delta_g_unit,
+        unit_conversion_fn,
     )
+    temperature_k = _temperature_k(temperature, unit_conversion_fn)
+    r = _pos(gas_constant, "gas_constant")
+
+    # SECTION: Calculate equilibrium constant
+    return float(_calc_equilibrium_constant(dg, temperature_k, r))
 
 
 # SECTION: Reaction quotient
@@ -209,27 +198,20 @@ def calc_log_reaction_quotient(
 
     # SECTION: Mapping implementation
     if isinstance(stoichiometric_coefficients, Mapping) and isinstance(activities, Mapping):
-        nu = to_dict(stoichiometric_coefficients, unit_conversion_fn=conversion_fn)
+        nu = to_dict(stoichiometric_coefficients,
+                     unit_conversion_fn=conversion_fn)
         a = to_dict(activities, unit_conversion_fn=conversion_fn)
-        _same_keys(nu, a)
-
-        # ! Activities must already be dimensionless and strictly positive.
-        if any(value <= 0.0 for value in a.values()):
-            raise ValueError("activities must be greater than zero.")
-        return sum(nu[key] * math.log(a[key]) for key in nu)
+        return _calc_log_reaction_quotient_from_mapping(nu, a)
 
     # ! Mixed mapping/sequence input is ambiguous.
     if isinstance(stoichiometric_coefficients, Mapping) or isinstance(activities, Mapping):
-        raise TypeError("Both component inputs must be mappings or both sequences.")
+        raise TypeError(
+            "Both component inputs must be mappings or both sequences.")
 
     # SECTION: Sequence implementation
     nu = to_list(stoichiometric_coefficients, unit_conversion_fn=conversion_fn)
     a = to_list(activities, unit_conversion_fn=conversion_fn)
-    if len(nu) != len(a):
-        raise ValueError("stoichiometric_coefficients and activities must have the same length.")
-    if any(value <= 0.0 for value in a):
-        raise ValueError("activities must be greater than zero.")
-    return sum(nu_i * math.log(a_i) for nu_i, a_i in zip(nu, a))
+    return float(_calc_log_reaction_quotient(nu, a))
 
 
 def calc_reaction_quotient(
@@ -259,14 +241,25 @@ def calc_reaction_quotient(
     Equation: ``Q = product_i(a_i**nu_i)``. The logarithmic form is used
     internally.
     """
-    # SECTION: Calculate from logarithmic form
-    return math.exp(
-        calc_log_reaction_quotient(
-            stoichiometric_coefficients,
-            activities,
-            unit_conversion_fn,
-        )
-    )
+    # SECTION: Resolve conversion function
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    # SECTION: Mapping implementation
+    if isinstance(stoichiometric_coefficients, Mapping) and isinstance(activities, Mapping):
+        nu = to_dict(stoichiometric_coefficients,
+                     unit_conversion_fn=conversion_fn)
+        a = to_dict(activities, unit_conversion_fn=conversion_fn)
+        return _calc_reaction_quotient_from_mapping(nu, a)
+
+    # ! Mixed mapping/sequence input is ambiguous.
+    if isinstance(stoichiometric_coefficients, Mapping) or isinstance(activities, Mapping):
+        raise TypeError(
+            "Both component inputs must be mappings or both sequences.")
+
+    # SECTION: Sequence implementation
+    nu = to_list(stoichiometric_coefficients, unit_conversion_fn=conversion_fn)
+    a = to_list(activities, unit_conversion_fn=conversion_fn)
+    return float(_calc_reaction_quotient(nu, a))
 
 
 # SECTION: Actual reaction Gibbs energy
@@ -311,9 +304,11 @@ def calc_reaction_gibbs_energy(
     """
     # SECTION: Validate quotient source
     if reaction_quotient is None and log_reaction_quotient is None:
-        raise ValueError("reaction_quotient or log_reaction_quotient must be provided.")
+        raise ValueError(
+            "reaction_quotient or log_reaction_quotient must be provided.")
     if reaction_quotient is not None and log_reaction_quotient is not None:
-        raise ValueError("provide only one of reaction_quotient or log_reaction_quotient.")
+        raise ValueError(
+            "provide only one of reaction_quotient or log_reaction_quotient.")
 
     # SECTION: Normalize thermodynamic inputs
     dg_std = _scalar(
@@ -326,14 +321,17 @@ def calc_reaction_gibbs_energy(
     r = _pos(gas_constant, "gas_constant")
 
     # NOTE: Prefer caller-provided ln(Q) when available for numerical stability.
-    if log_reaction_quotient is None:
+    if log_reaction_quotient is not None:
+        ln_q = _scalar(log_reaction_quotient, "log_reaction_quotient")
+    else:
+        if reaction_quotient is None:
+            raise ValueError(
+                "reaction_quotient or log_reaction_quotient must be provided.")
         q = _pos(reaction_quotient, "reaction_quotient")
         ln_q = math.log(q)
-    else:
-        ln_q = _scalar(log_reaction_quotient, "log_reaction_quotient")
 
     # SECTION: Calculate actual reaction Gibbs energy
-    return dg_std + r * temperature_k * ln_q
+    return float(_calc_reaction_gibbs_energy(dg_std, temperature_k, ln_q, r))
 
 
 # SECTION: van't Hoff relations
@@ -381,7 +379,7 @@ def calc_dlnK_dT(
     r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate derivative
-    return dh / (r * temperature_k ** 2)
+    return float(_calc_dlnK_dT(dh, temperature_k, r))
 
 
 def calc_equilibrium_constant_at_temperature(
@@ -424,7 +422,8 @@ def calc_equilibrium_constant_at_temperature(
     integrated van't Hoff relation for approximately constant reaction enthalpy.
     """
     # SECTION: Normalize inputs
-    k_initial = _pos(equilibrium_constant_initial, "equilibrium_constant_initial")
+    k_initial = _pos(equilibrium_constant_initial,
+                     "equilibrium_constant_initial")
     dh = _scalar(
         delta_h_reaction_std,
         "delta_h_reaction_std",
@@ -435,11 +434,16 @@ def calc_equilibrium_constant_at_temperature(
     t_final = _temperature_k(temperature_final, unit_conversion_fn)
     r = _pos(gas_constant, "gas_constant")
 
-    # NOTE: The logarithmic form is used internally for numerical stability.
-    ln_k_final = math.log(k_initial) - (dh / r) * (1.0 / t_final - 1.0 / t_initial)
-
     # SECTION: Calculate final equilibrium constant
-    return math.exp(ln_k_final)
+    return float(
+        _calc_equilibrium_constant_at_temperature(
+            k_initial,
+            dh,
+            t_initial,
+            t_final,
+            r,
+        )
+    )
 
 
 # SECTION: Public exports

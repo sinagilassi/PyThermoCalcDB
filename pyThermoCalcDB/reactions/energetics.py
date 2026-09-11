@@ -9,16 +9,12 @@ from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.quantity import to_dict, to_list, to_scalar
 # locals
 from ..utils.conversions import _resolve_unit_conversion_fn
-from .equilibrium import _temperature_k
-
-
-# SECTION: Internal helpers
-
-def _same_keys(left: Mapping[str, float], right: Mapping[str, float]) -> None:
-    """Validate matching mapping keys."""
-    # ? Mismatched keys usually indicate a missing species entropy value.
-    if set(left) != set(right):
-        raise ValueError("mapping inputs must have the same component keys.")
+from .core.energetics import (
+    _calc_reaction_entropy_std,
+    _calc_reaction_entropy_std_from_enthalpy_gibbs,
+    _calc_reaction_entropy_std_from_mapping,
+)
+from .core.equilibrium import _temperature_k
 
 
 # SECTION: Standard reaction entropy
@@ -65,8 +61,7 @@ def calc_reaction_entropy_std(
             output_entropy_unit,
             unit_conversion_fn=conversion_fn,
         )
-        _same_keys(nu, entropy)
-        return sum(nu[key] * entropy[key] for key in nu)
+        return _calc_reaction_entropy_std_from_mapping(nu, entropy)
 
     # ! Mixed mapping/sequence input is ambiguous.
     if isinstance(stoichiometric_coefficients, Mapping) or isinstance(standard_entropies, Mapping):
@@ -79,9 +74,7 @@ def calc_reaction_entropy_std(
         output_entropy_unit,
         unit_conversion_fn=conversion_fn,
     )
-    if len(nu) != len(entropy):
-        raise ValueError("stoichiometric_coefficients and standard_entropies must have the same length.")
-    return sum(nu_i * s_i for nu_i, s_i in zip(nu, entropy))
+    return float(_calc_reaction_entropy_std(nu, entropy))
 
 
 # SECTION: Entropy from enthalpy and Gibbs energy
@@ -138,7 +131,13 @@ def calc_reaction_entropy_std_from_enthalpy_gibbs(
     temperature_k = _temperature_k(temperature, unit_conversion_fn)
 
     # SECTION: Calculate reaction entropy
-    return (dh - dg) / temperature_k
+    return float(
+        _calc_reaction_entropy_std_from_enthalpy_gibbs(
+            dh,
+            dg,
+            temperature_k,
+        )
+    )
 
 
 # SECTION: Public exports
