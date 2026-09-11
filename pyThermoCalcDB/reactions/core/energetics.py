@@ -60,22 +60,85 @@ def _calc_reaction_entropy_std(
     standard_entropies: NumericInput,
 ) -> float | NDArray[np.float64]:
     """
-    Calculate the entropy of a reaction at standard conditions.
-        Ent_RXN_STD = sum_i(nu_i*S_i_std).
+    Calculate the standard reaction entropy from stoichiometric coefficients
+    and species standard molar entropies.
 
-    For 2-D inputs, axis 0 is states and axis 1 is species/components. Both must obey the same order as the input mappings.
+    The standard reaction entropy is defined as
+
+        ΔS°_rxn(T) = Σ_i ν_i S°_i(T)
+
+    where ν_i is the signed stoichiometric coefficient of species i and
+    S°_i(T) is the standard molar entropy of that species at temperature T.
+
+    The signed stoichiometric convention is assumed:
+
+        ν_i < 0  for reactants
+        ν_i > 0  for products
+
+    Therefore, the expression is equivalent to
+
+        ΔS°_rxn(T) = Σ_products ν_i S°_i(T) - Σ_reactants |ν_i| S°_i(T)
 
     Parameters
     ----------
     stoichiometric_coefficients : NumericInput
-        Stoichiometric coefficients of the reaction.
+        Signed stoichiometric coefficients, ν_i.
+
+        Supported input shapes are:
+
+        - scalar
+        - 1-D array with shape ``(n_species,)``
+        - 2-D array with shape ``(n_states, n_species)``
+
+        For 2-D inputs, each row represents one thermodynamic state or
+        reaction evaluation and each column represents a species.
+
     standard_entropies : NumericInput
-        Standard entropies of the species/components.
+        Standard molar entropies, S°_i(T), corresponding element-wise to
+        `stoichiometric_coefficients`.
+
+        The input must have the same shape as
+        `stoichiometric_coefficients`. All entropy values within a given
+        reaction evaluation must correspond to the same temperature and
+        standard-state convention.
+
+        A typical unit is J/(mol·K).
 
     Returns
     -------
     float | NDArray[np.float64]
-        Standard reaction entropy.
+        Standard reaction entropy, ΔS°_rxn(T).
+
+        For 1-D inputs, a scalar is returned.
+
+        For 2-D inputs with shape ``(n_states, n_species)``, a 1-D array
+        with shape ``(n_states,)`` is returned, with one standard reaction
+        entropy value for each row.
+
+        The output unit is inherited from `standard_entropies`, typically
+        J/(mol·K).
+
+    Raises
+    ------
+    ValueError
+        If either input contains non-finite values, has more than two
+        dimensions, or if the two inputs do not have matching shapes.
+
+    Notes
+    -----
+    The ``_std`` suffix denotes a standard-state thermodynamic quantity.
+    It does not imply a temperature of 298.15 K.
+
+    This calculation is valid at any temperature T provided that all
+    species standard molar entropies, S°_i(T), refer to that same
+    temperature.
+
+    If the supplied values are specifically standard molar entropies at
+    298.15 K, then the result is
+
+        ΔS°_rxn(298.15 K) = Σ_i ν_i S°_i(298.15 K)
+
+    commonly written as ΔS°_rxn,298.15.
     """
     # SECTION: Normalize and validate
     # ? Normalize stoichiometric coefficients to a finite float array.
@@ -95,24 +158,70 @@ def _calc_reaction_entropy_std(
 
 
 # ! ::: Calculate reaction entropy using mappings
+
 def _calc_reaction_entropy_std_from_mapping(
     stoichiometric_coefficients: Mapping[str, float | int],
     standard_entropies: Mapping[str, float | int],
 ) -> float:
     """
-    Calculate standard reaction entropy from keyed species values.
+    Calculate the standard reaction entropy from species-keyed mappings.
+
+    The standard reaction entropy is calculated as
+
+        ΔS°_rxn(T) = Σ_i ν_i S°_i(T)
+
+    where ν_i is the signed stoichiometric coefficient of species i and
+    S°_i(T) is its standard molar entropy at temperature T.
+
+    The signed stoichiometric convention is assumed:
+
+        ν_i < 0  for reactants
+        ν_i > 0  for products
 
     Parameters
     ----------
     stoichiometric_coefficients : Mapping[str, float | int]
-        Stoichiometric coefficients of the reaction, keyed by species.
+        Mapping of species identifiers to signed stoichiometric
+        coefficients, ν_i.
+
+        The mapping keys identify the species participating in the reaction
+        and must exactly match the keys in `standard_entropies`.
+
     standard_entropies : Mapping[str, float | int]
-        Standard entropies of the species/components, keyed by species.
+        Mapping of species identifiers to standard molar entropies,
+        S°_i(T).
+
+        All entropy values must correspond to the same temperature and use
+        consistent units, typically J/(mol·K).
 
     Returns
     -------
     float
-        Standard reaction entropy calculated from the keyed species values.
+        Standard reaction entropy, ΔS°_rxn(T), in the same entropy unit
+        used by `standard_entropies`, typically J/(mol·K).
+
+    Raises
+    ------
+    ValueError
+        If `stoichiometric_coefficients` and `standard_entropies` do not
+        contain the same species keys.
+
+    Notes
+    -----
+    The ``_std`` suffix denotes a standard-state thermodynamic quantity
+    and does not imply a temperature of 298.15 K.
+
+    This calculation is valid at any temperature T provided that all
+    species standard molar entropies, S°_i(T), correspond to that same
+    temperature.
+
+    If the supplied entropy values are specifically evaluated at
+    298.15 K, the result is the standard reaction entropy at 298.15 K:
+
+        ΔS°_rxn,298.15 = Σ_i ν_i S°_i,298.15
+
+    This function validates the species keys and delegates the numerical
+    calculation to `_calc_reaction_entropy_std`.
     """
     # >> validate
     _validate_same_mapping_keys(
@@ -131,7 +240,7 @@ def _calc_reaction_entropy_std_from_mapping(
         )
     )
 
-# ! ::: Calculate reaction entropy using CustomProp
+# ! ::: Calculate reaction entropy with props (CustomProp)
 
 
 def _calc_reaction_entropy_std_from_props(
