@@ -293,5 +293,6 @@ def _calc_reaction_entropy_std_from_enthalpy_gibbs(
 __all__ = [
     "_calc_reaction_entropy_std",
     "_calc_reaction_entropy_std_from_mapping",
+    "_calc_reaction_entropy_std_from_props",
     "_calc_reaction_entropy_std_from_enthalpy_gibbs",
 ]
