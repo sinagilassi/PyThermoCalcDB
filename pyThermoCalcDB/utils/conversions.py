@@ -569,3 +569,20 @@ def _to_values(
         )
     except Exception as e:
         raise ValueError(f"Failed to convert {name} to values: {e}")
+
+# ! ::: Scalar conversion helper
+
+
+def _to_scalar(
+    value: ScalarValue,
+    name: str,
+    output_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Convert scalar input to float, optionally normalizing units."""
+    return to_scalar(
+        value,
+        name,
+        output_unit,
+        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
+    )
