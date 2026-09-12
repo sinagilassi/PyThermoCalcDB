@@ -8,9 +8,11 @@ import math
 from pythermodb_settings.models import CustomProp, ScalarValue, Temperature
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.quantity import pos, to_dict, to_list, to_scalar
+from pycuc.canonical import to_J_per_mol, to_K
 # locals
 from ..configs.constants import R_J_molK
-from ..utils.conversions import _resolve_unit_conversion_fn, _to_kelvin
+from ..utils.conversions import _resolve_unit_conversion_fn, _to_kelvin, _to_scalar, _pos
+# ! core
 from .core.equilibrium import (
     _calc_dlnK_dT,
     _calc_equilibrium_constant,
@@ -24,62 +26,20 @@ from .core.equilibrium import (
 )
 
 
-# SECTION: Internal scalar helpers
-
-def _scalar(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert scalar input to float, optionally normalizing units."""
-    return to_scalar(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _pos(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert scalar input to a positive float, optionally normalizing units."""
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
 # SECTION: Equilibrium constant
 
-def calc_log_equilibrium_constant(
-    delta_g_reaction_std: ScalarValue,
+def calc_log_equilibrium_constant_with_props(
+    delta_g_reaction_std: CustomProp,
     temperature: Temperature,
-    output_delta_g_unit: str | None = "J/mol",
-    gas_constant: float = R_J_molK,
-    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Calculate the natural logarithm of the equilibrium constant.
 
     Parameters
     ----------
-    delta_g_reaction_std : float | int | CustomProp
-        Standard Gibbs energy of reaction. Converted to
-        ``output_delta_g_unit`` when supplied as ``CustomProp``.
+    delta_g_reaction_std : CustomProp
+        Standard Gibbs energy of reaction, provided as a ``CustomProp``. Then converted to J/mol before calculation.
     temperature : Temperature
         Reaction temperature. Converted to K before calculation.
-    output_delta_g_unit : str, optional
-        Unit used for ``delta_g_reaction_std``. Defaults to ``J/mol``.
-    gas_constant : float, optional
-        Gas constant consistent with ``output_delta_g_unit`` per mol per K.
-    unit_conversion_fn : UnitConversionFn, optional
-        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
 
     Returns
     -------
@@ -97,40 +57,32 @@ def calc_log_equilibrium_constant(
         If temperature or gas constant is not positive.
     """
     # SECTION: Normalize inputs
-    dg = _scalar(
-        delta_g_reaction_std,
-        "delta_g_reaction_std",
-        output_delta_g_unit,
-        unit_conversion_fn,
+    # ! to J/mol
+    dg = to_J_per_mol(
+        value=delta_g_reaction_std.value,
+        from_unit=delta_g_reaction_std.unit,
     )
+    # ! to K
     temperature_k = _to_kelvin(temperature)
-    r = _pos(gas_constant, "gas_constant")
 
     # NOTE: ln(K) is exposed to avoid unnecessary exp overflow/underflow.
-    return float(_calc_log_equilibrium_constant(dg, temperature_k, r))
+    return float(_calc_log_equilibrium_constant(dg, temperature_k))
+
+# ! ::: Calculate equilibrium constant
 
 
 def calc_equilibrium_constant(
-    delta_g_reaction_std: ScalarValue,
+    delta_g_reaction_std: CustomProp,
     temperature: Temperature,
-    output_delta_g_unit: str | None = "J/mol",
-    gas_constant: float = R_J_molK,
-    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Calculate the dimensionless thermodynamic equilibrium constant.
 
     Parameters
     ----------
-    delta_g_reaction_std : float | int | CustomProp
-        Standard Gibbs energy of reaction.
+    delta_g_reaction_std : CustomProp
+        Standard Gibbs energy of reaction, provided as a ``CustomProp``. Then converted to J/mol before calculation.
     temperature : Temperature
         Reaction temperature. Converted to K before calculation.
-    output_delta_g_unit : str, optional
-        Unit used for ``delta_g_reaction_std``. Defaults to ``J/mol``.
-    gas_constant : float, optional
-        Gas constant in units consistent with energy and K.
-    unit_conversion_fn : UnitConversionFn, optional
-        Unit conversion function.
 
     Returns
     -------
@@ -143,20 +95,19 @@ def calc_equilibrium_constant(
     are assumed dimensionless relative to their standard states.
     """
     # SECTION: Normalize inputs
-    dg = _scalar(
-        delta_g_reaction_std,
-        "delta_g_reaction_std",
-        output_delta_g_unit,
-        unit_conversion_fn,
+    # ! to J/mol
+    dg = to_J_per_mol(
+        value=delta_g_reaction_std.value,
+        from_unit=delta_g_reaction_std.unit,
     )
+    # ! to K
     temperature_k = _to_kelvin(temperature)
-    r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate equilibrium constant
-    return float(_calc_equilibrium_constant(dg, temperature_k, r))
+    return float(_calc_equilibrium_constant(dg, temperature_k))
 
 
-# SECTION: Reaction quotient
+# ! ::: Reaction quotient
 
 def calc_log_reaction_quotient(
     stoichiometric_coefficients: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
@@ -212,6 +163,8 @@ def calc_log_reaction_quotient(
     a = to_list(activities, unit_conversion_fn=conversion_fn)
     return float(_calc_log_reaction_quotient(nu, a))
 
+# ! ::: Reaction quotient
+
 
 def calc_reaction_quotient(
     stoichiometric_coefficients: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
@@ -261,7 +214,7 @@ def calc_reaction_quotient(
     return float(_calc_reaction_quotient(nu, a))
 
 
-# SECTION: Actual reaction Gibbs energy
+# ! ::: Actual reaction Gibbs energy
 
 def calc_reaction_gibbs_energy(
     delta_g_reaction_std: ScalarValue,
@@ -310,7 +263,7 @@ def calc_reaction_gibbs_energy(
             "provide only one of reaction_quotient or log_reaction_quotient.")
 
     # SECTION: Normalize thermodynamic inputs
-    dg_std = _scalar(
+    dg_std = _to_scalar(
         delta_g_reaction_std,
         "delta_g_reaction_std",
         output_delta_g_unit,
@@ -321,7 +274,7 @@ def calc_reaction_gibbs_energy(
 
     # NOTE: Prefer caller-provided ln(Q) when available for numerical stability.
     if log_reaction_quotient is not None:
-        ln_q = _scalar(log_reaction_quotient, "log_reaction_quotient")
+        ln_q = _to_scalar(log_reaction_quotient, "log_reaction_quotient")
     else:
         if reaction_quotient is None:
             raise ValueError(
@@ -333,14 +286,11 @@ def calc_reaction_gibbs_energy(
     return float(_calc_reaction_gibbs_energy(dg_std, temperature_k, ln_q, r))
 
 
-# SECTION: van't Hoff relations
+# ! ::: van't Hoff relations
 
 def calc_dlnK_dT(
-    delta_h_reaction_std: ScalarValue,
+    delta_h_reaction_std: CustomProp,
     temperature: Temperature,
-    output_delta_h_unit: str | None = "J/mol",
-    gas_constant: float = R_J_molK,
-    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Calculate the van't Hoff derivative ``dlnK/dT``.
 
@@ -368,27 +318,25 @@ def calc_dlnK_dT(
     Equation: ``dlnK/dT = delta_H_rxn_std/(R*T**2)``.
     """
     # SECTION: Normalize inputs
-    dh = _scalar(
-        delta_h_reaction_std,
-        "delta_h_reaction_std",
-        output_delta_h_unit,
-        unit_conversion_fn,
+    # ! to J/mol
+    dh = to_J_per_mol(
+        delta_h_reaction_std.value,
+        from_unit=delta_h_reaction_std.unit,
     )
+    # ! to K
     temperature_k = _to_kelvin(temperature)
-    r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate derivative
-    return float(_calc_dlnK_dT(dh, temperature_k, r))
+    return float(_calc_dlnK_dT(dh, temperature_k))
+
+# ! ::: Integrated van't Hoff
 
 
 def calc_equilibrium_constant_at_temperature(
-    equilibrium_constant_initial: ScalarValue,
-    delta_h_reaction_std: ScalarValue,
+    equilibrium_constant_initial: float,
+    delta_h_reaction_std: CustomProp,
     temperature_initial: Temperature,
     temperature_final: Temperature,
-    output_delta_h_unit: str | None = "J/mol",
-    gas_constant: float = R_J_molK,
-    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Calculate equilibrium constant at a new temperature by integrated van't Hoff.
 
@@ -421,19 +369,19 @@ def calc_equilibrium_constant_at_temperature(
     integrated van't Hoff relation for approximately constant reaction enthalpy.
     """
     # SECTION: Normalize inputs
+    # ! check that equilibrium_constant_initial is positive
     k_initial = _pos(
         equilibrium_constant_initial,
         "equilibrium_constant_initial"
     )
-    dh = _scalar(
-        delta_h_reaction_std,
-        "delta_h_reaction_std",
-        output_delta_h_unit,
-        unit_conversion_fn,
+    # ! to J/mol
+    dh = to_J_per_mol(
+        delta_h_reaction_std.value,
+        from_unit=delta_h_reaction_std.unit,
     )
+    # ! to K
     t_initial = _to_kelvin(temperature_initial)
     t_final = _to_kelvin(temperature_final)
-    r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate final equilibrium constant
     return float(
@@ -442,14 +390,13 @@ def calc_equilibrium_constant_at_temperature(
             dh,
             t_initial,
             t_final,
-            r,
         )
     )
 
 
 # SECTION: Public exports
 __all__ = [
-    "calc_log_equilibrium_constant",
+    "calc_log_equilibrium_constant_with_props",
     "calc_equilibrium_constant",
     "calc_log_reaction_quotient",
     "calc_reaction_quotient",
