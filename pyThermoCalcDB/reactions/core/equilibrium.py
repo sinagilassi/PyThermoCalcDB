@@ -6,15 +6,11 @@ from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
-from pythermodb_settings.models import Temperature
-from pythermodb_settings.models.units import UnitConversionFn
-from pycuc.canonical import to_K
 
 # locals
 from ...configs.constants import R_J_molK
 from ...utils.conversions import (
     NumericArrayInput,
-    _resolve_unit_conversion_fn,
     _return_scalar_if_zero_dim,
     _validate_positive_array,
     _validate_positive_scalar,
@@ -26,6 +22,7 @@ NumericInput = NumericArrayInput
 
 
 # SECTION: Validators
+# ? Check if input is finite and has appropriate dimensions
 
 def _as_finite_float_array(
     values: NumericInput,
@@ -39,6 +36,8 @@ def _as_finite_float_array(
     if not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} values must be finite.")
     return cast(NDArray[np.float64], arr)
+
+# ? Validate component arrays for reaction quotient calculations
 
 
 def _validate_component_arrays(
@@ -57,26 +56,7 @@ def _validate_component_arrays(
     _validate_positive_array(activities, "activities")
 
 
-# SECTION: Temperature adapter
-
-def _temperature_k(
-    temperature: Temperature,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Return absolute temperature in K."""
-    # SECTION: Normalize temperature
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-    value = float(temperature.value)
-    unit = temperature.unit.strip()
-    if unit != "K":
-        value = float(conversion_fn(
-            value=value, from_unit=unit, to_unit="K"))
-
-    # ! Log/equilibrium thermodynamic identities require T > 0 K.
-    return _validate_positive_scalar(value, "temperature")
-
-
-# SECTION: Equilibrium constant
+# ! ::: Equilibrium constant
 
 def _calc_log_equilibrium_constant(
     delta_g_reaction_std: NumericInput,
@@ -92,6 +72,8 @@ def _calc_log_equilibrium_constant(
 
     # SECTION: Calculate logarithmic equilibrium constant
     return _return_scalar_if_zero_dim(-dg / (r * t))
+
+# ! ::: Equilibrium constant (wrapper)
 
 
 def _calc_equilibrium_constant(
@@ -132,6 +114,8 @@ def _calc_log_reaction_quotient(
 
     # SECTION: Calculate logarithmic reaction quotient
     return _return_scalar_if_zero_dim(np.sum(nu * np.log(a), axis=-1))
+
+# ! ::: Reaction quotient (wrapper)
 
 
 def _calc_reaction_quotient(
@@ -288,7 +272,6 @@ def _calc_equilibrium_constant_at_temperature(
 
 # SECTION: Core exports
 __all__ = [
-    "_temperature_k",
     "_calc_log_equilibrium_constant",
     "_calc_equilibrium_constant",
     "_calc_log_reaction_quotient",

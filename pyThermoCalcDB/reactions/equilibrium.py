@@ -10,7 +10,7 @@ from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.quantity import pos, to_dict, to_list, to_scalar
 # locals
 from ..configs.constants import R_J_molK
-from ..utils.conversions import _resolve_unit_conversion_fn
+from ..utils.conversions import _resolve_unit_conversion_fn, _to_kelvin
 from .core.equilibrium import (
     _calc_dlnK_dT,
     _calc_equilibrium_constant,
@@ -21,7 +21,6 @@ from .core.equilibrium import (
     _calc_reaction_gibbs_energy,
     _calc_reaction_quotient,
     _calc_reaction_quotient_from_mapping,
-    _temperature_k,
 )
 
 
@@ -104,7 +103,7 @@ def calc_log_equilibrium_constant(
         output_delta_g_unit,
         unit_conversion_fn,
     )
-    temperature_k = _temperature_k(temperature, unit_conversion_fn)
+    temperature_k = _to_kelvin(temperature)
     r = _pos(gas_constant, "gas_constant")
 
     # NOTE: ln(K) is exposed to avoid unnecessary exp overflow/underflow.
@@ -150,7 +149,7 @@ def calc_equilibrium_constant(
         output_delta_g_unit,
         unit_conversion_fn,
     )
-    temperature_k = _temperature_k(temperature, unit_conversion_fn)
+    temperature_k = _to_kelvin(temperature)
     r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate equilibrium constant
@@ -317,7 +316,7 @@ def calc_reaction_gibbs_energy(
         output_delta_g_unit,
         unit_conversion_fn,
     )
-    temperature_k = _temperature_k(temperature, unit_conversion_fn)
+    temperature_k = _to_kelvin(temperature)
     r = _pos(gas_constant, "gas_constant")
 
     # NOTE: Prefer caller-provided ln(Q) when available for numerical stability.
@@ -375,7 +374,7 @@ def calc_dlnK_dT(
         output_delta_h_unit,
         unit_conversion_fn,
     )
-    temperature_k = _temperature_k(temperature, unit_conversion_fn)
+    temperature_k = _to_kelvin(temperature)
     r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate derivative
@@ -422,16 +421,18 @@ def calc_equilibrium_constant_at_temperature(
     integrated van't Hoff relation for approximately constant reaction enthalpy.
     """
     # SECTION: Normalize inputs
-    k_initial = _pos(equilibrium_constant_initial,
-                     "equilibrium_constant_initial")
+    k_initial = _pos(
+        equilibrium_constant_initial,
+        "equilibrium_constant_initial"
+    )
     dh = _scalar(
         delta_h_reaction_std,
         "delta_h_reaction_std",
         output_delta_h_unit,
         unit_conversion_fn,
     )
-    t_initial = _temperature_k(temperature_initial, unit_conversion_fn)
-    t_final = _temperature_k(temperature_final, unit_conversion_fn)
+    t_initial = _to_kelvin(temperature_initial)
+    t_final = _to_kelvin(temperature_final)
     r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate final equilibrium constant
