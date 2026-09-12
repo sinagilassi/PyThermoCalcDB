@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from pythermodb_settings.models import CustomProp, ScalarValue, Temperature
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.quantity import to_dict, to_list, to_scalar
+from pycuc.canonical import to_K
 # locals
 from ..utils.conversions import _resolve_unit_conversion_fn
 from .core.energetics import (
@@ -14,14 +15,13 @@ from .core.energetics import (
     _calc_reaction_entropy_std_from_enthalpy_gibbs,
     _calc_reaction_entropy_std_from_mapping,
 )
-from .core.equilibrium import _temperature_k
 
 
-# SECTION: Standard reaction entropy
+# ! ::: Standard reaction entropy
 
-def calc_reaction_entropy_std(
-    stoichiometric_coefficients: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    standard_entropies: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+def calc_reaction_entropy_std_from_mapping(
+    stoichiometric_coefficients: Mapping[str, float | int | CustomProp],
+    standard_entropies: Mapping[str, float | int | CustomProp],
     output_entropy_unit: str | None = "J/mol.K",
     unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
@@ -29,10 +29,10 @@ def calc_reaction_entropy_std(
 
     Parameters
     ----------
-    stoichiometric_coefficients : mapping or sequence of float | int | CustomProp
+    stoichiometric_coefficients : mapping of float | int | CustomProp
         Stoichiometric coefficients, positive for products and negative for
         reactants.
-    standard_entropies : mapping or sequence of float | int | CustomProp
+    standard_entropies : mapping of float | int | CustomProp
         Species standard molar entropies. ``CustomProp`` values are converted to
         ``output_entropy_unit`` when provided.
     output_entropy_unit : str, optional
@@ -54,21 +54,53 @@ def calc_reaction_entropy_std(
     conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
 
     # SECTION: Mapping implementation
-    if isinstance(stoichiometric_coefficients, Mapping) and isinstance(standard_entropies, Mapping):
-        nu = to_dict(stoichiometric_coefficients, unit_conversion_fn=conversion_fn)
-        entropy = to_dict(
-            standard_entropies,
-            output_entropy_unit,
-            unit_conversion_fn=conversion_fn,
-        )
-        return _calc_reaction_entropy_std_from_mapping(nu, entropy)
+    nu = to_dict(stoichiometric_coefficients,)
+    entropy = to_dict(
+        standard_entropies,
+        output_entropy_unit,
+        unit_conversion_fn=conversion_fn,
+    )
+    return _calc_reaction_entropy_std_from_mapping(nu, entropy)
 
-    # ! Mixed mapping/sequence input is ambiguous.
-    if isinstance(stoichiometric_coefficients, Mapping) or isinstance(standard_entropies, Mapping):
-        raise TypeError("Both component inputs must be mappings or both sequences.")
+# ! ::: Standard reaction entropy from sequence
+
+
+def calc_reaction_entropy_std_from_sequence(
+    stoichiometric_coefficients: Sequence[float | int | CustomProp],
+    standard_entropies: Sequence[float | int | CustomProp],
+    output_entropy_unit: str | None = "J/mol.K",
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate standard reaction entropy from species standard entropies.
+
+    Parameters
+    ----------
+    stoichiometric_coefficients : sequence of float | int | CustomProp
+        Stoichiometric coefficients, positive for products and negative for
+        reactants.
+    standard_entropies : sequence of float | int | CustomProp
+        Species standard molar entropies. ``CustomProp`` values are converted to
+        ``output_entropy_unit`` when provided.
+    output_entropy_unit : str, optional
+        Unit used to normalize species entropies. Defaults to ``J/mol.K``.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+
+    Returns
+    -------
+    float
+        Standard reaction entropy in the normalized entropy unit.
+
+    Notes
+    -----
+    Equation: ``delta_S_rxn_std = sum_i(nu_i*S_i_std)``. Mapping inputs must
+    provide the same species keys for coefficients and entropies.
+    """
+    # SECTION: Resolve conversion function
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
 
     # SECTION: Sequence implementation
-    nu = to_list(stoichiometric_coefficients, unit_conversion_fn=conversion_fn)
+    nu = to_list(stoichiometric_coefficients)
     entropy = to_list(
         standard_entropies,
         output_entropy_unit,
@@ -76,8 +108,8 @@ def calc_reaction_entropy_std(
     )
     return float(_calc_reaction_entropy_std(nu, entropy))
 
+# ! ::: Entropy from enthalpy and Gibbs energy
 
-# SECTION: Entropy from enthalpy and Gibbs energy
 
 def calc_reaction_entropy_std_from_enthalpy_gibbs(
     delta_h_reaction_std: ScalarValue,
@@ -128,7 +160,10 @@ def calc_reaction_entropy_std_from_enthalpy_gibbs(
         output_delta_g_unit,
         unit_conversion_fn=conversion_fn,
     )
-    temperature_k = _temperature_k(temperature, unit_conversion_fn)
+    temperature_k = to_K(
+        value=temperature.value,
+        from_unit=temperature.unit,
+    )
 
     # SECTION: Calculate reaction entropy
     return float(
@@ -142,7 +177,7 @@ def calc_reaction_entropy_std_from_enthalpy_gibbs(
 
 # SECTION: Public exports
 __all__ = [
-    "calc_reaction_entropy_std",
+    "calc_reaction_entropy_std_from_mapping",
+    "calc_reaction_entropy_std_from_sequence",
     "calc_reaction_entropy_std_from_enthalpy_gibbs",
 ]
-
