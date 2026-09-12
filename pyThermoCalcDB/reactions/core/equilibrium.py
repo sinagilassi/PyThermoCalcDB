@@ -8,6 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pythermodb_settings.models import Temperature
 from pythermodb_settings.models.units import UnitConversionFn
+from pycuc.canonical import to_K
 
 # locals
 from ...configs.constants import R_J_molK
@@ -113,7 +114,7 @@ def _calc_equilibrium_constant(
     )
 
 
-# SECTION: Reaction quotient
+# ! ::: Reaction quotient
 
 def _calc_log_reaction_quotient(
     stoichiometric_coefficients: NumericInput,
@@ -150,6 +151,8 @@ def _calc_reaction_quotient(
         )
     )
 
+# ! ::: Reaction quotient from mapping
+
 
 def _calc_log_reaction_quotient_from_mapping(
     stoichiometric_coefficients: Mapping[str, float | int],
@@ -170,6 +173,8 @@ def _calc_log_reaction_quotient_from_mapping(
         )
     )
 
+# ! ::: Reaction quotient from mapping
+
 
 def _calc_reaction_quotient_from_mapping(
     stoichiometric_coefficients: Mapping[str, float | int],
@@ -186,7 +191,7 @@ def _calc_reaction_quotient_from_mapping(
     )
 
 
-# SECTION: Actual reaction Gibbs energy
+# ! ::: Actual reaction Gibbs energy
 
 def _calc_reaction_gibbs_energy(
     delta_g_reaction_std: NumericInput,
@@ -208,7 +213,7 @@ def _calc_reaction_gibbs_energy(
     return _return_scalar_if_zero_dim(dg_std + r * t * ln_q)
 
 
-# SECTION: van't Hoff relations
+# ! ::: van't Hoff relations
 
 def _calc_dlnK_dT(
     delta_h_reaction_std: NumericInput,
@@ -224,6 +229,8 @@ def _calc_dlnK_dT(
 
     # SECTION: Calculate derivative
     return _return_scalar_if_zero_dim(dh / (r * t ** 2))
+
+# ! ::: Logarithmic equilibrium constant at temperature
 
 
 def _calc_log_equilibrium_constant_at_temperature(
@@ -251,6 +258,8 @@ def _calc_log_equilibrium_constant_at_temperature(
     return _return_scalar_if_zero_dim(
         np.log(k_initial) - (dh / r) * (1.0 / t_final - 1.0 / t_initial)
     )
+
+# ! ::: Equilibrium constant at temperature
 
 
 def _calc_equilibrium_constant_at_temperature(
