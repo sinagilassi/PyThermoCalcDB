@@ -157,25 +157,22 @@ def calc_log_reaction_quotient(
     a = to_list(activities)
     return float(_calc_log_reaction_quotient(nu, a))
 
-# ! ::: Reaction quotient
+# ! ::: Reaction quotient from mapping
 
 
-def calc_reaction_quotient(
-    stoichiometric_coefficients: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    activities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    unit_conversion_fn: UnitConversionFn | None = None,
+def calc_reaction_quotient_from_mapping(
+    stoichiometric_coefficients: Mapping[str, float | int | CustomProp],
+    activities: Mapping[str, float | int | CustomProp],
 ) -> float:
     """Calculate the dimensionless reaction quotient from activities.
 
     Parameters
     ----------
-    stoichiometric_coefficients : mapping or sequence of float | int | CustomProp
+    stoichiometric_coefficients : mapping of str to float | int
         Stoichiometric coefficients, positive for products and negative for
         reactants.
-    activities : mapping or sequence of float | int | CustomProp
+    activities : mapping of str to float | int
         Dimensionless species activities.
-    unit_conversion_fn : UnitConversionFn, optional
-        Unit conversion function.
 
     Returns
     -------
@@ -187,29 +184,46 @@ def calc_reaction_quotient(
     Equation: ``Q = product_i(a_i**nu_i)``. The logarithmic form is used
     internally.
     """
-    # SECTION: Resolve conversion function
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-
     # SECTION: Mapping implementation
     if isinstance(stoichiometric_coefficients, Mapping) and isinstance(activities, Mapping):
         nu = to_dict(
             stoichiometric_coefficients,
-            unit_conversion_fn=conversion_fn
         )
         a = to_dict(
             activities,
-            unit_conversion_fn=conversion_fn
         )
         return _calc_reaction_quotient_from_mapping(nu, a)
 
-    # ! Mixed mapping/sequence input is ambiguous.
-    if isinstance(stoichiometric_coefficients, Mapping) or isinstance(activities, Mapping):
-        raise TypeError(
-            "Both component inputs must be mappings or both sequences.")
+# ! ::: Reaction quotient from sequence
 
+
+def calc_reaction_quotient_from_sequence(
+    stoichiometric_coefficients: Sequence[float | int],
+    activities: Sequence[float | int],
+) -> float:
+    """Calculate the dimensionless reaction quotient from activities.
+
+    Parameters
+    ----------
+    stoichiometric_coefficients : sequence of float | int
+        Stoichiometric coefficients, positive for products and negative for
+        reactants.
+    activities : sequence of float | int
+        Dimensionless species activities.
+
+    Returns
+    -------
+    float
+        Dimensionless reaction quotient ``Q``.
+
+    Notes
+    -----
+    Equation: ``Q = product_i(a_i**nu_i)``. The logarithmic form is used
+    internally.
+    """
     # SECTION: Sequence implementation
-    nu = to_list(stoichiometric_coefficients, unit_conversion_fn=conversion_fn)
-    a = to_list(activities, unit_conversion_fn=conversion_fn)
+    nu = to_list(stoichiometric_coefficients)
+    a = to_list(activities)
     return float(_calc_reaction_quotient(nu, a))
 
 
@@ -506,7 +520,8 @@ __all__ = [
     "calc_log_equilibrium_constant",
     "calc_equilibrium_constant",
     "calc_log_reaction_quotient",
-    "calc_reaction_quotient",
+    "calc_reaction_quotient_from_mapping",
+    "calc_reaction_quotient_from_sequence",
     "calc_reaction_gibbs_energy",
     "calc_dlnK_dT",
     "calc_equilibrium_constant_at_temperature",
