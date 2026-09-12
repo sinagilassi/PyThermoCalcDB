@@ -424,6 +424,67 @@ def calc_log_equilibrium_constant_at_temperature(
     temperature_initial: Temperature,
     temperature_final: Temperature,
 ):
+    """
+    Calculate the natural logarithm of the equilibrium constant at a new
+    temperature using the integrated van't Hoff equation.
+
+    Assuming the standard reaction enthalpy remains approximately constant
+    over the temperature interval,
+
+        ln(K2 / K1) = -(ΔH°_rxn / R) (1/T2 - 1/T1)
+
+    or equivalently,
+
+        ln(K2) = ln(K1) - (ΔH°_rxn / R) (1/T2 - 1/T1)
+
+    Parameters
+    ----------
+    equilibrium_constant_initial : float
+        Dimensionless equilibrium constant, K1, at `temperature_initial`.
+        Must be strictly greater than zero.
+
+    delta_h_reaction_std : CustomProp
+        Standard reaction enthalpy, ΔH°_rxn, assumed approximately constant
+        between `temperature_initial` and `temperature_final`.
+
+        The value is internally converted to J/mol before calculation.
+
+    temperature_initial : Temperature
+        Initial absolute temperature, T1. The value is internally converted
+        to kelvin.
+
+    temperature_final : Temperature
+        Final absolute temperature, T2. The value is internally converted
+        to kelvin.
+
+    Returns
+    -------
+    float
+        Natural logarithm of the dimensionless equilibrium constant at the
+        final temperature, ln(K2).
+
+    Raises
+    ------
+    ValueError
+        If `equilibrium_constant_initial` is less than or equal to zero,
+        or if either temperature is invalid or non-positive.
+
+    Notes
+    -----
+    The ``_std`` suffix denotes a standard-state reaction property and
+    does not imply a temperature of 298.15 K.
+
+    This integrated van't Hoff relation assumes that ΔH°_rxn is
+    approximately constant over the temperature interval from T1 to T2.
+
+    For large temperature intervals, or when reaction heat-capacity effects
+    are significant, ΔH°_rxn(T) should be treated as temperature-dependent
+    and the differential van't Hoff equation should be integrated instead.
+
+    Returning ln(K2) can be preferable to returning K2 directly when the
+    equilibrium constant is very large or very small, because it avoids
+    unnecessary exponential overflow or underflow.
+    """
     return float(
         _calc_log_equilibrium_constant_at_temperature(
             _pos(
@@ -449,4 +510,5 @@ __all__ = [
     "calc_reaction_gibbs_energy",
     "calc_dlnK_dT",
     "calc_equilibrium_constant_at_temperature",
+    "calc_log_equilibrium_constant_at_temperature",
 ]
