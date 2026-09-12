@@ -28,7 +28,7 @@ from .core.equilibrium import (
 
 # SECTION: Equilibrium constant
 
-def calc_log_equilibrium_constant_with_props(
+def calc_log_equilibrium_constant(
     delta_g_reaction_std: CustomProp,
     temperature: Temperature,
 ) -> float:
@@ -396,7 +396,7 @@ def calc_equilibrium_constant_at_temperature(
 
 # SECTION: Public exports
 __all__ = [
-    "calc_log_equilibrium_constant_with_props",
+    "calc_log_equilibrium_constant",
     "calc_equilibrium_constant",
     "calc_log_reaction_quotient",
     "calc_reaction_quotient",
