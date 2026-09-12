@@ -9,14 +9,15 @@ from pythermodb_settings.models import CustomProp, ScalarValue, Temperature
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.quantity import pos, to_dict, to_list, to_scalar
 from pycuc.canonical import to_J_per_mol, to_K
+from pycuc import convert_from_to
 # locals
-from ..configs.constants import R_J_molK
 from ..utils.conversions import _resolve_unit_conversion_fn, _to_kelvin, _to_scalar, _pos
 # ! core
 from .core.equilibrium import (
     _calc_dlnK_dT,
     _calc_equilibrium_constant,
     _calc_equilibrium_constant_at_temperature,
+    _calc_log_equilibrium_constant_at_temperature,
     _calc_log_equilibrium_constant,
     _calc_log_reaction_quotient,
     _calc_log_reaction_quotient_from_mapping,
@@ -112,7 +113,6 @@ def calc_equilibrium_constant(
 def calc_log_reaction_quotient(
     stoichiometric_coefficients: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     activities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
     """Calculate the natural logarithm of the reaction quotient.
 
@@ -123,8 +123,6 @@ def calc_log_reaction_quotient(
         reactants.
     activities : mapping or sequence of float | int | CustomProp
         Dimensionless species activities. Values must be greater than zero.
-    unit_conversion_fn : UnitConversionFn, optional
-        Unit conversion function used for ``CustomProp`` normalization.
 
     Returns
     -------
@@ -143,14 +141,10 @@ def calc_log_reaction_quotient(
     ValueError
         If activities are non-positive or input shapes/keys differ.
     """
-    # SECTION: Resolve conversion function
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-
     # SECTION: Mapping implementation
     if isinstance(stoichiometric_coefficients, Mapping) and isinstance(activities, Mapping):
-        nu = to_dict(stoichiometric_coefficients,
-                     unit_conversion_fn=conversion_fn)
-        a = to_dict(activities, unit_conversion_fn=conversion_fn)
+        nu = to_dict(stoichiometric_coefficients)
+        a = to_dict(activities)
         return _calc_log_reaction_quotient_from_mapping(nu, a)
 
     # ! Mixed mapping/sequence input is ambiguous.
@@ -159,8 +153,8 @@ def calc_log_reaction_quotient(
             "Both component inputs must be mappings or both sequences.")
 
     # SECTION: Sequence implementation
-    nu = to_list(stoichiometric_coefficients, unit_conversion_fn=conversion_fn)
-    a = to_list(activities, unit_conversion_fn=conversion_fn)
+    nu = to_list(stoichiometric_coefficients)
+    a = to_list(activities)
     return float(_calc_log_reaction_quotient(nu, a))
 
 # ! ::: Reaction quotient
@@ -198,9 +192,14 @@ def calc_reaction_quotient(
 
     # SECTION: Mapping implementation
     if isinstance(stoichiometric_coefficients, Mapping) and isinstance(activities, Mapping):
-        nu = to_dict(stoichiometric_coefficients,
-                     unit_conversion_fn=conversion_fn)
-        a = to_dict(activities, unit_conversion_fn=conversion_fn)
+        nu = to_dict(
+            stoichiometric_coefficients,
+            unit_conversion_fn=conversion_fn
+        )
+        a = to_dict(
+            activities,
+            unit_conversion_fn=conversion_fn
+        )
         return _calc_reaction_quotient_from_mapping(nu, a)
 
     # ! Mixed mapping/sequence input is ambiguous.
@@ -217,13 +216,11 @@ def calc_reaction_quotient(
 # ! ::: Actual reaction Gibbs energy
 
 def calc_reaction_gibbs_energy(
-    delta_g_reaction_std: ScalarValue,
+    delta_g_reaction_std: CustomProp,
     temperature: Temperature,
     reaction_quotient: ScalarValue | None = None,
     log_reaction_quotient: ScalarValue | None = None,
-    output_delta_g_unit: str | None = "J/mol",
-    gas_constant: float = R_J_molK,
-    unit_conversion_fn: UnitConversionFn | None = None,
+    output_unit: str = "J/mol"
 ) -> float:
     """Calculate actual reaction Gibbs energy from standard state and ``Q``.
 
@@ -263,14 +260,16 @@ def calc_reaction_gibbs_energy(
             "provide only one of reaction_quotient or log_reaction_quotient.")
 
     # SECTION: Normalize thermodynamic inputs
-    dg_std = _to_scalar(
-        delta_g_reaction_std,
-        "delta_g_reaction_std",
-        output_delta_g_unit,
-        unit_conversion_fn,
+    # ! to J/mol
+    dg_std = to_J_per_mol(
+        delta_g_reaction_std.value,
+        from_unit=delta_g_reaction_std.unit,
     )
-    temperature_k = _to_kelvin(temperature)
-    r = _pos(gas_constant, "gas_constant")
+    # ! to K
+    temperature_k = to_K(
+        temperature.value,
+        from_unit=temperature.unit,
+    )
 
     # NOTE: Prefer caller-provided ln(Q) when available for numerical stability.
     if log_reaction_quotient is not None:
@@ -283,7 +282,12 @@ def calc_reaction_gibbs_energy(
         ln_q = math.log(q)
 
     # SECTION: Calculate actual reaction Gibbs energy
-    return float(_calc_reaction_gibbs_energy(dg_std, temperature_k, ln_q, r))
+    res = float(_calc_reaction_gibbs_energy(dg_std, temperature_k, ln_q))
+
+    # NOTE: unit conversion if needed
+    if output_unit != "J/mol":
+        res = convert_from_to(res, from_unit="J/mol", to_unit=output_unit)
+    return res
 
 
 # ! ::: van't Hoff relations
@@ -292,30 +296,37 @@ def calc_dlnK_dT(
     delta_h_reaction_std: CustomProp,
     temperature: Temperature,
 ) -> float:
-    """Calculate the van't Hoff derivative ``dlnK/dT``.
+    """
+    Calculate the temperature derivative of the logarithmic equilibrium
+    constant using the differential van't Hoff equation.
+
+    The derivative is calculated as
+
+        d ln(K) / dT = ΔH°_rxn(T) / (R T²)
 
     Parameters
     ----------
-    delta_h_reaction_std : float | int | CustomProp
-        Standard reaction enthalpy. Converted to ``output_delta_h_unit`` when
-        supplied as ``CustomProp``.
+    delta_h_reaction_std : CustomProp
+        Standard reaction enthalpy, ΔH°_rxn(T). The value is internally
+        converted to J/mol.
+
     temperature : Temperature
-        Temperature at which the derivative is evaluated. Converted to K.
-    output_delta_h_unit : str, optional
-        Unit used for ``delta_h_reaction_std``. Defaults to ``J/mol``.
-    gas_constant : float, optional
-        Gas constant consistent with enthalpy per mol per K.
-    unit_conversion_fn : UnitConversionFn, optional
-        Unit conversion function.
+        Absolute temperature at which the derivative is evaluated.
+        The value is internally converted to kelvin.
 
     Returns
     -------
     float
-        Temperature derivative ``dlnK/dT`` in ``1/K``.
+        Temperature derivative d ln(K)/dT, in K⁻¹.
 
     Notes
     -----
-    Equation: ``dlnK/dT = delta_H_rxn_std/(R*T**2)``.
+    The ``_std`` suffix denotes a standard-state reaction property and
+    does not imply a temperature of 298.15 K.
+
+    For an endothermic reaction, ΔH°_rxn > 0 and K increases with
+    temperature locally. For an exothermic reaction, ΔH°_rxn < 0 and K
+    decreases with temperature locally.
     """
     # SECTION: Normalize inputs
     # ! to J/mol
@@ -338,35 +349,46 @@ def calc_equilibrium_constant_at_temperature(
     temperature_initial: Temperature,
     temperature_final: Temperature,
 ) -> float:
-    """Calculate equilibrium constant at a new temperature by integrated van't Hoff.
+    """
+    Calculate the equilibrium constant at a new temperature using the
+    integrated van't Hoff equation.
+
+    Assuming the standard reaction enthalpy remains approximately constant
+    between the two temperatures,
+
+        ln(K2 / K1) = -(ΔH°_rxn / R) (1/T2 - 1/T1)
 
     Parameters
     ----------
-    equilibrium_constant_initial : float | int | CustomProp
-        Initial dimensionless equilibrium constant ``K1``.
-    delta_h_reaction_std : float | int | CustomProp
-        Standard reaction enthalpy, assumed constant over the temperature
-        interval.
+    equilibrium_constant_initial : float
+        Dimensionless equilibrium constant, K1, at `temperature_initial`.
+        Must be greater than zero.
+
+    delta_h_reaction_std : CustomProp
+        Standard reaction enthalpy, ΔH°_rxn, assumed approximately constant
+        over the temperature interval. The value is internally converted
+        to J/mol.
+
     temperature_initial : Temperature
-        Initial temperature ``T1``. Converted to K.
+        Initial absolute temperature, T1. Internally converted to kelvin.
+
     temperature_final : Temperature
-        Final temperature ``T2``. Converted to K.
-    output_delta_h_unit : str, optional
-        Unit used for ``delta_h_reaction_std``. Defaults to ``J/mol``.
-    gas_constant : float, optional
-        Gas constant consistent with enthalpy per mol per K.
-    unit_conversion_fn : UnitConversionFn, optional
-        Unit conversion function.
+        Final absolute temperature, T2. Internally converted to kelvin.
 
     Returns
     -------
     float
-        Estimated dimensionless equilibrium constant ``K2``.
+        Dimensionless equilibrium constant, K2, at `temperature_final`.
 
     Notes
     -----
-    Equation: ``ln(K2/K1) = -delta_H_rxn_std/R * (1/T2 - 1/T1)``. This is the
-    integrated van't Hoff relation for approximately constant reaction enthalpy.
+    The integrated van't Hoff equation used here assumes that ΔH°_rxn is
+    approximately constant between T1 and T2.
+
+    For a significant temperature interval, especially when reaction heat
+    capacity effects are important, ΔH°_rxn(T) should be treated as
+    temperature-dependent and the differential van't Hoff relation should
+    be integrated accordingly.
     """
     # SECTION: Normalize inputs
     # ! check that equilibrium_constant_initial is positive
@@ -390,6 +412,30 @@ def calc_equilibrium_constant_at_temperature(
             dh,
             t_initial,
             t_final,
+        )
+    )
+
+# ! :::
+
+
+def calc_log_equilibrium_constant_at_temperature(
+    equilibrium_constant_initial: float,
+    delta_h_reaction_std: CustomProp,
+    temperature_initial: Temperature,
+    temperature_final: Temperature,
+):
+    return float(
+        _calc_log_equilibrium_constant_at_temperature(
+            _pos(
+                equilibrium_constant_initial,
+                "equilibrium_constant_initial"
+            ),
+            to_J_per_mol(
+                delta_h_reaction_std.value,
+                from_unit=delta_h_reaction_std.unit,
+            ),
+            _to_kelvin(temperature_initial),
+            _to_kelvin(temperature_final),
         )
     )
 
