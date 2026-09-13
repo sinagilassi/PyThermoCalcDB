@@ -8,10 +8,12 @@ from .core.heat_capacity import (
     _calc_ideal_gas_cv_from_cp_from_props,
     _calc_ideal_gas_cp_from_cv_from_props,
     _calc_heat_capacity_ratio_from_props,
+    _calc_ideal_gas_isentropic_temperature,
     _calc_ideal_gas_cv_from_cp_from_scalars,
     _calc_ideal_gas_cp_from_cv_from_scalars,
     _calc_heat_capacity_ratio_from_scalars,
 )
+from ..utils.conversions import _pos, _to_kelvin
 
 
 # NOTE: logger setup
@@ -803,4 +805,51 @@ def calc_heat_capacity_ratio(
         output_heat_capacity_unit,
         unit_conversion_fn,
     )
+
+
+def calc_ideal_gas_isentropic_temperature(
+        initial_temperature,
+        initial_pressure,
+        final_pressure,
+        heat_capacity_ratio,
+        output_temperature_unit: str = "K",
+        output_pressure_unit: str = "Pa",
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate ideal-gas isentropic final temperature.
+
+    Equation
+    --------
+    T2 = T1 * (P2/P1)**((gamma - 1)/gamma)
+
+    This is only the constant-gamma ideal-gas thermodynamic identity; it does
+    not model a compressor, turbine, or efficiency correction.
+    """
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    if isinstance(initial_temperature, Temperature):
+        t1 = _to_kelvin(initial_temperature)
+    else:
+        t1 = _pos(
+            initial_temperature,
+            "initial_temperature",
+            output_temperature_unit if isinstance(initial_temperature, CustomProp) else None,
+            conversion_fn,
+        )
+    p1 = _pos(
+        initial_pressure,
+        "initial_pressure",
+        output_pressure_unit if isinstance(initial_pressure, CustomProp) else None,
+        conversion_fn,
+    )
+    p2 = _pos(
+        final_pressure,
+        "final_pressure",
+        output_pressure_unit if isinstance(final_pressure, CustomProp) else None,
+        conversion_fn,
+    )
+    gamma = _pos(heat_capacity_ratio, "heat_capacity_ratio")
+    result = float(_calc_ideal_gas_isentropic_temperature(t1, p1, p2, gamma))
+    if output_temperature_unit != "K":
+        result = float(conversion_fn(result, "K", output_temperature_unit))
+    return result
 
