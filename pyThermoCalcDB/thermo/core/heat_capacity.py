@@ -101,6 +101,26 @@ def _calc_heat_capacity_ratio(
     return _return_scalar_if_zero_dim(cast(NDArray[np.float64], ratio))
 
 
+def _calc_ideal_gas_isentropic_temperature(
+    initial_temperature: NumericInput,
+    initial_pressure: NumericInput,
+    final_pressure: NumericInput,
+    heat_capacity_ratio: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate ``T2 = T1 * (P2/P1)**((gamma - 1)/gamma)``."""
+    t1 = _as_positive_heat_capacity_array(
+        initial_temperature, "initial_temperature")
+    p1 = _as_positive_heat_capacity_array(initial_pressure, "initial_pressure")
+    p2 = _as_positive_heat_capacity_array(final_pressure, "final_pressure")
+    gamma = _as_positive_heat_capacity_array(
+        heat_capacity_ratio, "heat_capacity_ratio")
+    if np.any(gamma <= 1.0):
+        raise ValueError("heat_capacity_ratio must be greater than 1.0.")
+    return _return_scalar_if_zero_dim(
+        cast(NDArray[np.float64], t1 * (p2 / p1) ** ((gamma - 1.0) / gamma))
+    )
+
+
 # SECTION: Props adapters
 
 def _calc_ideal_gas_cv_from_cp_from_props(
@@ -207,6 +227,7 @@ __all__ = [
     "_calc_ideal_gas_cv_from_cp",
     "_calc_ideal_gas_cp_from_cv",
     "_calc_heat_capacity_ratio",
+    "_calc_ideal_gas_isentropic_temperature",
     "_calc_ideal_gas_cv_from_cp_from_props",
     "_calc_ideal_gas_cp_from_cv_from_props",
     "_calc_heat_capacity_ratio_from_props",
