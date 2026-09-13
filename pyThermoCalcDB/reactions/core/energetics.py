@@ -40,17 +40,17 @@ def _as_finite_float_array(
 
 def _validate_component_arrays(
     stoichiometric_coefficients: NDArray[np.float64],
-    standard_entropies: NDArray[np.float64],
+    component_values: NDArray[np.float64],
 ) -> None:
     """Validate pairwise component arrays for reaction entropy calculations."""
     if stoichiometric_coefficients.ndim not in (1, 2):
         raise ValueError(
             "stoichiometric_coefficients must be a 1-D or 2-D array.")
-    if standard_entropies.ndim not in (1, 2):
-        raise ValueError("standard_entropies must be a 1-D or 2-D array.")
-    if stoichiometric_coefficients.shape != standard_entropies.shape:
+    if component_values.ndim not in (1, 2):
+        raise ValueError("component_values must be a 1-D or 2-D array.")
+    if stoichiometric_coefficients.shape != component_values.shape:
         raise ValueError(
-            "stoichiometric_coefficients and standard_entropies must have the same shape.")
+            "stoichiometric_coefficients and component_values must have the same shape.")
 
 
 # ! ::: Standard reaction entropy
@@ -398,10 +398,144 @@ def _calc_reaction_entropy_std_from_enthalpy_gibbs(
     return _return_scalar_if_zero_dim((dh - dg) / t)
 
 
+# SECTION: Reaction heat-capacity change
+
+def _calc_reaction_heat_capacity_change(
+    stoichiometric_coefficients: NumericInput,
+    component_heat_capacities: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate reaction heat-capacity change: delta_Cp_r = sum_i(nu_i*Cp_i)."""
+    # SECTION: Normalize and validate
+    nu = _as_finite_float_array(stoichiometric_coefficients, "stoichiometric_coefficients")
+    cp = _as_finite_float_array(component_heat_capacities, "component_heat_capacities")
+    _validate_component_arrays(nu, cp)
+    _validate_positive_array(cp, "component_heat_capacities")
+
+    # SECTION: Calculate reaction heat-capacity change
+    return _return_scalar_if_zero_dim(np.sum(nu * cp, axis=-1))
+
+
+def _calc_reaction_heat_capacity_change_from_mapping(
+    stoichiometric_coefficients: Mapping[str, float | int],
+    component_heat_capacities: Mapping[str, float | int],
+) -> float:
+    """Calculate reaction heat-capacity change from aligned keyed inputs."""
+    _validate_same_mapping_keys(
+        stoichiometric_coefficients,
+        component_heat_capacities,
+        "stoichiometric_coefficients",
+        "component_heat_capacities",
+    )
+    keys = list(stoichiometric_coefficients)
+    return float(
+        _calc_reaction_heat_capacity_change(
+            [stoichiometric_coefficients[key] for key in keys],
+            [component_heat_capacities[key] for key in keys],
+        )
+    )
+
+
+def _calc_reaction_heat_capacity_change_from_props(
+    stoichiometric_coefficients: Mapping[str, CustomProp],
+    component_heat_capacities: Mapping[str, CustomProp],
+    output_unit: str = "J/mol.K",
+    components: Optional[Sequence[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate reaction heat-capacity change from unit-aware keyed inputs."""
+    nu = _to_values(
+        data=stoichiometric_coefficients,
+        name="stoichiometric_coefficients",
+    )
+    cp = _to_values(
+        data=component_heat_capacities,
+        name="component_heat_capacities",
+        output_unit=output_unit,
+    )
+
+    if components is not None and component_key is not None:
+        nu = _configure_component_values(
+            values=nu,
+            components=list(components),
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+            name="stoichiometric_coefficients",
+        )
+        cp = _configure_component_values(
+            values=cp,
+            components=list(components),
+            component_key=component_key,
+            case_sensitive=case_sensitive,
+            sort_by_components_order=sort_by_components_order,
+            name="component_heat_capacities",
+        )
+
+    return _calc_reaction_heat_capacity_change_from_mapping(nu, cp)
+
+
+# SECTION: Kirchhoff enthalpy correction
+
+def _calc_reaction_enthalpy_from_constant_delta_cp(
+    delta_h_reaction_ref: NumericInput,
+    delta_cp_reaction: NumericInput,
+    temperature: NumericInput,
+    reference_temperature: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate reaction enthalpy using constant reaction heat-capacity change."""
+    # SECTION: Normalize and validate
+    dh_ref = _as_finite_float_array(delta_h_reaction_ref, "delta_h_reaction_ref")
+    dcp = _as_finite_float_array(delta_cp_reaction, "delta_cp_reaction")
+    t = _as_finite_float_array(temperature, "temperature")
+    t_ref = _as_finite_float_array(reference_temperature, "reference_temperature")
+    _validate_positive_array(t, "temperature")
+    _validate_positive_array(t_ref, "reference_temperature")
+
+    # SECTION: Calculate Kirchhoff correction
+    return _return_scalar_if_zero_dim(dh_ref + dcp * (t - t_ref))
+
+
+# SECTION: Reaction heat source/rate
+
+def _calc_reaction_volumetric_heat_source(
+    reaction_enthalpies: NumericInput,
+    reaction_rates: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate generated reaction heat source: q''' = -sum_j(delta_H_j*r_j)."""
+    dh = _as_finite_float_array(reaction_enthalpies, "reaction_enthalpies")
+    rates = _as_finite_float_array(reaction_rates, "reaction_rates")
+    if dh.shape != rates.shape:
+        raise ValueError("reaction_enthalpies and reaction_rates must have the same shape.")
+    return _return_scalar_if_zero_dim(-np.sum(dh * rates, axis=-1))
+
+
+def _calc_reaction_heat_rate(
+    reaction_enthalpies: NumericInput,
+    reaction_rates: NumericInput,
+    volume: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate total generated reaction heat rate: Qdot = V*q'''."""
+    q_source = np.asarray(
+        _calc_reaction_volumetric_heat_source(reaction_enthalpies, reaction_rates),
+        dtype=np.float64,
+    )
+    v = _as_finite_float_array(volume, "volume")
+    _validate_positive_array(v, "volume")
+    return _return_scalar_if_zero_dim(v * q_source)
+
+
 # SECTION: Core exports
 __all__ = [
     "_calc_reaction_entropy_std",
     "_calc_reaction_entropy_std_from_mapping",
     "_calc_reaction_entropy_std_from_props",
     "_calc_reaction_entropy_std_from_enthalpy_gibbs",
+    "_calc_reaction_heat_capacity_change",
+    "_calc_reaction_heat_capacity_change_from_mapping",
+    "_calc_reaction_heat_capacity_change_from_props",
+    "_calc_reaction_enthalpy_from_constant_delta_cp",
+    "_calc_reaction_volumetric_heat_source",
+    "_calc_reaction_heat_rate",
 ]
