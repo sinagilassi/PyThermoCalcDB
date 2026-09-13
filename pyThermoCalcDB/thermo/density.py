@@ -1,6 +1,8 @@
 # import libs
 import logging
 from typing import Dict, Optional, Any
+import numpy as np
+from numpy.typing import NDArray
 from pythermodb_settings.models import (
     Temperature,
     Pressure,
@@ -12,8 +14,12 @@ from ..utils.conversions import (
 )
 # locals
 from .core.density import (
+    _calc_gas_pressure_from_z,
+    _calc_gas_volume_from_z,
     _calc_ideal_gas_density,
     _calc_ideal_gas_molar_volume,
+    _calc_ideal_gas_pressure,
+    _calc_ideal_gas_volume,
     _calc_gas_molar_volume_from_z,
     _calc_gas_density_from_z,
 )
@@ -21,6 +27,15 @@ from .core.density import (
 
 # NOTE: set up logger
 logger = logging.getLogger(__name__)
+
+
+def _as_public_scalar(value: float | NDArray[np.float64], name: str) -> float:
+    """Return a scalar result for public scalar wrappers."""
+    if isinstance(value, np.ndarray):
+        if value.ndim == 0:
+            return float(value)
+        raise ValueError(f"{name} must be scalar for this public API.")
+    return float(value)
 
 # ! ::: Rackett equation for liquid density
 
@@ -456,6 +471,120 @@ def calc_gas_density_from_z(
     return CustomProp(value=density_value, unit=density_unit)
 
 
+# SECTION: Extensive gas-state relations
+
+def calc_ideal_gas_pressure(
+        moles: CustomProp,
+        temperature: Temperature,
+        volume: CustomProp,
+        output_unit: str = "Pa",
+        unit_conversion_fn=None,
+) -> CustomProp:
+    """Calculate ideal-gas pressure from finite moles, temperature, and volume."""
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    n_value = _pos(moles, "moles", "mol", conversion_fn)
+    t_value = float(temperature.value)
+    if temperature.unit != "K":
+        t_value = float(conversion_fn(t_value, temperature.unit, "K"))
+    v_value = _pos(volume, "volume", "m3", conversion_fn)
+    p_value = _calc_ideal_gas_pressure(n_value, t_value, v_value)
+    pressure_value = _as_public_scalar(p_value, "pressure")
+    pressure_unit = "Pa"
+    if output_unit != pressure_unit:
+        pressure_value = conversion_fn(pressure_value, pressure_unit, output_unit)
+        pressure_unit = output_unit
+    return CustomProp(value=pressure_value, unit=pressure_unit)
+
+
+def calc_ideal_gas_volume(
+        moles: CustomProp,
+        temperature: Temperature,
+        pressure: Pressure,
+        output_unit: str = "m3",
+        unit_conversion_fn=None,
+) -> CustomProp:
+    """Calculate ideal-gas volume from finite moles, temperature, and pressure."""
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    n_value = _pos(moles, "moles", "mol", conversion_fn)
+    t_value = float(temperature.value)
+    if temperature.unit != "K":
+        t_value = float(conversion_fn(t_value, temperature.unit, "K"))
+    p_value = float(pressure.value)
+    if pressure.unit != "Pa":
+        p_value = float(conversion_fn(p_value, pressure.unit, "Pa"))
+    if p_value <= 0.0:
+        raise ValueError("pressure must be greater than zero.")
+    v_value = _calc_ideal_gas_volume(n_value, t_value, p_value)
+    volume_value = _as_public_scalar(v_value, "volume")
+    volume_unit = "m3"
+    if output_unit != volume_unit:
+        volume_value = conversion_fn(volume_value, volume_unit, output_unit)
+        volume_unit = output_unit
+    return CustomProp(value=volume_value, unit=volume_unit)
+
+
+def calc_gas_pressure_from_z(
+        moles: CustomProp,
+        temperature: Temperature,
+        volume: CustomProp,
+        compressibility_factor: float | int,
+        output_unit: str = "Pa",
+        unit_conversion_fn=None,
+) -> CustomProp:
+    """Calculate gas pressure from a supplied compressibility factor.
+
+    This function uses caller-supplied ``Z`` and does not determine it from an
+    equation of state.
+    """
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    n_value = _pos(moles, "moles", "mol", conversion_fn)
+    t_value = float(temperature.value)
+    if temperature.unit != "K":
+        t_value = float(conversion_fn(t_value, temperature.unit, "K"))
+    v_value = _pos(volume, "volume", "m3", conversion_fn)
+    z_value = _pos(compressibility_factor, "compressibility_factor")
+    p_value = _calc_gas_pressure_from_z(n_value, t_value, v_value, z_value)
+    pressure_value = _as_public_scalar(p_value, "pressure")
+    pressure_unit = "Pa"
+    if output_unit != pressure_unit:
+        pressure_value = conversion_fn(pressure_value, pressure_unit, output_unit)
+        pressure_unit = output_unit
+    return CustomProp(value=pressure_value, unit=pressure_unit)
+
+
+def calc_gas_volume_from_z(
+        moles: CustomProp,
+        temperature: Temperature,
+        pressure: Pressure,
+        compressibility_factor: float | int,
+        output_unit: str = "m3",
+        unit_conversion_fn=None,
+) -> CustomProp:
+    """Calculate gas volume from a supplied compressibility factor.
+
+    This function uses caller-supplied ``Z`` and does not determine it from an
+    equation of state.
+    """
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    n_value = _pos(moles, "moles", "mol", conversion_fn)
+    t_value = float(temperature.value)
+    if temperature.unit != "K":
+        t_value = float(conversion_fn(t_value, temperature.unit, "K"))
+    p_value = float(pressure.value)
+    if pressure.unit != "Pa":
+        p_value = float(conversion_fn(p_value, pressure.unit, "Pa"))
+    if p_value <= 0.0:
+        raise ValueError("pressure must be greater than zero.")
+    z_value = _pos(compressibility_factor, "compressibility_factor")
+    v_value = _calc_gas_volume_from_z(n_value, t_value, p_value, z_value)
+    volume_value = _as_public_scalar(v_value, "volume")
+    volume_unit = "m3"
+    if output_unit != volume_unit:
+        volume_value = conversion_fn(volume_value, volume_unit, output_unit)
+        volume_unit = output_unit
+    return CustomProp(value=volume_value, unit=volume_unit)
+
+
 # all
 __all__ = [
     "rackett",
@@ -463,4 +592,8 @@ __all__ = [
     "calc_gas_density_from_z",
     "calc_ideal_gas_molar_volume",
     "calc_gas_molar_volume_from_z",
+    "calc_ideal_gas_pressure",
+    "calc_ideal_gas_volume",
+    "calc_gas_pressure_from_z",
+    "calc_gas_volume_from_z",
 ]
