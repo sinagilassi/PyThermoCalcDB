@@ -9,10 +9,12 @@ from pythermodb_settings.models import CustomProp, Component, ComponentKey, Scal
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.quantity import pos, to_dict, to_list
 from pythermodb_settings.utils.validators import fractions
+from pycuc.canonical import to_K
 # locals
 from ..configs.constants import R_J_molK
 from ..utils.conversions import (
     _all_custom_props,
+    _get_all_custom_props,
     _configure_component_values,
     _resolve_unit_conversion_fn,
 )
@@ -25,28 +27,91 @@ from .core.gibbs import (
 )
 
 
-def _temperature_k(
-    temperature: Temperature,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Return absolute temperature in K."""
-    # SECTION: Normalize temperature
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-    value = float(temperature.value)
-    unit = temperature.unit.strip()
-    if unit != "K":
-        value = float(conversion_fn(value, unit, "K"))
-
-    # ! Gibbs energy identities require T > 0 K.
-    if value <= 0.0:
-        raise ValueError("temperature must be greater than zero K.")
-    return value
-
-
 # SECTION: Ideal molar Gibbs energy of mixing
+# ! ::: from mapping or sequence
+def calc_ideal_molar_gibbs_energy_of_mixing_from_sequence(
+    mole_fractions: Sequence[float | int],
+    temperature: Temperature,
+    gas_constant: float = R_J_molK,
+) -> float:
+    """Calculate ideal molar Gibbs energy of mixing.
 
-def calc_ideal_molar_gibbs_energy_of_mixing(
-    mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    Parameters
+    ----------
+    mole_fractions : mapping or sequence of float | int | CustomProp
+        Component mole fractions. Zero fractions are allowed and contribute
+        zero through the ``x*ln(x)`` limiting behavior.
+    temperature : Temperature
+        Mixture temperature. Converted to K before calculation.
+    gas_constant : float, optional
+        Gas constant in energy units per mol per K. Defaults to
+        ``8.314462618`` J/mol/K.
+
+    Returns
+    -------
+    float
+        Ideal molar Gibbs energy of mixing, typically J/mol.
+
+    Notes
+    -----
+    Equation: ``delta_G_mix = R*T*sum_i(x_i*ln(x_i))``. The mixture is assumed
+    ideal, so no excess Gibbs energy term is included.
+    """
+    # SECTION: Validate inputs
+    fractions(mole_fractions, "mole_fractions")
+    r = pos(gas_constant, "gas_constant")
+
+    # SECTION: Calculate ideal molar Gibbs energy of mixing
+    temperature_k = to_K(temperature.value, temperature.unit)
+    x = to_list(mole_fractions)
+    return float(_calc_ideal_molar_gibbs_energy_of_mixing(x, temperature_k, r))
+
+# ! ::: from mapping
+
+
+def calc_ideal_molar_gibbs_energy_of_mixing_from_mapping(
+    mole_fractions: Mapping[str, float | int],
+    temperature: Temperature,
+    gas_constant: float = R_J_molK,
+) -> float:
+    """Calculate ideal molar Gibbs energy of mixing.
+
+    Parameters
+    ----------
+    mole_fractions : mapping of float | int
+        Component mole fractions. Zero fractions are allowed and contribute
+        zero through the ``x*ln(x)`` limiting behavior.
+    temperature : Temperature
+        Mixture temperature. Converted to K before calculation.
+    gas_constant : float, optional
+        Gas constant in energy units per mol per K. Defaults to
+        ``8.314462618`` J/mol/K.
+
+    Returns
+    -------
+    float
+        Ideal molar Gibbs energy of mixing, typically J/mol.
+
+    Notes
+    -----
+    Equation: ``delta_G_mix = R*T*sum_i(x_i*ln(x_i))``. The mixture is assumed
+    ideal, so no excess Gibbs energy term is included.
+    """
+    # SECTION: Validate inputs
+    fractions(mole_fractions, "mole_fractions")
+    r = pos(gas_constant, "gas_constant")
+
+    # SECTION: Normalize mixed/numeric mapping inputs
+    temperature_k = to_K(temperature.value, temperature.unit)
+    x = to_dict(mole_fractions)
+    return _calc_ideal_molar_gibbs_energy_of_mixing_from_mapping(x, temperature_k, r)
+
+
+# ! ::: from props
+
+
+def calc_ideal_molar_gibbs_energy_of_mixing_from_props(
+    mole_fractions: Mapping[str, CustomProp],
     temperature: Temperature,
     gas_constant: float = R_J_molK,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -59,7 +124,7 @@ def calc_ideal_molar_gibbs_energy_of_mixing(
 
     Parameters
     ----------
-    mole_fractions : mapping or sequence of float | int | CustomProp
+    mole_fractions : mapping of float | int | CustomProp
         Component mole fractions. Zero fractions are allowed and contribute
         zero through the ``x*ln(x)`` limiting behavior.
     temperature : Temperature
@@ -94,37 +159,23 @@ def calc_ideal_molar_gibbs_energy_of_mixing(
     r = pos(gas_constant, "gas_constant")
     conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
 
-    # SECTION: Normalize composition input
-    if isinstance(mole_fractions, Mapping):
-        if _all_custom_props(mole_fractions):
-            return _calc_ideal_molar_gibbs_energy_of_mixing_from_props(
-                mole_fractions,
-                temperature,
-                r,
-                conversion_fn,
-                components,
-                component_key,
-                case_sensitive,
-                sort_by_components_order,
-            )
-
-        # SECTION: Normalize mixed/numeric mapping inputs
-        temperature_k = _temperature_k(temperature, conversion_fn)
-        x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
-        x = _configure_component_values(
-            x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions"
-        )
-        return _calc_ideal_molar_gibbs_energy_of_mixing_from_mapping(x, temperature_k, r)
-
-    # SECTION: Calculate ideal molar Gibbs energy of mixing
-    temperature_k = _temperature_k(temperature, conversion_fn)
-    x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
-    return float(_calc_ideal_molar_gibbs_energy_of_mixing(x, temperature_k, r))
+    return _calc_ideal_molar_gibbs_energy_of_mixing_from_props(
+        mole_fractions,
+        temperature,
+        r,
+        conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
 
 
 # SECTION: Total ideal Gibbs energy of mixing
 
-def calc_ideal_gibbs_energy_of_mixing(
+# ! form sequence
+
+def calc_ideal_gibbs_energy_of_mixing_from_alls(
     total_moles: ScalarValue,
     mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     temperature: Temperature,
@@ -176,9 +227,13 @@ def calc_ideal_gibbs_energy_of_mixing(
 
     if isinstance(mole_fractions, Mapping):
         if isinstance(total_moles, CustomProp) and _all_custom_props(mole_fractions):
+            # Retrieve all CustomProp instances from the mapping before calculation
+            all_custom_props: Mapping[str, CustomProp] = \
+                _get_all_custom_props(mole_fractions, return_type="mapping")
+
             return _calc_ideal_gibbs_energy_of_mixing_from_props(
                 total_moles,
-                mole_fractions,
+                all_custom_props,
                 temperature,
                 r,
                 output_total_moles_unit,
@@ -196,7 +251,7 @@ def calc_ideal_gibbs_energy_of_mixing(
             output_total_moles_unit,
             unit_conversion_fn=conversion_fn,
         )
-        temperature_k = _temperature_k(temperature, conversion_fn)
+        temperature_k = to_K(temperature.value, temperature.unit)
         x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
         x = _configure_component_values(
             x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions"
@@ -210,9 +265,15 @@ def calc_ideal_gibbs_energy_of_mixing(
         output_total_moles_unit,
         unit_conversion_fn=conversion_fn,
     )
-    temperature_k = _temperature_k(temperature, conversion_fn)
+    temperature_k = to_K(temperature.value, temperature.unit)
     x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
     return float(_calc_ideal_gibbs_energy_of_mixing(n_total, x, temperature_k, r))
+
+# ! ::: from sequence
+
+# ! ::: from mapping
+
+# ! ::: from props
 
 
 # SECTION: Public exports
@@ -220,4 +281,3 @@ __all__ = [
     "calc_ideal_molar_gibbs_energy_of_mixing",
     "calc_ideal_gibbs_energy_of_mixing",
 ]
-

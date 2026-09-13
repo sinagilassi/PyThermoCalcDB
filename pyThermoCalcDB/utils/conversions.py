@@ -1,7 +1,7 @@
 # import libs
 import logging
 from collections.abc import Mapping, Sequence
-from typing import List, Optional, Dict, Any, cast, TypeAlias
+from typing import List, Optional, Dict, Any, cast, TypeAlias, Literal, overload
 import numpy as np
 from numpy.typing import NDArray
 from pythermodb_settings.utils import config_components_values, get_unit
@@ -176,6 +176,38 @@ def _validate_same_mapping_keys(
 
 
 # SECTION: Unit handling helpers
+
+# ! ::: get all CustomProp instances from a collection
+
+@overload
+def _get_all_custom_props(
+    collection: object,
+    return_type: Literal["list"],
+) -> List[CustomProp]: ...
+
+
+@overload
+def _get_all_custom_props(
+    collection: object,
+    return_type: Literal["mapping"],
+) -> Mapping[str, CustomProp]: ...
+
+
+def _get_all_custom_props(
+        collection: object,
+        return_type: Literal["list", "mapping"],
+) -> List[CustomProp] | Mapping[str, CustomProp]:
+    """Retrieve all CustomProp instances from a collection."""
+    custom_props = []
+    if isinstance(collection, Mapping):
+        for value in collection.values():
+            if isinstance(value, CustomProp):
+                custom_props.append(value)
+    elif isinstance(collection, Sequence) and not isinstance(collection, str):
+        for item in collection:
+            if isinstance(item, CustomProp):
+                custom_props.append(item)
+    return custom_props
 
 # ! ::: Helper function to split unit string into individual units
 
