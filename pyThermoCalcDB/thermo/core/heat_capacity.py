@@ -121,6 +121,76 @@ def _calc_ideal_gas_isentropic_temperature(
     )
 
 
+def _calc_cp_minus_cv_general(
+    temperature: NumericInput,
+    volume: NumericInput,
+    thermal_expansion_coefficient: NumericInput,
+    isothermal_compressibility: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate general-fluid ``Cp - Cv = T*V*alpha^2/kappa_T``."""
+    t = _as_positive_heat_capacity_array(temperature, "temperature")
+    v = _as_positive_heat_capacity_array(volume, "volume")
+    alpha = np.asarray(thermal_expansion_coefficient, dtype=np.float64)
+    kappa_t = _as_positive_heat_capacity_array(
+        isothermal_compressibility,
+        "isothermal_compressibility",
+    )
+    if alpha.ndim > 2:
+        raise ValueError(
+            "thermal_expansion_coefficient must be scalar, 1-D, or 2-D values.")
+    if not np.all(np.isfinite(alpha)):
+        raise ValueError("thermal_expansion_coefficient values must be finite.")
+    return _return_scalar_if_zero_dim(
+        cast(NDArray[np.float64], t * v * alpha**2 / kappa_t)
+    )
+
+
+def _calc_cv_from_cp_general(
+    cp: NumericInput,
+    temperature: NumericInput,
+    volume: NumericInput,
+    thermal_expansion_coefficient: NumericInput,
+    isothermal_compressibility: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate general-fluid ``Cv = Cp - T*V*alpha^2/kappa_T``."""
+    cp_arr = _as_positive_heat_capacity_array(cp, "cp")
+    delta = np.asarray(
+        _calc_cp_minus_cv_general(
+            temperature,
+            volume,
+            thermal_expansion_coefficient,
+            isothermal_compressibility,
+        ),
+        dtype=np.float64,
+    )
+    cv = cp_arr - delta
+    # ! General-fluid Cv must remain positive after the response-function correction.
+    if np.any(cv <= 0.0):
+        raise ValueError("calculated cv must be greater than zero.")
+    return _return_scalar_if_zero_dim(cast(NDArray[np.float64], cv))
+
+
+def _calc_cp_from_cv_general(
+    cv: NumericInput,
+    temperature: NumericInput,
+    volume: NumericInput,
+    thermal_expansion_coefficient: NumericInput,
+    isothermal_compressibility: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate general-fluid ``Cp = Cv + T*V*alpha^2/kappa_T``."""
+    cv_arr = _as_positive_heat_capacity_array(cv, "cv")
+    delta = np.asarray(
+        _calc_cp_minus_cv_general(
+            temperature,
+            volume,
+            thermal_expansion_coefficient,
+            isothermal_compressibility,
+        ),
+        dtype=np.float64,
+    )
+    return _return_scalar_if_zero_dim(cast(NDArray[np.float64], cv_arr + delta))
+
+
 # SECTION: Props adapters
 
 def _calc_ideal_gas_cv_from_cp_from_props(
@@ -228,6 +298,9 @@ __all__ = [
     "_calc_ideal_gas_cp_from_cv",
     "_calc_heat_capacity_ratio",
     "_calc_ideal_gas_isentropic_temperature",
+    "_calc_cp_minus_cv_general",
+    "_calc_cv_from_cp_general",
+    "_calc_cp_from_cv_general",
     "_calc_ideal_gas_cv_from_cp_from_props",
     "_calc_ideal_gas_cp_from_cv_from_props",
     "_calc_heat_capacity_ratio_from_props",

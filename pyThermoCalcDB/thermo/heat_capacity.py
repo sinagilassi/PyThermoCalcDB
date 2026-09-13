@@ -5,6 +5,9 @@ from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # locals
 from .core.heat_capacity import (
+    _calc_cp_from_cv_general,
+    _calc_cp_minus_cv_general,
+    _calc_cv_from_cp_general,
     _calc_ideal_gas_cv_from_cp_from_props,
     _calc_ideal_gas_cp_from_cv_from_props,
     _calc_heat_capacity_ratio_from_props,
@@ -852,4 +855,123 @@ def calc_ideal_gas_isentropic_temperature(
     if output_temperature_unit != "K":
         result = float(conversion_fn(result, "K", output_temperature_unit))
     return result
+
+
+# SECTION: General fluid Cp/Cv relationships
+
+def calc_cp_minus_cv_general(
+        temperature,
+        volume,
+        thermal_expansion_coefficient,
+        isothermal_compressibility,
+        output_heat_capacity_unit: str = "J/(mol.K)",
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate general-fluid ``Cp - Cv`` from response functions.
+
+    Equation
+    --------
+    Cp - Cv = T*V*alpha^2/kappa_T
+    """
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    if isinstance(temperature, Temperature):
+        t = _to_kelvin(temperature)
+    else:
+        t = _pos(
+            temperature,
+            "temperature",
+            "K" if isinstance(temperature, CustomProp) else None,
+            conversion_fn,
+        )
+    v = _pos(volume, "volume", "m3/mol" if isinstance(volume, CustomProp) else None, conversion_fn)
+    alpha = _pos(
+        thermal_expansion_coefficient,
+        "thermal_expansion_coefficient",
+        "1/K" if isinstance(thermal_expansion_coefficient, CustomProp) else None,
+        conversion_fn,
+    )
+    kappa_t = _pos(
+        isothermal_compressibility,
+        "isothermal_compressibility",
+        "1/Pa" if isinstance(isothermal_compressibility, CustomProp) else None,
+        conversion_fn,
+    )
+    result = float(_calc_cp_minus_cv_general(t, v, alpha, kappa_t))
+    if output_heat_capacity_unit != "J/(mol.K)":
+        result = float(conversion_fn(result, "J/(mol.K)", output_heat_capacity_unit))
+    return result
+
+
+def calc_cv_from_cp_general(
+        cp,
+        temperature,
+        volume,
+        thermal_expansion_coefficient,
+        isothermal_compressibility,
+        output_heat_capacity_unit: str | None = None,
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate general-fluid ``Cv`` from ``Cp`` and response functions."""
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    cp_value = _pos(cp, "cp", output_heat_capacity_unit, conversion_fn)
+    if isinstance(temperature, Temperature):
+        t = _to_kelvin(temperature)
+    else:
+        t = _pos(
+            temperature,
+            "temperature",
+            "K" if isinstance(temperature, CustomProp) else None,
+            conversion_fn,
+        )
+    v = _pos(volume, "volume", "m3/mol" if isinstance(volume, CustomProp) else None, conversion_fn)
+    alpha = _pos(
+        thermal_expansion_coefficient,
+        "thermal_expansion_coefficient",
+        "1/K" if isinstance(thermal_expansion_coefficient, CustomProp) else None,
+        conversion_fn,
+    )
+    kappa_t = _pos(
+        isothermal_compressibility,
+        "isothermal_compressibility",
+        "1/Pa" if isinstance(isothermal_compressibility, CustomProp) else None,
+        conversion_fn,
+    )
+    return float(_calc_cv_from_cp_general(cp_value, t, v, alpha, kappa_t))
+
+
+def calc_cp_from_cv_general(
+        cv,
+        temperature,
+        volume,
+        thermal_expansion_coefficient,
+        isothermal_compressibility,
+        output_heat_capacity_unit: str | None = None,
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate general-fluid ``Cp`` from ``Cv`` and response functions."""
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    cv_value = _pos(cv, "cv", output_heat_capacity_unit, conversion_fn)
+    if isinstance(temperature, Temperature):
+        t = _to_kelvin(temperature)
+    else:
+        t = _pos(
+            temperature,
+            "temperature",
+            "K" if isinstance(temperature, CustomProp) else None,
+            conversion_fn,
+        )
+    v = _pos(volume, "volume", "m3/mol" if isinstance(volume, CustomProp) else None, conversion_fn)
+    alpha = _pos(
+        thermal_expansion_coefficient,
+        "thermal_expansion_coefficient",
+        "1/K" if isinstance(thermal_expansion_coefficient, CustomProp) else None,
+        conversion_fn,
+    )
+    kappa_t = _pos(
+        isothermal_compressibility,
+        "isothermal_compressibility",
+        "1/Pa" if isinstance(isothermal_compressibility, CustomProp) else None,
+        conversion_fn,
+    )
+    return float(_calc_cp_from_cv_general(cv_value, t, v, alpha, kappa_t))
 
