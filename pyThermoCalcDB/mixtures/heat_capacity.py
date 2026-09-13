@@ -18,6 +18,9 @@ from .core.heat_capacity import (
     _calc_ideal_mixture_heat_capacity,
     _calc_ideal_mixture_heat_capacity_from_mapping,
     _calc_ideal_mixture_heat_capacity_from_props,
+    _calc_total_heat_capacity,
+    _calc_total_heat_capacity_from_mapping,
+    _calc_total_heat_capacity_from_props,
 )
 
 
@@ -204,6 +207,168 @@ calc_ideal_mixture_heat_capacity_from_all = calc_ideal_mixture_heat_capacity_fro
 calc_ideal_mixture_heat_capacity = calc_ideal_mixture_heat_capacity_from_all
 
 
+# SECTION: Extensive heat-capacity calculation
+
+def calc_total_heat_capacity_from_alls(
+    component_moles: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    molar_heat_capacities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    output_moles_unit: str | None = "mol",
+    output_heat_capacity_unit: str | None = "J/mol.K",
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate total heat capacity for a finite component inventory.
+
+    Equation: ``Cp_total = sum_i(n_i*Cp_i)``. With moles in ``mol`` and molar
+    heat capacities in ``J/mol.K``, the result is in ``J/K``.
+    """
+    # SECTION: Validate inputs
+    positive(molar_heat_capacities, "molar_heat_capacities")
+    same_shape(component_moles, molar_heat_capacities)
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    # SECTION: Mapping implementation
+    if isinstance(component_moles, Mapping) and isinstance(molar_heat_capacities, Mapping):
+        if _all_custom_props(component_moles) and _all_custom_props(molar_heat_capacities):
+            moles_custom_props: Mapping[str, CustomProp] = dict(
+                zip(component_moles.keys(), _get_all_custom_props(component_moles, return_type="list"))
+            )
+            heat_capacity_custom_props: Mapping[str, CustomProp] = dict(
+                zip(molar_heat_capacities.keys(), _get_all_custom_props(molar_heat_capacities, return_type="list"))
+            )
+            return _calc_total_heat_capacity_from_props(
+                moles_custom_props,
+                heat_capacity_custom_props,
+                output_moles_unit,
+                output_heat_capacity_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+
+        # SECTION: Normalize mixed/numeric mapping inputs
+        n = to_dict(
+            component_moles,
+            output_moles_unit,
+            unit_conversion_fn=conversion_fn,
+        )
+        cp = to_dict(
+            molar_heat_capacities,
+            output_heat_capacity_unit,
+            unit_conversion_fn=conversion_fn,
+        )
+        n = _configure_component_values(
+            n, components, component_key, case_sensitive, sort_by_components_order, "component_moles")
+        cp = _configure_component_values(
+            cp, components, component_key, case_sensitive, sort_by_components_order, "molar_heat_capacities")
+        return _calc_total_heat_capacity_from_mapping(n, cp)
+
+    if isinstance(component_moles, Mapping) or isinstance(molar_heat_capacities, Mapping):
+        raise TypeError("Both component inputs must be mappings or both sequences.")
+
+    # SECTION: Sequence implementation
+    n = to_list(
+        component_moles,
+        output_moles_unit,
+        unit_conversion_fn=conversion_fn,
+    )
+    cp = to_list(
+        molar_heat_capacities,
+        output_heat_capacity_unit,
+        unit_conversion_fn=conversion_fn,
+    )
+    return float(_calc_total_heat_capacity(n, cp))
+
+
+def calc_total_heat_capacity_from_sequence(
+    component_moles: Sequence[float | int | CustomProp],
+    molar_heat_capacities: Sequence[float | int | CustomProp],
+    output_moles_unit: str | None = "mol",
+    output_heat_capacity_unit: str | None = "J/mol.K",
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate total heat capacity from sequence inputs."""
+    if isinstance(component_moles, Mapping) or isinstance(molar_heat_capacities, Mapping):
+        raise TypeError("Both component inputs must be sequences.")
+
+    return calc_total_heat_capacity_from_alls(
+        component_moles,
+        molar_heat_capacities,
+        output_moles_unit,
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+    )
+
+
+def calc_total_heat_capacity_from_mapping(
+    component_moles: Mapping[str, float | int],
+    molar_heat_capacities: Mapping[str, float | int],
+    output_moles_unit: str | None = "mol",
+    output_heat_capacity_unit: str | None = "J/mol.K",
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate total heat capacity from numeric mapping inputs."""
+    if not isinstance(component_moles, Mapping) or not isinstance(molar_heat_capacities, Mapping):
+        raise TypeError("Both component inputs must be mappings.")
+    if _all_custom_props(component_moles) or _all_custom_props(molar_heat_capacities):
+        raise TypeError("CustomProp mappings must use calc_total_heat_capacity_from_props.")
+
+    return calc_total_heat_capacity_from_alls(
+        component_moles,
+        molar_heat_capacities,
+        output_moles_unit,
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+def calc_total_heat_capacity_from_props(
+    component_moles: Mapping[str, CustomProp],
+    molar_heat_capacities: Mapping[str, CustomProp],
+    output_moles_unit: str | None = "mol",
+    output_heat_capacity_unit: str | None = "J/mol.K",
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate total heat capacity from unit-aware mapping inputs."""
+    if not isinstance(component_moles, Mapping) or not isinstance(molar_heat_capacities, Mapping):
+        raise TypeError("Both component inputs must be mappings of CustomProp instances.")
+    if not _all_custom_props(component_moles) or not _all_custom_props(molar_heat_capacities):
+        raise TypeError("Both component mappings must contain only CustomProp instances.")
+
+    return calc_total_heat_capacity_from_alls(
+        component_moles,
+        molar_heat_capacities,
+        output_moles_unit,
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+calc_total_heat_capacity_from_all = calc_total_heat_capacity_from_alls
+calc_total_heat_capacity = calc_total_heat_capacity_from_all
+
+
 # SECTION: Public exports
 __all__ = [
     "calc_ideal_mixture_heat_capacity_from_alls",
@@ -212,4 +377,10 @@ __all__ = [
     "calc_ideal_mixture_heat_capacity_from_mapping",
     "calc_ideal_mixture_heat_capacity_from_props",
     "calc_ideal_mixture_heat_capacity",
+    "calc_total_heat_capacity_from_alls",
+    "calc_total_heat_capacity_from_all",
+    "calc_total_heat_capacity_from_sequence",
+    "calc_total_heat_capacity_from_mapping",
+    "calc_total_heat_capacity_from_props",
+    "calc_total_heat_capacity",
 ]
