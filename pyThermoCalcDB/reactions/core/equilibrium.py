@@ -3,6 +3,7 @@
 # import libs
 from collections.abc import Mapping
 from typing import cast
+from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -515,6 +516,28 @@ def _calc_reaction_gibbs_energy(
     return _return_scalar_if_zero_dim(dg_std + r * t * ln_q)
 
 
+# ! ::: Reaction direction classifier
+
+def _classify_reaction_direction_from_logs(
+    log_reaction_quotient: float | int,
+    log_equilibrium_constant: float | int,
+    tolerance: float | int = 1e-12,
+) -> Literal["forward", "equilibrium", "reverse"]:
+    """Classify reaction direction from ``ln(Q)`` and ``ln(K)``."""
+    ln_q = float(log_reaction_quotient)
+    ln_k = float(log_equilibrium_constant)
+    tol = _validate_positive_scalar(tolerance, "tolerance")
+    if not np.isfinite(ln_q) or not np.isfinite(ln_k):
+        raise ValueError(
+            "log_reaction_quotient and log_equilibrium_constant must be finite.")
+    difference = ln_q - ln_k
+    if abs(difference) <= tol:
+        return "equilibrium"
+    if difference < 0.0:
+        return "forward"
+    return "reverse"
+
+
 # ! ::: van't Hoff relations
 
 def _calc_dlnK_dT(
@@ -735,6 +758,7 @@ __all__ = [
     "_calc_log_reaction_quotient_from_mapping",
     "_calc_reaction_quotient_from_mapping",
     "_calc_reaction_gibbs_energy",
+    "_classify_reaction_direction_from_logs",
     "_calc_dlnK_dT",
     "_calc_log_equilibrium_constant_at_temperature",
     "_calc_equilibrium_constant_at_temperature",
