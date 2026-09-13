@@ -5,8 +5,12 @@ from pythermodb_settings.models import CustomProp, Temperature
 from pythermocalcdb.thermo import (
     calc_heat_capacity_ratio,
     calc_helmholtz_energy,
+    calc_ideal_gas_internal_energy,
     calc_ideal_gas_cp_from_cv,
     calc_ideal_gas_cv_from_cp,
+    calc_internal_energy,
+    density_to_specific_volume,
+    specific_volume_to_density,
 )
 from pythermocalcdb.thermo.core.heat_capacity import (
     _calc_heat_capacity_ratio,
@@ -18,6 +22,18 @@ from pythermocalcdb.thermo.core.heat_capacity import (
 from pythermocalcdb.thermo.core.helmholtz import (
     _calc_helmholtz_energy,
     _calc_helmholtz_energy_from_props,
+)
+from pythermocalcdb.thermo.core.internal_energy import (
+    _calc_ideal_gas_internal_energy,
+    _calc_ideal_gas_internal_energy_from_props,
+    _calc_internal_energy,
+    _calc_internal_energy_from_props,
+)
+from pythermocalcdb.thermo.core.specific_volume import (
+    _calc_density_to_specific_volume,
+    _calc_density_to_specific_volume_from_props,
+    _calc_specific_volume_to_density,
+    _calc_specific_volume_to_density_from_props,
 )
 
 
@@ -101,6 +117,101 @@ class TestThermoCoreApi(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             _calc_helmholtz_energy_from_props(8.0, temperature, entropy)
+
+    def test_public_internal_energy_wrappers_delegate_to_core_adapters(self):
+        temperature = Temperature(value=300.0, unit="K")
+
+        self.assertEqual(calc_internal_energy(1000.0, 100000.0, 0.002), 800.0)
+        self.assertAlmostEqual(
+            calc_ideal_gas_internal_energy(10000.0, temperature),
+            7505.661214554028,
+        )
+
+    def test_internal_energy_core_numeric_contract(self):
+        self.assertEqual(_calc_internal_energy(1000.0, 100000.0, 0.002), 800.0)
+
+        vector = _calc_internal_energy(
+            [1000.0, 1200.0],
+            [100000.0, 200000.0],
+            [0.002, 0.001],
+        )
+        self.assertEqual(vector.tolist(), [800.0, 1000.0])
+
+        matrix = _calc_internal_energy(
+            [[1000.0, 1200.0], [900.0, 1100.0]],
+            [[100000.0], [200000.0]],
+            [[0.002, 0.001], [0.001, 0.002]],
+        )
+        self.assertEqual(matrix.tolist(), [[800.0, 1100.0], [700.0, 700.0]])
+
+        ideal = _calc_ideal_gas_internal_energy([10000.0, 12000.0], 300.0, 8.0)
+        self.assertEqual(ideal.tolist(), [7600.0, 9600.0])
+
+        with self.assertRaises(ValueError):
+            _calc_internal_energy(1000.0, -100000.0, 0.002)
+        with self.assertRaises(ValueError):
+            _calc_ideal_gas_internal_energy(
+                [1.0, 2.0],
+                [300.0, 301.0, 302.0],
+                8.0,
+            )
+
+    def test_internal_energy_props_adapter_contract(self):
+        temperature = Temperature(value=300.0, unit="K")
+        enthalpy = CustomProp(value=1000.0, unit="J")
+        pressure = CustomProp(value=100000.0, unit="Pa")
+        volume = CustomProp(value=0.002, unit="m^3")
+        molar_enthalpy = CustomProp(value=10.0, unit="kJ/mol")
+
+        self.assertEqual(
+            _calc_internal_energy_from_props(enthalpy, pressure, volume),
+            800.0,
+        )
+        self.assertAlmostEqual(
+            _calc_ideal_gas_internal_energy_from_props(
+                molar_enthalpy,
+                temperature,
+                output_molar_enthalpy_unit="J/mol",
+            ),
+            7505.661214554028,
+        )
+
+        with self.assertRaises(TypeError):
+            _calc_internal_energy_from_props(1000.0, pressure, volume)
+
+    def test_public_specific_volume_wrappers_delegate_to_core_adapters(self):
+        self.assertEqual(density_to_specific_volume(1000.0), 0.001)
+        self.assertEqual(specific_volume_to_density(0.001), 1000.0)
+
+    def test_specific_volume_core_numeric_contract(self):
+        specific_volume = _calc_density_to_specific_volume([1000.0, 800.0])
+        self.assertEqual(specific_volume.tolist(), [0.001, 0.00125])
+
+        density = _calc_specific_volume_to_density(
+            [[0.001, 0.002], [0.004, 0.005]]
+        )
+        self.assertEqual(density.tolist(), [[1000.0, 500.0], [250.0, 200.0]])
+
+        with self.assertRaises(ValueError):
+            _calc_density_to_specific_volume(0.0)
+        with self.assertRaises(ValueError):
+            _calc_specific_volume_to_density(float("nan"))
+
+    def test_specific_volume_props_adapter_contract(self):
+        density = CustomProp(value=1000.0, unit="kg/m^3")
+        specific_volume = CustomProp(value=0.001, unit="m^3/kg")
+
+        self.assertEqual(
+            _calc_density_to_specific_volume_from_props(density),
+            0.001,
+        )
+        self.assertEqual(
+            _calc_specific_volume_to_density_from_props(specific_volume),
+            1000.0,
+        )
+
+        with self.assertRaises(TypeError):
+            _calc_density_to_specific_volume_from_props(1000.0)
 
 
 if __name__ == "__main__":

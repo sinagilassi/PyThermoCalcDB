@@ -1,33 +1,15 @@
 """Specific volume and density conversion helpers."""
 
 # import libs
-from pycuc import convert_from_to
-from pythermodb_settings.models import ScalarValue
+from pythermodb_settings.models import CustomProp, ScalarValue
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils.quantity import pos
-
-
-# SECTION: Internal helpers
-def _resolve_unit_conversion_fn(
-    unit_conversion_fn: UnitConversionFn | None,
-) -> UnitConversionFn:
-    """Return the provided converter or the module default converter."""
-    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
-
-
-def _pos(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a scalar input to a positive float, optionally normalizing units."""
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
+# locals
+from .core.specific_volume import (
+    _calc_density_to_specific_volume_from_props,
+    _calc_specific_volume_to_density_from_props,
+    _calc_density_to_specific_volume_from_scalars,
+    _calc_specific_volume_to_density_from_scalars,
+)
 
 
 # SECTION: Density/specific-volume conversions
@@ -58,9 +40,20 @@ def density_to_specific_volume(
     Equation
         `v = 1/rho`
     """
-    # SECTION: Validate and calculate
-    rho = _pos(density, "density", output_density_unit, unit_conversion_fn)
-    return 1.0 / rho
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if isinstance(density, CustomProp):
+        return _calc_density_to_specific_volume_from_props(
+            density,
+            output_density_unit,
+            unit_conversion_fn,
+        )
+
+    # SECTION: Normalize numeric scalar inputs
+    return _calc_density_to_specific_volume_from_scalars(
+        density,
+        output_density_unit,
+        unit_conversion_fn,
+    )
 
 
 def specific_volume_to_density(
@@ -89,14 +82,20 @@ def specific_volume_to_density(
     Equation
         `rho = 1/v`
     """
-    # SECTION: Validate and calculate
-    v = _pos(
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if isinstance(specific_volume, CustomProp):
+        return _calc_specific_volume_to_density_from_props(
+            specific_volume,
+            output_specific_volume_unit,
+            unit_conversion_fn,
+        )
+
+    # SECTION: Normalize numeric scalar inputs
+    return _calc_specific_volume_to_density_from_scalars(
         specific_volume,
-        "specific_volume",
         output_specific_volume_unit,
         unit_conversion_fn,
     )
-    return 1.0 / v
 
 
 # SECTION: Public exports

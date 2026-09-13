@@ -1,86 +1,15 @@
 """Internal energy identity helpers."""
 
 # import libs
-from pycuc import convert_from_to
-from pythermodb_settings.models import ScalarValue, Temperature
+from pythermodb_settings.models import CustomProp, ScalarValue, Temperature
 from pythermodb_settings.models.units import UnitConversionFn
-from pythermodb_settings.utils.quantity import pos, to_scalar
-
-
-# SECTION: Internal helpers
-def _resolve_unit_conversion_fn(
-    unit_conversion_fn: UnitConversionFn | None,
-) -> UnitConversionFn:
-    """Return the provided converter or the module default converter."""
-    return convert_from_to if unit_conversion_fn is None else unit_conversion_fn
-
-
-def _scalar(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a scalar input to float, optionally normalizing units."""
-    return to_scalar(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _pos(
-    value: ScalarValue,
-    name: str,
-    output_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Convert a scalar input to a positive float, optionally normalizing units."""
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
-
-def _temperature(
-    temperature: Temperature,
-    output_temperature_unit: str | None = None,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Return temperature value, optionally converted to the requested unit."""
-    # SECTION: Resolve conversion function
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-
-    # SECTION: Normalize temperature only when requested
-    temperature_value = float(temperature.value)
-    temperature_unit = temperature.unit.strip()
-    if output_temperature_unit is not None and temperature_unit != output_temperature_unit:
-        temperature_value = float(
-            conversion_fn(
-                temperature_value,
-                temperature_unit,
-                output_temperature_unit,
-            )
-        )
-
-    # ! Thermodynamic identities require a physically valid absolute temperature.
-    validation_unit = output_temperature_unit or temperature_unit
-    try:
-        temperature_k = temperature_value
-        if validation_unit != "K":
-            temperature_k = float(conversion_fn(temperature_value, validation_unit, "K"))
-        if temperature_k <= 0.0:
-            raise ValueError("temperature must be greater than zero K after conversion.")
-    except Exception:
-        # NOTE: If a custom unit cannot be converted to K, validate the numeric
-        # value used in the T term directly.
-        if temperature_value <= 0.0:
-            raise ValueError(f"temperature must be greater than zero {validation_unit}.")
-
-    return temperature_value
+# locals
+from .core.internal_energy import (
+    _calc_internal_energy_from_props,
+    _calc_ideal_gas_internal_energy_from_props,
+    _calc_internal_energy_from_scalars,
+    _calc_ideal_gas_internal_energy_from_scalars,
+)
 
 
 # SECTION: Internal energy calculations
@@ -123,13 +52,32 @@ def calc_internal_energy(
     # NOTE: Equation
     U = H - P*V
     """
-    # SECTION: Validate and normalize inputs
-    h = _scalar(enthalpy, "enthalpy", output_enthalpy_unit, unit_conversion_fn)
-    p = _pos(pressure, "pressure", output_pressure_unit, unit_conversion_fn)
-    v = _pos(volume, "volume", output_volume_unit, unit_conversion_fn)
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if (
+        isinstance(enthalpy, CustomProp)
+        and isinstance(pressure, CustomProp)
+        and isinstance(volume, CustomProp)
+    ):
+        return _calc_internal_energy_from_props(
+            enthalpy=enthalpy,
+            pressure=pressure,
+            volume=volume,
+            output_enthalpy_unit=output_enthalpy_unit,
+            output_pressure_unit=output_pressure_unit,
+            output_volume_unit=output_volume_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        )
 
-    # SECTION: Calculate internal energy
-    return h - p * v
+    # SECTION: Normalize mixed/numeric scalar inputs
+    return _calc_internal_energy_from_scalars(
+        enthalpy=enthalpy,
+        pressure=pressure,
+        volume=volume,
+        output_enthalpy_unit=output_enthalpy_unit,
+        output_pressure_unit=output_pressure_unit,
+        output_volume_unit=output_volume_unit,
+        unit_conversion_fn=unit_conversion_fn,
+    )
 
 
 def calc_ideal_gas_internal_energy(
@@ -172,18 +120,26 @@ def calc_ideal_gas_internal_energy(
     # NOTE: Equation
     U_molar = H_molar - R*T
     """
-    # SECTION: Validate and normalize inputs
-    h = _scalar(
-        molar_enthalpy,
-        "molar_enthalpy",
-        output_molar_enthalpy_unit,
-        unit_conversion_fn,
-    )
-    t = _temperature(temperature, output_temperature_unit, unit_conversion_fn)
-    r = _pos(universal_gas_constant, "universal_gas_constant")
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if isinstance(molar_enthalpy, CustomProp):
+        return _calc_ideal_gas_internal_energy_from_props(
+            molar_enthalpy=molar_enthalpy,
+            temperature=temperature,
+            output_molar_enthalpy_unit=output_molar_enthalpy_unit,
+            output_temperature_unit=output_temperature_unit,
+            universal_gas_constant=universal_gas_constant,
+            unit_conversion_fn=unit_conversion_fn,
+        )
 
-    # SECTION: Calculate ideal-gas internal energy
-    return h - r * t
+    # SECTION: Normalize mixed/numeric scalar inputs
+    return _calc_ideal_gas_internal_energy_from_scalars(
+        molar_enthalpy=molar_enthalpy,
+        temperature=temperature,
+        output_molar_enthalpy_unit=output_molar_enthalpy_unit,
+        output_temperature_unit=output_temperature_unit,
+        universal_gas_constant=universal_gas_constant,
+        unit_conversion_fn=unit_conversion_fn,
+    )
 
 
 # SECTION: Public exports
