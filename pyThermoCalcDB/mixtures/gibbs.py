@@ -227,13 +227,13 @@ def calc_ideal_gibbs_energy_of_mixing_from_alls(
 
     if isinstance(mole_fractions, Mapping):
         if isinstance(total_moles, CustomProp) and _all_custom_props(mole_fractions):
-            # Retrieve all CustomProp instances from the mapping before calculation
-            all_custom_props: Mapping[str, CustomProp] = \
-                _get_all_custom_props(mole_fractions, return_type="mapping")
-
+            # get all CustomProp instances from the mapping
+            custom_props_all = _get_all_custom_props(
+                mole_fractions, return_type="mapping"
+            )
             return _calc_ideal_gibbs_energy_of_mixing_from_props(
                 total_moles,
-                all_custom_props,
+                custom_props_all,
                 temperature,
                 r,
                 output_total_moles_unit,
@@ -271,13 +271,88 @@ def calc_ideal_gibbs_energy_of_mixing_from_alls(
 
 # ! ::: from sequence
 
+
+def calc_ideal_gibbs_energy_of_mixing_from_sequence(
+    total_moles: ScalarValue,
+    mole_fractions: Sequence[float | int | CustomProp],
+    temperature: Temperature,
+    gas_constant: float = R_J_molK,
+    output_total_moles_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate total ideal Gibbs energy of mixing from sequence inputs."""
+    return calc_ideal_gibbs_energy_of_mixing_from_alls(
+        total_moles,
+        mole_fractions,
+        temperature,
+        gas_constant,
+        output_total_moles_unit,
+        unit_conversion_fn,
+    )
+
 # ! ::: from mapping
+
+
+def calc_ideal_gibbs_energy_of_mixing_from_mapping(
+    total_moles: float | int,
+    mole_fractions: Mapping[str, float | int],
+    temperature: Temperature,
+    gas_constant: float = R_J_molK,
+) -> float:
+    """Calculate total ideal Gibbs energy of mixing from numeric mapping inputs."""
+    return calc_ideal_gibbs_energy_of_mixing_from_alls(
+        total_moles,
+        mole_fractions,
+        temperature,
+        gas_constant,
+    )
 
 # ! ::: from props
 
 
+def calc_ideal_gibbs_energy_of_mixing_from_props(
+    total_moles: CustomProp,
+    mole_fractions: Mapping[str, CustomProp],
+    temperature: Temperature,
+    gas_constant: float = R_J_molK,
+    output_total_moles_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate total ideal Gibbs energy of mixing from unit-aware mapping inputs."""
+    return calc_ideal_gibbs_energy_of_mixing_from_alls(
+        total_moles,
+        mole_fractions,
+        temperature,
+        gas_constant,
+        output_total_moles_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+# SECTION: Backwards-compatible aliases
+calc_ideal_molar_gibbs_energy_of_mixing = calc_ideal_molar_gibbs_energy_of_mixing_from_sequence
+calc_ideal_gibbs_energy_of_mixing_from_all = calc_ideal_gibbs_energy_of_mixing_from_alls
+calc_ideal_gibbs_energy_of_mixing = calc_ideal_gibbs_energy_of_mixing_from_all
+
+
 # SECTION: Public exports
 __all__ = [
+    "calc_ideal_molar_gibbs_energy_of_mixing_from_sequence",
+    "calc_ideal_molar_gibbs_energy_of_mixing_from_mapping",
+    "calc_ideal_molar_gibbs_energy_of_mixing_from_props",
     "calc_ideal_molar_gibbs_energy_of_mixing",
+    "calc_ideal_gibbs_energy_of_mixing_from_alls",
+    "calc_ideal_gibbs_energy_of_mixing_from_all",
+    "calc_ideal_gibbs_energy_of_mixing_from_sequence",
+    "calc_ideal_gibbs_energy_of_mixing_from_mapping",
+    "calc_ideal_gibbs_energy_of_mixing_from_props",
     "calc_ideal_gibbs_energy_of_mixing",
 ]
