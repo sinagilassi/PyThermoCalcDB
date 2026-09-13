@@ -136,7 +136,7 @@ def calc_ideal_molar_entropy_of_mixing_from_props(
 
 def calc_ideal_entropy_of_mixing(
     total_moles: ScalarValue,
-    mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    mole_fractions: Mapping[str, CustomProp] | Sequence[float | int | CustomProp],
     gas_constant: float = R_J_molK,
     output_total_moles_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -218,9 +218,173 @@ def calc_ideal_entropy_of_mixing(
     x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
     return float(_calc_ideal_entropy_of_mixing(n_total, x, r))
 
+# ! ::: ideal entropy of mixing using sequence
+
+
+def calc_ideal_entropy_of_mixing_from_sequence(
+    total_moles: float | int | CustomProp,
+    mole_fractions: Sequence[float | int | CustomProp],
+    gas_constant: float = R_J_molK,
+    output_total_moles_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate total ideal entropy of mixing for a specified amount.
+
+    Parameters
+    ----------
+    total_moles : float | int | CustomProp
+        Total amount of mixture. Must be positive.
+    mole_fractions : mapping or sequence of float | int | CustomProp
+        Component mole fractions.
+    gas_constant : float, optional
+        Gas constant in entropy units per mol per K.
+    output_total_moles_unit : str, optional
+        Unit used to normalize ``total_moles`` when supplied as ``CustomProp``.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function.
+
+    Returns
+    -------
+    float
+        Total ideal entropy of mixing, typically J/K.
+
+    Notes
+    -----
+    - Equation: ``delta_S_mix,total = n_total*delta_S_mix,molar``.
+    - Unit conversion is applied to ``total_moles`` when supplied as ``CustomProp`` using the specified ``unit_conversion_fn``.
+    """
+    # SECTION: Normalize total amount
+    r = pos(gas_constant, "gas_constant")
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    # SECTION: Scale molar entropy by total moles
+    n_total = pos(
+        total_moles,
+        "total_moles",
+        output_total_moles_unit,
+        unit_conversion_fn=conversion_fn,
+    )
+    x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
+    return float(_calc_ideal_entropy_of_mixing(n_total, x, r))
+
+# ! ::: ideal entropy of mixing using mapping
+
+
+def calc_ideal_entropy_of_mixing_from_mapping(
+    total_moles: float | int,
+    mole_fractions: Mapping[str, float | int],
+    gas_constant: float = R_J_molK,
+) -> float:
+    """Calculate total ideal entropy of mixing for a specified amount.
+
+    Parameters
+    ----------
+    total_moles : float | int
+        Total amount of mixture. Must be positive.
+    mole_fractions : mapping of float | int
+        Component mole fractions.
+    gas_constant : float, optional
+        Gas constant in entropy units per mol per K.
+
+    Returns
+    -------
+    float
+        Total ideal entropy of mixing, typically J/K.
+
+    Notes
+    -----
+    Equation: ``delta_S_mix,total = n_total*delta_S_mix,molar``.
+    """
+    # SECTION: Normalize total amount
+    r = pos(gas_constant, "gas_constant")
+
+    # SECTION: Normalize mixed/numeric mapping inputs
+    n_total = pos(
+        total_moles,
+        "total_moles",
+    )
+    x = to_dict(mole_fractions)
+
+    return float(_calc_ideal_entropy_of_mixing(n_total, list(x.values()), r))
+
+
+# ! ::: ideal entropy of mixing using props
+
+
+def calc_ideal_entropy_of_mixing_from_props(
+    total_moles: CustomProp,
+    mole_fractions: Mapping[str, CustomProp],
+    gas_constant: float = R_J_molK,
+    output_total_moles_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate total ideal entropy of mixing for a specified amount.
+
+    Parameters
+    ----------
+    total_moles : float | int | CustomProp
+        Total amount of mixture. Must be positive.
+    mole_fractions : mapping of float | int | CustomProp
+        Component mole fractions.
+    gas_constant : float, optional
+        Gas constant in entropy units per mol per K.
+    output_total_moles_unit : str, optional
+        Unit used to normalize ``total_moles`` when supplied as ``CustomProp``.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function.
+    components : list[Component], optional
+        Component metadata used for mapping-key remapping.
+    component_key : ComponentKey, optional
+        Component identifier format used for mapping inputs.
+    case_sensitive : bool, optional
+        Whether component matching is case-sensitive.
+    sort_by_components_order : bool, optional
+        Whether mapping values should follow ``components`` order.
+
+    Returns
+    -------
+    float
+        Total ideal entropy of mixing, typically J/K.
+
+    Notes
+    -----
+    Equation: ``delta_S_mix,total = n_total*delta_S_mix,molar``.
+    """
+    # SECTION: Normalize total amount
+    r = pos(gas_constant, "gas_constant")
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    if isinstance(mole_fractions, Mapping):
+        if isinstance(total_moles, CustomProp) and _all_custom_props(mole_fractions):
+            return _calc_ideal_entropy_of_mixing_from_props(
+                total_moles,
+                mole_fractions,
+                r,
+                output_total_moles_unit,
+                conversion_fn,
+                components,
+                component_key,
+                case_sensitive,
+                sort_by_components_order,
+            )
+        else:
+            raise TypeError(
+                "mole_fractions must be a mapping of CustomProp instances.")
+    else:
+        raise TypeError(
+            "mole_fractions must be a mapping of CustomProp instances.")
+
 
 # SECTION: Public exports
 __all__ = [
-    "calc_ideal_molar_entropy_of_mixing",
+    "calc_ideal_entropy_of_mixing_from_mapping",
+    "calc_ideal_entropy_of_mixing_from_props",
     "calc_ideal_entropy_of_mixing",
+    "calc_ideal_entropy_of_mixing_from_sequence",
+    "calc_ideal_entropy_of_mixing_from_mapping",
+    "calc_ideal_entropy_of_mixing_from_props",
 ]

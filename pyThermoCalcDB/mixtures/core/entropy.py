@@ -158,9 +158,9 @@ def _calc_ideal_entropy_of_mixing_from_props(
 
 # SECTION: Core exports
 __all__ = [
-    "_calc_ideal_molar_entropy_of_mixing",
     "_calc_ideal_entropy_of_mixing",
+    "_calc_ideal_entropy_of_mixing_from_props",
+    "_calc_ideal_molar_entropy_of_mixing",
     "_calc_ideal_molar_entropy_of_mixing_from_mapping",
     "_calc_ideal_molar_entropy_of_mixing_from_props",
-    "_calc_ideal_entropy_of_mixing_from_props",
 ]
