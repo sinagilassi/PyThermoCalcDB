@@ -39,6 +39,9 @@ from .heat_capacity import (
     calc_ideal_gas_cp_from_cv,
     calc_heat_capacity_ratio,
     calc_ideal_gas_isentropic_temperature,
+    calc_cp_minus_cv_general,
+    calc_cv_from_cp_general,
+    calc_cp_from_cv_general,
 )
 
 # NOTE: Gibbs energy helpers
@@ -67,13 +70,21 @@ from .phase_change import (
     calc_phase_transition_entropy,
     calc_enthalpy_of_sublimation,
     calc_clapeyron_slope,
+    calc_enthalpy_vaporization_watson,
+    calc_transition_enthalpy_from_constant_delta_cp,
+    calc_transition_enthalpy_from_cp_integral,
 )
 
 # NOTE: derivative-property helpers
 from .derivatives import (
     calc_thermal_expansion_coefficient,
     calc_isothermal_compressibility,
+    calc_isothermal_compressibility_from_density,
+    calc_isentropic_compressibility,
     calc_joule_thomson_coefficient,
+    calc_joule_thomson_coefficient_from_alpha,
+    calc_speed_of_sound,
+    calc_speed_of_sound_from_isentropic_compressibility,
 )
 
 # NOTE: Clausius-Clapeyron helpers
@@ -108,6 +119,9 @@ __all__ = [
     "calc_ideal_gas_cp_from_cv",
     "calc_heat_capacity_ratio",
     "calc_ideal_gas_isentropic_temperature",
+    "calc_cp_minus_cv_general",
+    "calc_cv_from_cp_general",
+    "calc_cp_from_cv_general",
     "calc_gibbs_energy",
     "calc_gibbs_energy_change",
     "calc_internal_energy",
@@ -118,9 +132,17 @@ __all__ = [
     "calc_phase_transition_entropy",
     "calc_enthalpy_of_sublimation",
     "calc_clapeyron_slope",
+    "calc_enthalpy_vaporization_watson",
+    "calc_transition_enthalpy_from_constant_delta_cp",
+    "calc_transition_enthalpy_from_cp_integral",
     "calc_thermal_expansion_coefficient",
     "calc_isothermal_compressibility",
+    "calc_isothermal_compressibility_from_density",
+    "calc_isentropic_compressibility",
     "calc_joule_thomson_coefficient",
+    "calc_joule_thomson_coefficient_from_alpha",
+    "calc_speed_of_sound_from_isentropic_compressibility",
+    "calc_speed_of_sound",
     "calc_log_vapor_pressure_ratio_clausius_clapeyron",
     "calc_vapor_pressure_clausius_clapeyron",
     "calc_enthalpy_vaporization_clausius_clapeyron",

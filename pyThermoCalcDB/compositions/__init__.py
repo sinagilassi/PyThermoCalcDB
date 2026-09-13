@@ -119,6 +119,7 @@ from .osmotic import (
     calc_osmolality_from_sequence,
     calc_osmolality_from_mapping,
     calc_osmolality_from_props,
+    calc_ideal_osmotic_pressure,
 )
 
 __all__ = [
@@ -215,4 +216,5 @@ __all__ = [
     "calc_osmolality_from_sequence",
     "calc_osmolality_from_mapping",
     "calc_osmolality_from_props",
+    "calc_ideal_osmotic_pressure",
 ]

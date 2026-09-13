@@ -79,6 +79,24 @@ from .enthalpy import (
     calc_ideal_molar_enthalpy_of_mixing,
 )
 
+# NOTE: partial-molar property relations
+from .partial_molar import (
+    calc_binary_partial_molar_properties,
+    calc_molar_property_from_partial_molar_mapping,
+    calc_molar_property_from_partial_molar_properties,
+    calc_total_property_from_partial_molar_mapping,
+    calc_total_property_from_partial_molar_properties,
+)
+
+# NOTE: excess-property identities
+from .excess import (
+    calc_excess_gibbs_energy_from_activity_coefficients,
+    calc_excess_property,
+    calc_excess_entropy_from_gibbs_enthalpy,
+    calc_gibbs_duhem_residual,
+    check_gibbs_duhem_consistency,
+)
+
 
 __all__ = [
     # density
@@ -141,4 +159,16 @@ __all__ = [
     # enthalpy
     "calc_ideal_enthalpy_of_mixing",
     "calc_ideal_molar_enthalpy_of_mixing",
+    # partial molar
+    "calc_total_property_from_partial_molar_properties",
+    "calc_molar_property_from_partial_molar_properties",
+    "calc_binary_partial_molar_properties",
+    "calc_total_property_from_partial_molar_mapping",
+    "calc_molar_property_from_partial_molar_mapping",
+    # excess
+    "calc_excess_property",
+    "calc_excess_gibbs_energy_from_activity_coefficients",
+    "calc_excess_entropy_from_gibbs_enthalpy",
+    "calc_gibbs_duhem_residual",
+    "check_gibbs_duhem_consistency",
 ]

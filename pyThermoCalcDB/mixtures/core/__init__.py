@@ -50,6 +50,20 @@ from .volume import (
     _calc_additive_liquid_volume,
     _calc_additive_liquid_volume_from_mapping,
 )
+from .partial_molar import (
+    _calc_binary_partial_molar_properties,
+    _calc_molar_property_from_partial_molar_mapping,
+    _calc_molar_property_from_partial_molar_properties,
+    _calc_total_property_from_partial_molar_mapping,
+    _calc_total_property_from_partial_molar_properties,
+)
+from .excess import (
+    _calc_excess_gibbs_energy_from_activity_coefficients,
+    _calc_excess_property,
+    _calc_excess_entropy_from_gibbs_enthalpy,
+    _calc_gibbs_duhem_residual,
+    _check_gibbs_duhem_consistency,
+)
 
 __all__ = [
     "_calc_ideal_mixture_density",
@@ -88,4 +102,14 @@ __all__ = [
     "_calc_volume_fractions_from_props",
     "_calc_additive_liquid_volume",
     "_calc_additive_liquid_volume_from_mapping",
+    "_calc_total_property_from_partial_molar_properties",
+    "_calc_molar_property_from_partial_molar_properties",
+    "_calc_binary_partial_molar_properties",
+    "_calc_total_property_from_partial_molar_mapping",
+    "_calc_molar_property_from_partial_molar_mapping",
+    "_calc_excess_property",
+    "_calc_excess_gibbs_energy_from_activity_coefficients",
+    "_calc_excess_entropy_from_gibbs_enthalpy",
+    "_calc_gibbs_duhem_residual",
+    "_check_gibbs_duhem_consistency",
 ]
