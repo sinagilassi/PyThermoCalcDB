@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, Tuple, Literal, List
 from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # local
-from ..utils.conversions import _to_kelvin
+from ..utils.conversions import _to_kelvin, _generic_temperature
 from .enthalpy import calc_En_IG
 from .entropy import calc_Ent_IG
 
@@ -304,45 +304,8 @@ def dGiFrEn_IG(
 
 # SECTION: Generic Gibbs energy identities
 
-def _generic_temperature(
-    temperature: Temperature,
-    output_temperature_unit: str | None = None,
-    unit_conversion_fn=None,
-) -> float:
-    """Return temperature value, optionally converted to the requested unit."""
-    # SECTION: Resolve conversion function
-    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
 
-    # SECTION: Normalize temperature only when requested
-    temperature_value = float(temperature.value)
-    temperature_unit = temperature.unit.strip()
-    if output_temperature_unit is not None and temperature_unit != output_temperature_unit:
-        temperature_value = float(
-            conversion_fn(
-                temperature_value,
-                temperature_unit,
-                output_temperature_unit,
-            )
-        )
-
-    # ! Thermodynamic identities require a physically valid absolute temperature.
-    validation_unit = output_temperature_unit or temperature_unit
-    try:
-        temperature_k = temperature_value
-        if validation_unit != "K":
-            temperature_k = float(conversion_fn(
-                temperature_value, validation_unit, "K"))
-        if temperature_k <= 0.0:
-            raise ValueError(
-                "temperature must be greater than zero K after conversion.")
-    except Exception:
-        # NOTE: If a custom unit cannot be converted to K, validate the numeric
-        # value used in the T*S product directly.
-        if temperature_value <= 0.0:
-            raise ValueError(
-                f"temperature must be greater than zero {validation_unit}.")
-
-    return temperature_value
+# ! ::: Calculate Gibbs energy
 
 
 def calc_gibbs_energy(
