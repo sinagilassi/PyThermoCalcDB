@@ -7,6 +7,7 @@ import math
 from pythermodb_settings.models import ScalarValue, Temperature
 from pythermodb_settings.models.units import UnitConversionFn
 from pythermodb_settings.utils.quantity import pos, to_scalar
+from pycuc.canonical import to_K
 # locals
 from ..configs.constants import R_J_molK, P_ref_Pa
 from ..utils.conversions import _resolve_unit_conversion_fn
@@ -43,26 +44,8 @@ def _pos(
         unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
     )
 
-
-def _temperature_k(
-    temperature: Temperature,
-    unit_conversion_fn: UnitConversionFn | None = None,
-) -> float:
-    """Return absolute temperature in K."""
-    # SECTION: Normalize temperature
-    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
-    value = float(temperature.value)
-    unit = temperature.unit.strip()
-    if unit != "K":
-        value = float(conversion_fn(value, unit, "K"))
-
-    # ! Chemical-potential identities require T > 0 K.
-    if value <= 0.0:
-        raise ValueError("temperature must be greater than zero K.")
-    return value
-
-
 # SECTION: Activity-based chemical potential
+
 
 def calc_chemical_potential_from_activity(
     chemical_potential_std: ScalarValue,
@@ -115,7 +98,7 @@ def calc_chemical_potential_from_activity(
     )
     # ! Activity must already be dimensionless and strictly positive.
     a = _pos(activity, "activity")
-    temperature_k = _temperature_k(temperature, unit_conversion_fn)
+    temperature_k = to_K(temperature.value, temperature.unit)
     r = _pos(gas_constant, "gas_constant")
 
     # SECTION: Calculate chemical potential
@@ -168,8 +151,10 @@ def calc_ideal_gas_chemical_potential(
     only to the dimensionless pressure ratio.
     """
     # SECTION: Build dimensionless pressure activity
-    p_i = _pos(partial_pressure, "partial_pressure", output_pressure_unit, unit_conversion_fn)
-    p_std = _pos(standard_pressure, "standard_pressure", output_pressure_unit, unit_conversion_fn)
+    p_i = _pos(partial_pressure, "partial_pressure",
+               output_pressure_unit, unit_conversion_fn)
+    p_std = _pos(standard_pressure, "standard_pressure",
+                 output_pressure_unit, unit_conversion_fn)
 
     # NOTE: The logarithm is applied to P_i/P_std, not a dimensional pressure.
     return calc_chemical_potential_from_activity(
@@ -229,7 +214,8 @@ def calc_chemical_potential_from_fugacity(
     """
     # SECTION: Build dimensionless fugacity activity
     f_i = _pos(fugacity, "fugacity", output_fugacity_unit, unit_conversion_fn)
-    f_std = _pos(standard_fugacity, "standard_fugacity", output_fugacity_unit, unit_conversion_fn)
+    f_std = _pos(standard_fugacity, "standard_fugacity",
+                 output_fugacity_unit, unit_conversion_fn)
 
     # NOTE: Fugacity coefficients are model outputs and are not calculated here.
     return calc_chemical_potential_from_activity(
@@ -309,4 +295,3 @@ __all__ = [
     "calc_chemical_potential_from_fugacity",
     "calc_solution_chemical_potential",
 ]
-
