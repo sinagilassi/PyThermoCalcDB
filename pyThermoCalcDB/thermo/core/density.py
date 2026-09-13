@@ -1,12 +1,39 @@
 # import libs
 import logging
+from typing import cast
+import numpy as np
+from numpy.typing import NDArray
 from pycuc import convert_from_to
-from ...utils.conversions import _scalar
+from ...utils.conversions import NumericArrayInput, _return_scalar_if_zero_dim, _scalar
 # locals
 
 
 # NOTE: set up logger
 logger = logging.getLogger(__name__)
+
+
+# SECTION: Local array helpers
+
+def _as_state_float_array(values: NumericArrayInput, name: str) -> NDArray[np.float64]:
+    """Convert scalar or array-like numeric input to finite float64 array."""
+    arr = np.asarray(values, dtype=np.float64)
+    if arr.ndim > 2:
+        raise ValueError(f"{name} must be scalar, one-dimensional, or two-dimensional.")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} values must be finite.")
+    return cast(NDArray[np.float64], arr)
+
+
+def _validate_positive_state(values: NDArray[np.float64], name: str) -> None:
+    """Validate strictly positive state values."""
+    if np.any(values <= 0.0):
+        raise ValueError(f"{name} values must be greater than zero.")
+
+
+def _validate_non_negative_state(values: NDArray[np.float64], name: str) -> None:
+    """Validate non-negative state values."""
+    if np.any(values < 0.0):
+        raise ValueError(f"{name} values must be non-negative.")
 
 
 # ! ::: Ideal-gas and reciprocal-density helpers
@@ -302,10 +329,82 @@ def _calc_gas_density_from_z(
     return density_value
 
 
+# SECTION: Extensive gas-state relations
+
+def _calc_ideal_gas_pressure(
+    moles: NumericArrayInput,
+    temperature: NumericArrayInput,
+    volume: NumericArrayInput,
+    gas_constant: float = 8.31446261815324,
+) -> float | NDArray[np.float64]:
+    """Calculate ideal-gas pressure: P = n*R*T/V."""
+    n = _as_state_float_array(moles, "moles")
+    t = _as_state_float_array(temperature, "temperature")
+    v = _as_state_float_array(volume, "volume")
+    r = _as_state_float_array(gas_constant, "gas_constant")
+    _validate_non_negative_state(n, "moles")
+    _validate_positive_state(t, "temperature")
+    _validate_positive_state(v, "volume")
+    _validate_positive_state(r, "gas_constant")
+    return _return_scalar_if_zero_dim(n * r * t / v)
+
+
+def _calc_ideal_gas_volume(
+    moles: NumericArrayInput,
+    temperature: NumericArrayInput,
+    pressure: NumericArrayInput,
+    gas_constant: float = 8.31446261815324,
+) -> float | NDArray[np.float64]:
+    """Calculate ideal-gas volume: V = n*R*T/P."""
+    n = _as_state_float_array(moles, "moles")
+    t = _as_state_float_array(temperature, "temperature")
+    p = _as_state_float_array(pressure, "pressure")
+    r = _as_state_float_array(gas_constant, "gas_constant")
+    _validate_non_negative_state(n, "moles")
+    _validate_positive_state(t, "temperature")
+    _validate_positive_state(p, "pressure")
+    _validate_positive_state(r, "gas_constant")
+    return _return_scalar_if_zero_dim(n * r * t / p)
+
+
+def _calc_gas_pressure_from_z(
+    moles: NumericArrayInput,
+    temperature: NumericArrayInput,
+    volume: NumericArrayInput,
+    compressibility_factor: NumericArrayInput,
+    gas_constant: float = 8.31446261815324,
+) -> float | NDArray[np.float64]:
+    """Calculate gas pressure using supplied Z: P = Z*n*R*T/V."""
+    z = _as_state_float_array(compressibility_factor, "compressibility_factor")
+    _validate_positive_state(z, "compressibility_factor")
+    return _return_scalar_if_zero_dim(
+        z * np.asarray(_calc_ideal_gas_pressure(moles, temperature, volume, gas_constant))
+    )
+
+
+def _calc_gas_volume_from_z(
+    moles: NumericArrayInput,
+    temperature: NumericArrayInput,
+    pressure: NumericArrayInput,
+    compressibility_factor: NumericArrayInput,
+    gas_constant: float = 8.31446261815324,
+) -> float | NDArray[np.float64]:
+    """Calculate gas volume using supplied Z: V = Z*n*R*T/P."""
+    z = _as_state_float_array(compressibility_factor, "compressibility_factor")
+    _validate_positive_state(z, "compressibility_factor")
+    return _return_scalar_if_zero_dim(
+        z * np.asarray(_calc_ideal_gas_volume(moles, temperature, pressure, gas_constant))
+    )
+
+
 # all
 __all__ = [
     "_calc_ideal_gas_density",
     "_calc_ideal_gas_molar_volume",
     "_calc_gas_molar_volume_from_z",
     "_calc_gas_density_from_z",
+    "_calc_ideal_gas_pressure",
+    "_calc_ideal_gas_volume",
+    "_calc_gas_pressure_from_z",
+    "_calc_gas_volume_from_z",
 ]
