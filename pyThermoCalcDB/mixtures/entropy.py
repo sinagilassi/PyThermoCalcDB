@@ -132,6 +132,19 @@ def calc_ideal_molar_entropy_of_mixing_from_props(
         raise ValueError("Mole fractions must be provided as a mapping.")
 
 
+def calc_ideal_molar_entropy_of_mixing_from_sequence(
+    mole_fractions: Sequence[float | int],
+    gas_constant: float = R_J_molK,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate ideal molar entropy of mixing from a sequence of mole fractions."""
+    fractions(mole_fractions, "mole_fractions")
+    r = pos(gas_constant, "gas_constant")
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
+    return float(_calc_ideal_molar_entropy_of_mixing(x, r))
+
+
 # SECTION: Total ideal entropy of mixing
 
 def calc_ideal_entropy_of_mixing(
@@ -381,6 +394,7 @@ def calc_ideal_entropy_of_mixing_from_props(
 
 # SECTION: Public exports
 __all__ = [
+    "calc_ideal_molar_entropy_of_mixing_from_sequence",
     "calc_ideal_entropy_of_mixing_from_mapping",
     "calc_ideal_entropy_of_mixing_from_props",
     "calc_ideal_entropy_of_mixing",
