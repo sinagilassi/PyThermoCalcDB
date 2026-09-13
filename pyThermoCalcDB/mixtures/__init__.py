@@ -6,12 +6,29 @@ from .density import (
 )
 
 # NOTE: ideal mixture heat capacity
-from .heat_capacity import calc_ideal_mixture_heat_capacity
+from .heat_capacity import (
+    calc_ideal_mixture_heat_capacity,
+    calc_ideal_mixture_heat_capacity_from_alls,
+    calc_ideal_mixture_heat_capacity_from_all,
+    calc_ideal_mixture_heat_capacity_from_sequence,
+    calc_ideal_mixture_heat_capacity_from_mapping,
+    calc_ideal_mixture_heat_capacity_from_props,
+)
 
 # NOTE: mixture molecular weight
 from .molecular_weight import (
     calc_mixture_molecular_weight_from_mole_fractions,
+    calc_mixture_molecular_weight_from_mole_fractions_from_alls,
+    calc_mixture_molecular_weight_from_mole_fractions_from_all,
+    calc_mixture_molecular_weight_from_mole_fractions_from_sequence,
+    calc_mixture_molecular_weight_from_mole_fractions_from_mapping,
+    calc_mixture_molecular_weight_from_mole_fractions_from_props,
     calc_mixture_molecular_weight_from_mass_fractions,
+    calc_mixture_molecular_weight_from_mass_fractions_from_alls,
+    calc_mixture_molecular_weight_from_mass_fractions_from_all,
+    calc_mixture_molecular_weight_from_mass_fractions_from_sequence,
+    calc_mixture_molecular_weight_from_mass_fractions_from_mapping,
+    calc_mixture_molecular_weight_from_mass_fractions_from_props,
     calc_mixture_molecular_weight_1,
     calc_mixture_molecular_weight_2,
     calc_mixture_molecular_weight_from_mass_fractions_1,
@@ -54,9 +71,24 @@ __all__ = [
     "calc_ideal_mixture_density_from_props",
     # heat capacity
     "calc_ideal_mixture_heat_capacity",
+    "calc_ideal_mixture_heat_capacity_from_alls",
+    "calc_ideal_mixture_heat_capacity_from_all",
+    "calc_ideal_mixture_heat_capacity_from_sequence",
+    "calc_ideal_mixture_heat_capacity_from_mapping",
+    "calc_ideal_mixture_heat_capacity_from_props",
     # molecular weight
     "calc_mixture_molecular_weight_from_mole_fractions",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_alls",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_all",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_sequence",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_mapping",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_props",
     "calc_mixture_molecular_weight_from_mass_fractions",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_alls",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_all",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_sequence",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_mapping",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_props",
     "calc_mixture_molecular_weight_1",
     "calc_mixture_molecular_weight_2",
     "calc_mixture_molecular_weight_from_mass_fractions_1",
@@ -83,3 +115,5 @@ __all__ = [
     "calc_volume_fractions",
     "mass_fraction_to_volume_fraction",
 ]
+
+
