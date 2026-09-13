@@ -1,12 +1,118 @@
 # import libs
 import logging
 from typing import Optional, Literal, Tuple, Dict, Any
-from pythermodb_settings.models import Temperature, Pressure
-from math import exp
+from pythermodb_settings.models import CustomProp, Temperature, Pressure
+from math import exp, log
+from pycuc import convert_from_to
 # local
+from ..configs.constants import R_J_molK
+from ..utils.conversions import _pos, _to_kelvin
 
 # setup logger
 logger = logging.getLogger(__name__)
+
+
+def calc_log_vapor_pressure_ratio_clausius_clapeyron(
+    enthalpy_vaporization: float | int | CustomProp,
+    temperature_initial: Temperature | float | int | CustomProp,
+    temperature_final: Temperature | float | int | CustomProp,
+    gas_constant: float = R_J_molK,
+    unit_conversion_fn=None,
+) -> float:
+    """Calculate ``ln(P2/P1)`` with the integrated Clausius-Clapeyron relation."""
+    conversion_fn = convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    dh = _pos(
+        enthalpy_vaporization,
+        "enthalpy_vaporization",
+        "J/mol" if isinstance(enthalpy_vaporization, CustomProp) else None,
+        conversion_fn,
+    )
+    t1 = _to_kelvin(temperature_initial) if isinstance(temperature_initial, Temperature) else _pos(
+        temperature_initial,
+        "temperature_initial",
+        "K" if isinstance(temperature_initial, CustomProp) else None,
+        conversion_fn,
+    )
+    t2 = _to_kelvin(temperature_final) if isinstance(temperature_final, Temperature) else _pos(
+        temperature_final,
+        "temperature_final",
+        "K" if isinstance(temperature_final, CustomProp) else None,
+        conversion_fn,
+    )
+    r = _pos(gas_constant, "gas_constant")
+    return float(-(dh / r) * (1.0 / t2 - 1.0 / t1))
+
+
+def calc_vapor_pressure_clausius_clapeyron(
+    pressure_initial: float | int | CustomProp,
+    enthalpy_vaporization: float | int | CustomProp,
+    temperature_initial: Temperature | float | int | CustomProp,
+    temperature_final: Temperature | float | int | CustomProp,
+    output_pressure_unit: str = "Pa",
+    gas_constant: float = R_J_molK,
+    unit_conversion_fn=None,
+) -> float:
+    """Calculate final vapor pressure from one reference pressure."""
+    conversion_fn = convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    p1 = _pos(
+        pressure_initial,
+        "pressure_initial",
+        output_pressure_unit if isinstance(pressure_initial, CustomProp) else None,
+        conversion_fn,
+    )
+    ln_ratio = calc_log_vapor_pressure_ratio_clausius_clapeyron(
+        enthalpy_vaporization,
+        temperature_initial,
+        temperature_final,
+        gas_constant,
+        conversion_fn,
+    )
+    return float(p1 * exp(ln_ratio))
+
+
+def calc_enthalpy_vaporization_clausius_clapeyron(
+    pressure_initial: float | int | CustomProp,
+    pressure_final: float | int | CustomProp,
+    temperature_initial: Temperature | float | int | CustomProp,
+    temperature_final: Temperature | float | int | CustomProp,
+    output_enthalpy_unit: str = "J/mol",
+    output_pressure_unit: str = "Pa",
+    gas_constant: float = R_J_molK,
+    unit_conversion_fn=None,
+) -> float:
+    """Infer constant vaporization enthalpy from two vapor-pressure states."""
+    conversion_fn = convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    p1 = _pos(
+        pressure_initial,
+        "pressure_initial",
+        output_pressure_unit if isinstance(pressure_initial, CustomProp) else None,
+        conversion_fn,
+    )
+    p2 = _pos(
+        pressure_final,
+        "pressure_final",
+        output_pressure_unit if isinstance(pressure_final, CustomProp) else None,
+        conversion_fn,
+    )
+    t1 = _to_kelvin(temperature_initial) if isinstance(temperature_initial, Temperature) else _pos(
+        temperature_initial,
+        "temperature_initial",
+        "K" if isinstance(temperature_initial, CustomProp) else None,
+        conversion_fn,
+    )
+    t2 = _to_kelvin(temperature_final) if isinstance(temperature_final, Temperature) else _pos(
+        temperature_final,
+        "temperature_final",
+        "K" if isinstance(temperature_final, CustomProp) else None,
+        conversion_fn,
+    )
+    denominator = (1.0 / t2 - 1.0 / t1)
+    if denominator == 0.0:
+        raise ValueError("temperature_initial and temperature_final must differ.")
+    result = -_pos(gas_constant, "gas_constant") * log(p2 / p1) / denominator
+    if output_enthalpy_unit != "J/mol":
+        result = float(conversion_fn(result, "J/mol", output_enthalpy_unit))
+    return float(result)
 
 
 def antoine(
