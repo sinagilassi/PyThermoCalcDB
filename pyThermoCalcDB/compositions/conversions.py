@@ -2,7 +2,7 @@
 
 # import libs
 from collections.abc import Mapping, Sequence
-from typing import Optional
+from typing import Any, Optional, TypeVar, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -14,6 +14,7 @@ from pythermodb_settings.models.units import UnitConversionFn
 
 # locals
 from ..utils.tools import to_annotated_value
+from ..utils.conversions import _scalar
 from .core.conversions import (
     _calc_mass_concentration_to_molarity,
     _calc_mass_fraction_to_molality,
@@ -53,6 +54,13 @@ from .core.conversions import (
     _calc_ppm_mole_to_mole_fraction,
     _calc_weight_percent_to_mass_fraction,
 )
+
+# SECTION: Type aliases
+NumericInput = float | int | Sequence[float | int] | NDArray[np.number]
+NumericScalar = float | int
+NumericMapping = Mapping[str, float | int]
+CustomPropScalarMapping = Mapping[str, float | int | CustomProp]
+T = TypeVar("T")
 
 # ======================================================================
 # *** Public annotated API
@@ -224,7 +232,7 @@ def calc_mole_fraction_to_mass_fraction_from_mapping(
           "mass_fraction", "mapping", "unit_aware"),
 )
 def calc_mole_fraction_to_mass_fraction_from_props(
-    mole_fractions: Mapping[str, CustomProp],
+    mole_fractions: CustomPropScalarMapping,
     molecular_weights: Mapping[str, CustomProp],
     output_molecular_weight_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
@@ -242,8 +250,9 @@ def calc_mole_fraction_to_mass_fraction_from_props(
 
     Parameters
     ----------
-    mole_fractions : Mapping[str, CustomProp]
-        Mole fractions keyed by component.
+    mole_fractions : Mapping[str, float | int | CustomProp]
+        Mole fractions keyed by component. Numeric values are treated as
+        dimensionless mole fractions.
     molecular_weights : Mapping[str, CustomProp]
         Unit-aware molecular weights keyed by component.
 
@@ -1676,33 +1685,287 @@ def calc_ppb_mole_to_mole_fraction(
     return to_annotated_value(value, name=name, description=description, unit=unit, symbol=symbol, implementation="_calc_ppb_mole_to_mole_fraction")
 
 
-# SECTION: Public exports
+# SECTION: Legacy raw-value compatibility aliases
+def _raw(value: AnnotatedValue[T]) -> T:
+    return cast(T, value.value)
+
+
+def mole_fraction_to_mass_fraction(
+    mole_fractions: NumericInput | NumericMapping,
+    molecular_weights: NumericInput | NumericMapping,
+    **kwargs: Any,
+) -> Any:
+    if isinstance(mole_fractions, Mapping) and isinstance(molecular_weights, Mapping):
+        return _raw(calc_mole_fraction_to_mass_fraction_from_mapping(
+            cast(NumericMapping, mole_fractions),
+            cast(NumericMapping, molecular_weights),
+            **kwargs,
+        ))
+    return _raw(calc_mole_fraction_to_mass_fraction(
+        cast(NumericInput, mole_fractions),
+        cast(NumericInput, molecular_weights),
+        **kwargs,
+    ))
+
+
+def sequence_mole_fraction_to_mass_fraction(
+    mole_fractions: NumericInput,
+    molecular_weights: NumericInput,
+    **kwargs: Any,
+) -> Any:
+    return _raw(calc_mole_fraction_to_mass_fraction_from_sequence(
+        mole_fractions, molecular_weights, **kwargs))
+
+
+def mapping_mole_fraction_to_mass_fraction(
+    mole_fractions: NumericMapping,
+    molecular_weights: NumericMapping,
+    **kwargs: Any,
+) -> Any:
+    return _raw(calc_mole_fraction_to_mass_fraction_from_mapping(
+        mole_fractions, molecular_weights, **kwargs))
+
+
+def mapping_mole_fraction_to_mass_fraction_with_units(
+    mole_fractions: CustomPropScalarMapping,
+    molecular_weights: Mapping[str, CustomProp],
+    **kwargs: Any,
+) -> Any:
+    return _raw(calc_mole_fraction_to_mass_fraction_from_props(
+        mole_fractions, molecular_weights, **kwargs))
+
+
+def mass_fraction_to_mole_fraction(
+    mass_fractions: NumericInput | NumericMapping,
+    molecular_weights: NumericInput | NumericMapping,
+    **kwargs: Any,
+) -> Any:
+    if isinstance(mass_fractions, Mapping) and isinstance(molecular_weights, Mapping):
+        return _raw(calc_mass_fraction_to_mole_fraction_from_mapping(
+            cast(NumericMapping, mass_fractions),
+            cast(NumericMapping, molecular_weights),
+            **kwargs,
+        ))
+    return _raw(calc_mass_fraction_to_mole_fraction(
+        cast(NumericInput, mass_fractions),
+        cast(NumericInput, molecular_weights),
+        **kwargs,
+    ))
+
+
+def sequence_mass_fraction_to_mole_fraction(
+    mass_fractions: NumericInput,
+    molecular_weights: NumericInput,
+    **kwargs: Any,
+) -> Any:
+    return _raw(calc_mass_fraction_to_mole_fraction_from_sequence(
+        mass_fractions, molecular_weights, **kwargs))
+
+
+def mapping_mass_fraction_to_mole_fraction(
+    mass_fractions: NumericMapping,
+    molecular_weights: NumericMapping,
+    **kwargs: Any,
+) -> Any:
+    return _raw(calc_mass_fraction_to_mole_fraction_from_mapping(
+        mass_fractions, molecular_weights, **kwargs))
+
+
+def molarities_to_molalities(
+    molarities: NumericInput | NumericMapping,
+    molecular_weights: NumericInput | NumericMapping,
+    solution_density: NumericInput,
+    **kwargs: Any,
+) -> Any:
+    if isinstance(molarities, Mapping) and isinstance(molecular_weights, Mapping):
+        return _raw(calc_molarities_to_molalities_from_mapping(
+            cast(NumericMapping, molarities),
+            cast(NumericMapping, molecular_weights),
+            cast(NumericScalar, solution_density),
+            **kwargs,
+        ))
+    return _raw(calc_molarities_to_molalities(
+        cast(NumericInput, molarities),
+        cast(NumericInput, molecular_weights),
+        solution_density,
+        **kwargs,
+    ))
+
+
+def mapping_molarities_to_molalities(
+    molarities: NumericMapping,
+    molecular_weights: NumericMapping,
+    solution_density: NumericScalar,
+    **kwargs: Any,
+) -> Any:
+    return _raw(calc_molarities_to_molalities_from_mapping(
+        molarities, molecular_weights, solution_density, **kwargs))
+
+
+def molality_to_mole_fraction(
+    molalities: NumericInput | NumericMapping,
+    solvent_molecular_weight: float | int,
+    **kwargs: Any,
+) -> Any:
+    if isinstance(molalities, Mapping):
+        return _raw(calc_molality_to_mole_fraction_from_mapping(
+            cast(NumericMapping, molalities),
+            solvent_molecular_weight,
+            **kwargs,
+        ))
+    return _raw(calc_molality_to_mole_fraction(
+        cast(NumericInput, molalities),
+        solvent_molecular_weight,
+        **kwargs,
+    ))
+
+
+def mapping_molality_to_mole_fraction(
+    molalities: NumericMapping,
+    solvent_molecular_weight: float | int,
+    **kwargs: Any,
+) -> Any:
+    return _raw(calc_molality_to_mole_fraction_from_mapping(
+        molalities, solvent_molecular_weight, **kwargs))
+
+
+def molarity_to_molality(molarity, molecular_weight, solution_density, **kwargs):
+    return _raw(calc_molarity_to_molality(
+        molarity, molecular_weight, solution_density, **kwargs))
+
+
+def molality_to_molarity(molality, molecular_weight, solution_density, **kwargs):
+    return _raw(calc_molality_to_molarity(
+        molality, molecular_weight, solution_density, **kwargs))
+
+
+def mole_fraction_to_molality(solute_mole_fraction, solvent_mole_fraction, solvent_molecular_weight, **kwargs):
+    return _raw(calc_mole_fraction_to_molality(
+        solute_mole_fraction,
+        solvent_mole_fraction,
+        solvent_molecular_weight,
+        **kwargs,
+    ))
+
+
+def molarity_to_mass_fraction(
+    molarity,
+    molecular_weight,
+    solution_density,
+    output_molarity_unit: str | None = None,
+    output_molecular_weight_unit: str | None = None,
+    output_solution_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    **kwargs,
+):
+    c = _scalar(molarity, "molarity", output_molarity_unit, unit_conversion_fn)
+    mw = _scalar(
+        molecular_weight,
+        "molecular_weight",
+        output_molecular_weight_unit,
+        unit_conversion_fn,
+    )
+    rho = _scalar(
+        solution_density,
+        "solution_density",
+        output_solution_density_unit,
+        unit_conversion_fn,
+    )
+    return _raw(calc_molarity_to_mass_fraction(c, mw, rho, **kwargs))
+
+
+def molarity_to_mass_concentration(molarity, molecular_weight, **kwargs):
+    return _raw(calc_molarity_to_mass_concentration(
+        molarity, molecular_weight, **kwargs))
+
+
+def mass_concentration_to_molarity(mass_concentration, molecular_weight, **kwargs):
+    return _raw(calc_mass_concentration_to_molarity(
+        mass_concentration, molecular_weight, **kwargs))
+
+
+def molality_to_mass_fraction(molality, molecular_weight, **kwargs):
+    return _raw(calc_molality_to_mass_fraction(molality, molecular_weight, **kwargs))
+
+
+def mass_fraction_to_molality(mass_fraction, molecular_weight, **kwargs):
+    return _raw(calc_mass_fraction_to_molality(
+        mass_fraction, molecular_weight, **kwargs))
+
+
+def mass_fraction_to_weight_percent(mass_fraction, **kwargs):
+    return _raw(calc_mass_fraction_to_weight_percent(mass_fraction, **kwargs))
+
+
+def weight_percent_to_mass_fraction(weight_percent, **kwargs):
+    return _raw(calc_weight_percent_to_mass_fraction(weight_percent, **kwargs))
+
+
+def mole_fraction_to_mole_percent(mole_fraction, **kwargs):
+    return _raw(calc_mole_fraction_to_mole_percent(mole_fraction, **kwargs))
+
+
+def mass_fraction_to_ppm(mass_fraction, **kwargs):
+    return _raw(calc_mass_fraction_to_ppm(mass_fraction, **kwargs))
+
+
+def ppm_mass_to_mass_fraction(ppm, **kwargs):
+    return _raw(calc_ppm_mass_to_mass_fraction(ppm, **kwargs))
+
+
+def mole_fraction_to_ppb(mole_fraction, **kwargs):
+    return _raw(calc_mole_fraction_to_ppb(mole_fraction, **kwargs))
+
+
+def ppb_mole_to_mole_fraction(ppb, **kwargs):
+    return _raw(calc_ppb_mole_to_mole_fraction(ppb, **kwargs))
+
+
 __all__ = [
     "calc_mole_fraction_to_mass_fraction",
     "calc_mole_fraction_to_mass_fraction_from_sequence",
     "calc_mole_fraction_to_mass_fraction_from_mapping",
     "calc_mole_fraction_to_mass_fraction_from_props",
+    "mole_fraction_to_mass_fraction",
+    "sequence_mole_fraction_to_mass_fraction",
+    "mapping_mole_fraction_to_mass_fraction",
+    "mapping_mole_fraction_to_mass_fraction_with_units",
     "calc_mass_fraction_to_mole_fraction",
     "calc_mass_fraction_to_mole_fraction_from_sequence",
     "calc_mass_fraction_to_mole_fraction_from_mapping",
     "calc_mass_fraction_to_mole_fraction_from_props",
+    "mass_fraction_to_mole_fraction",
+    "sequence_mass_fraction_to_mole_fraction",
+    "mapping_mass_fraction_to_mole_fraction",
     "calc_molarities_to_molalities",
     "calc_molarities_to_molalities_from_sequence",
     "calc_molarities_to_molalities_from_mapping",
     "calc_molarities_to_molalities_from_props",
+    "molarities_to_molalities",
+    "mapping_molarities_to_molalities",
     "calc_molality_to_mole_fraction",
     "calc_molality_to_mole_fraction_from_sequence",
     "calc_molality_to_mole_fraction_from_mapping",
     "calc_molality_to_mole_fraction_from_props",
+    "molality_to_mole_fraction",
+    "mapping_molality_to_mole_fraction",
     "calc_molarity_to_molality",
     "calc_molality_to_molarity",
     "calc_mole_fraction_to_molality",
     "calc_molarity_to_mass_fraction",
+    "molarity_to_molality",
+    "molality_to_molarity",
+    "mole_fraction_to_molality",
+    "molarity_to_mass_fraction",
     "calc_mass_fraction_to_molarity",
     "calc_molality_to_mass_fraction",
     "calc_mass_fraction_to_molality",
+    "molality_to_mass_fraction",
+    "mass_fraction_to_molality",
     "calc_molarity_to_mass_concentration",
     "calc_mass_concentration_to_molarity",
+    "molarity_to_mass_concentration",
+    "mass_concentration_to_molarity",
     "calc_mass_fraction_to_weight_percent",
     "calc_weight_percent_to_mass_fraction",
     "calc_mole_fraction_to_mole_percent",
@@ -1715,4 +1978,11 @@ __all__ = [
     "calc_ppb_mass_to_mass_fraction",
     "calc_mole_fraction_to_ppb",
     "calc_ppb_mole_to_mole_fraction",
+    "mass_fraction_to_weight_percent",
+    "weight_percent_to_mass_fraction",
+    "mole_fraction_to_mole_percent",
+    "mass_fraction_to_ppm",
+    "ppm_mass_to_mass_fraction",
+    "mole_fraction_to_ppb",
+    "ppb_mole_to_mole_fraction",
 ]
