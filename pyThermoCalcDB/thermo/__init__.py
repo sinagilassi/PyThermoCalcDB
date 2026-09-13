@@ -1,7 +1,11 @@
 # NOTE: density helpers
 from .density import (
+    calc_gas_pressure_from_z,
+    calc_gas_volume_from_z,
     calc_ideal_gas_density,
     calc_ideal_gas_molar_volume,
+    calc_ideal_gas_pressure,
+    calc_ideal_gas_volume,
     calc_gas_molar_volume_from_z,
     calc_gas_density_from_z,
 )
@@ -68,8 +72,12 @@ from .vapor_pressure import (
 __all__ = [
     "calc_ideal_gas_density",
     "calc_ideal_gas_molar_volume",
+    "calc_ideal_gas_pressure",
+    "calc_ideal_gas_volume",
     "calc_gas_molar_volume_from_z",
     "calc_gas_density_from_z",
+    "calc_gas_pressure_from_z",
+    "calc_gas_volume_from_z",
     "calc_chemical_potential_from_activity",
     "calc_ideal_gas_chemical_potential",
     "calc_chemical_potential_from_fugacity",

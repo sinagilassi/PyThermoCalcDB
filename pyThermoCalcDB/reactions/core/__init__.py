@@ -2,9 +2,14 @@
 
 # NOTE: reaction energetics
 from .energetics import (
+    _calc_reaction_enthalpy_from_constant_delta_cp,
     _calc_reaction_entropy_std,
     _calc_reaction_entropy_std_from_enthalpy_gibbs,
     _calc_reaction_entropy_std_from_mapping,
+    _calc_reaction_heat_capacity_change,
+    _calc_reaction_heat_capacity_change_from_mapping,
+    _calc_reaction_heat_rate,
+    _calc_reaction_volumetric_heat_source,
 )
 
 # NOTE: reaction equilibrium
@@ -27,6 +32,11 @@ __all__ = [
     "_calc_reaction_entropy_std",
     "_calc_reaction_entropy_std_from_enthalpy_gibbs",
     "_calc_reaction_entropy_std_from_mapping",
+    "_calc_reaction_heat_capacity_change",
+    "_calc_reaction_heat_capacity_change_from_mapping",
+    "_calc_reaction_enthalpy_from_constant_delta_cp",
+    "_calc_reaction_volumetric_heat_source",
+    "_calc_reaction_heat_rate",
     "_calc_dlnK_dT",
     "_calc_equilibrium_constant",
     "_calc_equilibrium_constant_at_temperature",

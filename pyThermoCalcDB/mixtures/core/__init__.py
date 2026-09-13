@@ -23,6 +23,9 @@ from .heat_capacity import (
     _calc_ideal_mixture_heat_capacity,
     _calc_ideal_mixture_heat_capacity_from_mapping,
     _calc_ideal_mixture_heat_capacity_from_props,
+    _calc_total_heat_capacity,
+    _calc_total_heat_capacity_from_mapping,
+    _calc_total_heat_capacity_from_props,
 )
 from .enthalpy import _calc_ideal_enthalpy_of_mixing
 from .molecular_weight import (
@@ -43,6 +46,10 @@ from .volume_fraction import (
     _calc_volume_fractions_from_mapping,
     _calc_volume_fractions_from_props,
 )
+from .volume import (
+    _calc_additive_liquid_volume,
+    _calc_additive_liquid_volume_from_mapping,
+)
 
 __all__ = [
     "_calc_ideal_mixture_density",
@@ -61,6 +68,9 @@ __all__ = [
     "_calc_ideal_mixture_heat_capacity",
     "_calc_ideal_mixture_heat_capacity_from_mapping",
     "_calc_ideal_mixture_heat_capacity_from_props",
+    "_calc_total_heat_capacity",
+    "_calc_total_heat_capacity_from_mapping",
+    "_calc_total_heat_capacity_from_props",
     "_calc_ideal_enthalpy_of_mixing",
     "_calc_mixture_molecular_weight_from_mass_fraction_mapping",
     "_calc_mixture_molecular_weight_from_mass_fraction_props",
@@ -76,4 +86,6 @@ __all__ = [
     "_calc_volume_fractions",
     "_calc_volume_fractions_from_mapping",
     "_calc_volume_fractions_from_props",
+    "_calc_additive_liquid_volume",
+    "_calc_additive_liquid_volume_from_mapping",
 ]

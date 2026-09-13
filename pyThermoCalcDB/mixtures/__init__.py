@@ -12,7 +12,14 @@ from .heat_capacity import (
     calc_ideal_mixture_heat_capacity_from_sequence,
     calc_ideal_mixture_heat_capacity_from_mapping,
     calc_ideal_mixture_heat_capacity_from_props,
+    calc_total_heat_capacity,
+    calc_total_heat_capacity_from_sequence,
+    calc_total_heat_capacity_from_mapping,
+    calc_total_heat_capacity_from_props,
 )
+
+# NOTE: additive mixture volume
+from .volume import calc_additive_liquid_volume
 
 # NOTE: mixture molecular weight
 from .molecular_weight import (
@@ -84,6 +91,11 @@ __all__ = [
     "calc_ideal_mixture_heat_capacity_from_sequence",
     "calc_ideal_mixture_heat_capacity_from_mapping",
     "calc_ideal_mixture_heat_capacity_from_props",
+    "calc_total_heat_capacity",
+    "calc_total_heat_capacity_from_sequence",
+    "calc_total_heat_capacity_from_mapping",
+    "calc_total_heat_capacity_from_props",
+    "calc_additive_liquid_volume",
     # molecular weight
     "calc_mixture_molecular_weight_from_mole_fractions",
     "calc_mixture_molecular_weight_from_mole_fractions_from_sequence",
