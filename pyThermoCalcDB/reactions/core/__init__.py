@@ -16,10 +16,10 @@ from .equilibrium import (
     _calc_log_equilibrium_constant_at_temperature,
     _calc_log_reaction_quotient,
     _calc_log_reaction_quotient_from_mapping,
+    _classify_reaction_direction_from_logs,
     _calc_reaction_gibbs_energy,
     _calc_reaction_quotient,
     _calc_reaction_quotient_from_mapping,
-    _temperature_k,
 )
 
 
@@ -34,8 +34,8 @@ __all__ = [
     "_calc_log_equilibrium_constant_at_temperature",
     "_calc_log_reaction_quotient",
     "_calc_log_reaction_quotient_from_mapping",
+    "_classify_reaction_direction_from_logs",
     "_calc_reaction_gibbs_energy",
     "_calc_reaction_quotient",
     "_calc_reaction_quotient_from_mapping",
-    "_temperature_k",
 ]

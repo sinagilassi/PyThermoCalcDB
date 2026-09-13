@@ -1,5 +1,6 @@
 # NOTE: ideal mixture density
 from .density import (
+    calc_ideal_mixture_density_from_sequence as calc_ideal_mixture_density,
     calc_ideal_mixture_density_from_sequence,
     calc_ideal_mixture_density_from_mapping,
     calc_ideal_mixture_density_from_props,
@@ -31,6 +32,10 @@ from .molecular_weight import (
 
 # NOTE: ideal mixing entropy
 from .entropy import (
+    calc_ideal_molar_entropy_of_mixing_from_sequence as calc_ideal_molar_entropy_of_mixing,
+    calc_ideal_molar_entropy_of_mixing_from_sequence,
+    calc_ideal_molar_entropy_of_mixing_from_mapping,
+    calc_ideal_molar_entropy_of_mixing_from_props,
     calc_ideal_entropy_of_mixing_from_sequence,
     calc_ideal_entropy_of_mixing_from_mapping,
     calc_ideal_entropy_of_mixing_from_props,
@@ -61,9 +66,16 @@ from .volume_fraction import (
     mass_fraction_to_volume_fraction_from_props,
 )
 
+# NOTE: ideal mixing enthalpy
+from .enthalpy import (
+    calc_ideal_enthalpy_of_mixing,
+    calc_ideal_molar_enthalpy_of_mixing,
+)
+
 
 __all__ = [
     # density
+    "calc_ideal_mixture_density",
     "calc_ideal_mixture_density_from_sequence",
     "calc_ideal_mixture_density_from_mapping",
     "calc_ideal_mixture_density_from_props",
@@ -86,6 +98,10 @@ __all__ = [
     "calc_mixture_molecular_weight_from_mass_fractions_1",
     "calc_mixture_molecular_weight_from_mass_fractions_2",
     # entropy
+    "calc_ideal_molar_entropy_of_mixing",
+    "calc_ideal_molar_entropy_of_mixing_from_sequence",
+    "calc_ideal_molar_entropy_of_mixing_from_mapping",
+    "calc_ideal_molar_entropy_of_mixing_from_props",
     "calc_ideal_entropy_of_mixing_from_mapping",
     "calc_ideal_entropy_of_mixing_from_props",
     "calc_ideal_entropy_of_mixing",
@@ -110,4 +126,7 @@ __all__ = [
     "mass_fraction_to_volume_fraction_from_sequence",
     "mass_fraction_to_volume_fraction_from_mapping",
     "mass_fraction_to_volume_fraction_from_props",
+    # enthalpy
+    "calc_ideal_enthalpy_of_mixing",
+    "calc_ideal_molar_enthalpy_of_mixing",
 ]

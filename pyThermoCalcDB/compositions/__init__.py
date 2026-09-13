@@ -109,6 +109,18 @@ from .concentration import (
     calc_molar_concentrations_from_props,
 )
 
+# NOTE: osmotic primitives
+from .osmotic import (
+    calc_osmolarity,
+    calc_osmolarity_from_sequence,
+    calc_osmolarity_from_mapping,
+    calc_osmolarity_from_props,
+    calc_osmolality,
+    calc_osmolality_from_sequence,
+    calc_osmolality_from_mapping,
+    calc_osmolality_from_props,
+)
+
 __all__ = [
     # ? fractions
     "calc_fractions",
@@ -194,4 +206,13 @@ __all__ = [
     "calc_molar_concentrations_from_sequence",
     "calc_molar_concentrations_from_mapping",
     "calc_molar_concentrations_from_props",
+    # ? osmotic
+    "calc_osmolarity",
+    "calc_osmolarity_from_sequence",
+    "calc_osmolarity_from_mapping",
+    "calc_osmolarity_from_props",
+    "calc_osmolality",
+    "calc_osmolality_from_sequence",
+    "calc_osmolality_from_mapping",
+    "calc_osmolality_from_props",
 ]

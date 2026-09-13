@@ -25,6 +25,9 @@ from .equilibrium import (
     calc_reaction_gibbs_energy,
     calc_dlnK_dT,
     calc_equilibrium_constant_at_temperature,
+    calc_log_equilibrium_constant_at_temperature,
+    classify_reaction_direction,
+    classify_reaction_direction_from_logs,
 )
 
 
@@ -46,4 +49,7 @@ __all__ = [
     "calc_reaction_gibbs_energy",
     "calc_dlnK_dT",
     "calc_equilibrium_constant_at_temperature",
+    "calc_log_equilibrium_constant_at_temperature",
+    "classify_reaction_direction",
+    "classify_reaction_direction_from_logs",
 ]

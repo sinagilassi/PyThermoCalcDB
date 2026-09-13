@@ -24,6 +24,7 @@ from .heat_capacity import (
     _calc_ideal_mixture_heat_capacity_from_mapping,
     _calc_ideal_mixture_heat_capacity_from_props,
 )
+from .enthalpy import _calc_ideal_enthalpy_of_mixing
 from .molecular_weight import (
     _calc_mixture_molecular_weight_from_mass_fraction_mapping,
     _calc_mixture_molecular_weight_from_mass_fraction_props,
@@ -60,6 +61,7 @@ __all__ = [
     "_calc_ideal_mixture_heat_capacity",
     "_calc_ideal_mixture_heat_capacity_from_mapping",
     "_calc_ideal_mixture_heat_capacity_from_props",
+    "_calc_ideal_enthalpy_of_mixing",
     "_calc_mixture_molecular_weight_from_mass_fraction_mapping",
     "_calc_mixture_molecular_weight_from_mass_fraction_props",
     "_calc_mixture_molecular_weight_from_mass_fractions_from_props",
