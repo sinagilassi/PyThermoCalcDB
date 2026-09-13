@@ -20,11 +20,65 @@ from .core.density import (
 )
 
 
-# SECTION: Ideal density mixing rule
+# ! ::: Ideal density mixing rule from sequences
 
-def calc_ideal_mixture_density(
-    mass_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
-    densities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+def calc_ideal_mixture_density_from_sequence(
+    mass_fractions: Sequence[float | int | CustomProp],
+    densities: Sequence[float | int | CustomProp],
+    output_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """
+    Calculate ideal mixture density from mass fractions and pure densities using sequence.
+
+    Parameters
+    ----------
+    mass_fractions : sequence of float | int | CustomProp
+        Component mass fractions.
+    densities : sequence of float | int | CustomProp
+        Pure-component densities at the same temperature and pressure.
+    output_density_unit : str, optional
+        Unit used to normalize ``densities`` before calculation.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+
+    Returns
+    -------
+    float
+        Ideal mixture density in the normalized density unit.
+
+    Notes
+    -----
+    Assumption
+        Component volumes are additive and densities are evaluated at the same T,P.
+
+    Equation
+        `rho_mix = 1 / sum_i(w_i/rho_i)`
+    """
+    # SECTION: Validate inputs
+    fractions(mass_fractions, "mass_fractions")
+    positive(densities, "densities")
+    same_shape(mass_fractions, densities)
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    # SECTION: Sequence implementation
+    w = to_list(
+        mass_fractions,
+        unit_conversion_fn=conversion_fn
+    )
+    rho = to_list(
+        densities,
+        output_density_unit,
+        unit_conversion_fn=conversion_fn
+    )
+    return float(_calc_ideal_mixture_density(w, rho))
+
+# ! ::: Ideal density mixing rule from mappings
+
+
+def calc_ideal_mixture_density_from_mapping(
+    mass_fractions: Mapping[str, CustomProp],
+    densities: Mapping[str, CustomProp],
     output_density_unit: str | None = None,
     unit_conversion_fn: UnitConversionFn | None = None,
     components: Optional[List[Component]] = None,
@@ -32,7 +86,8 @@ def calc_ideal_mixture_density(
     case_sensitive: bool = True,
     sort_by_components_order: bool = True,
 ) -> float:
-    """Calculate ideal mixture density from mass fractions and pure densities.
+    """
+    Calculate ideal mixture density from mass fractions and pure densities using mappings.
 
     Parameters
     ----------
@@ -100,19 +155,9 @@ def calc_ideal_mixture_density(
             rho, components, component_key, case_sensitive, sort_by_components_order, "densities")
         return _calc_ideal_mixture_density_from_mapping(w, rho)
 
-    if isinstance(mass_fractions, Mapping) or isinstance(densities, Mapping):
-        raise TypeError(
-            "Both component inputs must be mappings or both sequences.")
-
-    # SECTION: Sequence implementation
-    w = to_list(mass_fractions, unit_conversion_fn=conversion_fn)
-    rho = to_list(
-        densities,
-        output_density_unit,
-        unit_conversion_fn=conversion_fn
-    )
-    return float(_calc_ideal_mixture_density(w, rho))
-
 
 # SECTION: Public exports
-__all__ = ["calc_ideal_mixture_density"]
+__all__ = [
+    "calc_ideal_mixture_density_from_sequence",
+    "calc_ideal_mixture_density_from_mapping",
+]
