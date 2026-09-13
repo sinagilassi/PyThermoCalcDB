@@ -16,6 +16,7 @@ from ...utils.conversions import (
     _return_scalar_if_zero_dim,
     _validate_custom_prop_mapping,
     _validate_fraction_array,
+    _validate_non_negative_array,
     _validate_positive_array,
     _validate_same_array_shape,
     _validate_same_mapping_keys,
@@ -46,6 +47,27 @@ def _calc_ideal_mixture_heat_capacity(
     return _return_scalar_if_zero_dim(np.sum(fr * cp, axis=-1))
 
 
+# SECTION: Extensive heat-capacity calculation
+
+def _calc_total_heat_capacity(
+    component_moles: NumericInput,
+    molar_heat_capacities: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate total heat capacity as Cp_total = sum_i(n_i*Cp_i).
+
+    For 2-D inputs, axis 0 is states and axis 1 is components.
+    """
+    # SECTION: Normalize and validate
+    n = _as_float_array(component_moles, "component_moles")
+    cp = _as_float_array(molar_heat_capacities, "molar_heat_capacities")
+    _validate_same_array_shape(n, cp, "component_moles", "molar_heat_capacities")
+    _validate_non_negative_array(n, "component_moles")
+    _validate_positive_array(cp, "molar_heat_capacities")
+
+    # SECTION: Calculate extensive heat capacity
+    return _return_scalar_if_zero_dim(np.sum(n * cp, axis=-1))
+
+
 # SECTION: Mapping adapter
 
 def _calc_ideal_mixture_heat_capacity_from_mapping(
@@ -60,6 +82,22 @@ def _calc_ideal_mixture_heat_capacity_from_mapping(
         _calc_ideal_mixture_heat_capacity(
             [fraction_values[key] for key in keys],
             [heat_capacities[key] for key in keys],
+        )
+    )
+
+
+def _calc_total_heat_capacity_from_mapping(
+    component_moles: Mapping[str, float | int],
+    molar_heat_capacities: Mapping[str, float | int],
+) -> float:
+    """Calculate total heat capacity from aligned keyed inputs."""
+    # SECTION: Align by caller mole order after key validation
+    _validate_same_mapping_keys(component_moles, molar_heat_capacities, "component_moles", "molar_heat_capacities")
+    keys = list(component_moles)
+    return float(
+        _calc_total_heat_capacity(
+            [component_moles[key] for key in keys],
+            [molar_heat_capacities[key] for key in keys],
         )
     )
 
@@ -112,9 +150,63 @@ def _calc_ideal_mixture_heat_capacity_from_props(
     return _calc_ideal_mixture_heat_capacity_from_mapping(fr, cp)
 
 
+def _calc_total_heat_capacity_from_props(
+    component_moles: Mapping[str, CustomProp],
+    molar_heat_capacities: Mapping[str, CustomProp],
+    output_moles_unit: str | None = "mol",
+    output_heat_capacity_unit: str | None = "J/mol.K",
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Sequence[Component] | None = None,
+    component_key: ComponentKey | None = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate total heat capacity from unit-aware keyed inputs."""
+    # SECTION: Validate props input contract
+    _validate_custom_prop_mapping(component_moles, "component_moles")
+    _validate_custom_prop_mapping(molar_heat_capacities, "molar_heat_capacities")
+
+    # SECTION: Normalize units
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    n = to_dict(
+        component_moles,
+        output_moles_unit,
+        unit_conversion_fn=conversion_fn,
+    )
+    cp = to_dict(
+        molar_heat_capacities,
+        output_heat_capacity_unit,
+        unit_conversion_fn=conversion_fn,
+    )
+
+    # SECTION: Remap component keys
+    n = _configure_component_values(
+        n,
+        list(components) if components is not None else None,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+        "component_moles",
+    )
+    cp = _configure_component_values(
+        cp,
+        list(components) if components is not None else None,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+        "molar_heat_capacities",
+    )
+
+    # SECTION: Calculate from aligned mapping
+    return _calc_total_heat_capacity_from_mapping(n, cp)
+
+
 # SECTION: Core exports
 __all__ = [
     "_calc_ideal_mixture_heat_capacity",
     "_calc_ideal_mixture_heat_capacity_from_mapping",
     "_calc_ideal_mixture_heat_capacity_from_props",
+    "_calc_total_heat_capacity",
+    "_calc_total_heat_capacity_from_mapping",
+    "_calc_total_heat_capacity_from_props",
 ]
