@@ -10,6 +10,7 @@ from pythermodb_settings.utils.validators import fractions, positive, same_shape
 # locals
 from ..utils.conversions import (
     _all_custom_props,
+    _get_all_custom_props,
     _configure_component_values,
     _resolve_unit_conversion_fn,
 )
@@ -22,7 +23,7 @@ from .core.heat_capacity import (
 
 # SECTION: Ideal heat-capacity mixing rule
 
-def calc_ideal_mixture_heat_capacity(
+def calc_ideal_mixture_heat_capacity_from_alls(
     fraction_values: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     heat_capacities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_heat_capacity_unit: str | None = None,
@@ -75,9 +76,15 @@ def calc_ideal_mixture_heat_capacity(
     # SECTION: Mapping implementation
     if isinstance(fraction_values, Mapping) and isinstance(heat_capacities, Mapping):
         if _all_custom_props(fraction_values) and _all_custom_props(heat_capacities):
+            fraction_custom_props: Mapping[str, CustomProp] = dict(
+                zip(fraction_values.keys(), _get_all_custom_props(fraction_values, return_type="list"))
+            )
+            heat_capacity_custom_props: Mapping[str, CustomProp] = dict(
+                zip(heat_capacities.keys(), _get_all_custom_props(heat_capacities, return_type="list"))
+            )
             return _calc_ideal_mixture_heat_capacity_from_props(
-                fraction_values,
-                heat_capacities,
+                fraction_custom_props,
+                heat_capacity_custom_props,
                 output_heat_capacity_unit,
                 conversion_fn,
                 components,
@@ -112,6 +119,97 @@ def calc_ideal_mixture_heat_capacity(
     )
     return float(_calc_ideal_mixture_heat_capacity(fr, cp))
 
+# ! ::: Ideal heat-capacity mixing rule from sequences
+
+def calc_ideal_mixture_heat_capacity_from_sequence(
+    fraction_values: Sequence[float | int | CustomProp],
+    heat_capacities: Sequence[float | int | CustomProp],
+    output_heat_capacity_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate ideal mixture heat capacity from sequence inputs."""
+    if isinstance(fraction_values, Mapping) or isinstance(heat_capacities, Mapping):
+        raise TypeError("Both component inputs must be sequences.")
+
+    return calc_ideal_mixture_heat_capacity_from_alls(
+        fraction_values,
+        heat_capacities,
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+    )
+
+
+# ! ::: Ideal heat-capacity mixing rule from mappings
+
+def calc_ideal_mixture_heat_capacity_from_mapping(
+    fraction_values: Mapping[str, float | int],
+    heat_capacities: Mapping[str, float | int],
+    output_heat_capacity_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate ideal mixture heat capacity from numeric mapping inputs."""
+    if not isinstance(fraction_values, Mapping) or not isinstance(heat_capacities, Mapping):
+        raise TypeError("Both component inputs must be mappings.")
+    if _all_custom_props(fraction_values) or _all_custom_props(heat_capacities):
+        raise TypeError("CustomProp mappings must use calc_ideal_mixture_heat_capacity_from_props.")
+
+    return calc_ideal_mixture_heat_capacity_from_alls(
+        fraction_values,
+        heat_capacities,
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+# ! ::: Ideal heat-capacity mixing rule from props
+
+def calc_ideal_mixture_heat_capacity_from_props(
+    fraction_values: Mapping[str, CustomProp],
+    heat_capacities: Mapping[str, CustomProp],
+    output_heat_capacity_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate ideal mixture heat capacity from unit-aware mapping inputs."""
+    if not isinstance(fraction_values, Mapping) or not isinstance(heat_capacities, Mapping):
+        raise TypeError("Both component inputs must be mappings of CustomProp instances.")
+    if not _all_custom_props(fraction_values) or not _all_custom_props(heat_capacities):
+        raise TypeError("Both component mappings must contain only CustomProp instances.")
+
+    return calc_ideal_mixture_heat_capacity_from_alls(
+        fraction_values,
+        heat_capacities,
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+# SECTION: Backwards-compatible aliases
+calc_ideal_mixture_heat_capacity_from_all = calc_ideal_mixture_heat_capacity_from_alls
+calc_ideal_mixture_heat_capacity = calc_ideal_mixture_heat_capacity_from_all
+
 
 # SECTION: Public exports
-__all__ = ["calc_ideal_mixture_heat_capacity"]
+__all__ = [
+    "calc_ideal_mixture_heat_capacity_from_alls",
+    "calc_ideal_mixture_heat_capacity_from_all",
+    "calc_ideal_mixture_heat_capacity_from_sequence",
+    "calc_ideal_mixture_heat_capacity_from_mapping",
+    "calc_ideal_mixture_heat_capacity_from_props",
+    "calc_ideal_mixture_heat_capacity",
+]

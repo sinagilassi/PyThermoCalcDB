@@ -12,6 +12,7 @@ from pythermodb_settings.utils.validators import fractions, positive, same_shape
 # locals
 from ..utils.conversions import (
     _all_custom_props,
+    _get_all_custom_props,
     _configure_component_values,
     _resolve_unit_conversion_fn,
 )
@@ -27,7 +28,7 @@ from .core.molecular_weight import (
 
 # SECTION: Mole-fraction basis
 
-def calc_mixture_molecular_weight_from_mole_fractions(
+def calc_mixture_molecular_weight_from_mole_fractions_from_alls(
     mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_molecular_weight_unit: str | None = None,
@@ -80,9 +81,15 @@ def calc_mixture_molecular_weight_from_mole_fractions(
     # SECTION: Mapping implementation
     if isinstance(mole_fractions, Mapping) and isinstance(molecular_weights, Mapping):
         if _all_custom_props(mole_fractions) and _all_custom_props(molecular_weights):
+            mole_fraction_custom_props: Mapping[str, CustomProp] = dict(
+                zip(mole_fractions.keys(), _get_all_custom_props(mole_fractions, return_type="list"))
+            )
+            molecular_weight_custom_props: Mapping[str, CustomProp] = dict(
+                zip(molecular_weights.keys(), _get_all_custom_props(molecular_weights, return_type="list"))
+            )
             return _calc_mixture_molecular_weight_from_mole_fractions_from_props(
-                mole_fractions,
-                molecular_weights,
+                mole_fraction_custom_props,
+                molecular_weight_custom_props,
                 output_molecular_weight_unit,
                 conversion_fn,
                 components,
@@ -120,7 +127,7 @@ def calc_mixture_molecular_weight_from_mole_fractions(
 
 # SECTION: Mass-fraction basis
 
-def calc_mixture_molecular_weight_from_mass_fractions(
+def calc_mixture_molecular_weight_from_mass_fractions_from_alls(
     mass_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     molecular_weights: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
     output_molecular_weight_unit: str | None = None,
@@ -180,9 +187,15 @@ def calc_mixture_molecular_weight_from_mass_fractions(
     # SECTION: Mapping implementation
     if isinstance(mass_fractions, Mapping) and isinstance(molecular_weights, Mapping):
         if _all_custom_props(mass_fractions) and _all_custom_props(molecular_weights):
+            mass_fraction_custom_props: Mapping[str, CustomProp] = dict(
+                zip(mass_fractions.keys(), _get_all_custom_props(mass_fractions, return_type="list"))
+            )
+            molecular_weight_custom_props: Mapping[str, CustomProp] = dict(
+                zip(molecular_weights.keys(), _get_all_custom_props(molecular_weights, return_type="list"))
+            )
             return _calc_mixture_molecular_weight_from_mass_fractions_from_props(
-                mass_fractions,
-                molecular_weights,
+                mass_fraction_custom_props,
+                molecular_weight_custom_props,
                 output_molecular_weight_unit,
                 conversion_fn,
                 components,
@@ -216,6 +229,183 @@ def calc_mixture_molecular_weight_from_mass_fractions(
         )
         return float(_calc_mixture_molecular_weight_from_mass_fractions(w, mw))
 
+# ! ::: Mole-fraction basis from sequences
+
+def calc_mixture_molecular_weight_from_mole_fractions_from_sequence(
+    mole_fractions: Sequence[float | int | CustomProp],
+    molecular_weights: Sequence[float | int | CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate mixture molecular weight from mole-fraction sequence inputs."""
+    if isinstance(mole_fractions, Mapping) or isinstance(molecular_weights, Mapping):
+        raise TypeError("Both component inputs must be sequences.")
+
+    return calc_mixture_molecular_weight_from_mole_fractions_from_alls(
+        mole_fractions,
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn,
+    )
+
+
+# ! ::: Mole-fraction basis from mappings
+
+def calc_mixture_molecular_weight_from_mole_fractions_from_mapping(
+    mole_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate mixture molecular weight from numeric mole-fraction mapping inputs."""
+    if not isinstance(mole_fractions, Mapping) or not isinstance(molecular_weights, Mapping):
+        raise TypeError("Both component inputs must be mappings.")
+    if any(isinstance(value, CustomProp) for value in mole_fractions.values()):
+        raise TypeError("CustomProp mappings must use calc_mixture_molecular_weight_from_mole_fractions_from_props.")
+    if any(isinstance(value, CustomProp) for value in molecular_weights.values()):
+        raise TypeError("CustomProp mappings must use calc_mixture_molecular_weight_from_mole_fractions_from_props.")
+
+    return calc_mixture_molecular_weight_from_mole_fractions_from_alls(
+        mole_fractions,
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+# ! ::: Mole-fraction basis from props
+
+def calc_mixture_molecular_weight_from_mole_fractions_from_props(
+    mole_fractions: Mapping[str, CustomProp],
+    molecular_weights: Mapping[str, CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate mixture molecular weight from unit-aware mole-fraction mapping inputs."""
+    if not isinstance(mole_fractions, Mapping) or not isinstance(molecular_weights, Mapping):
+        raise TypeError("Both component inputs must be mappings of CustomProp instances.")
+    if not _all_custom_props(mole_fractions) or not _all_custom_props(molecular_weights):
+        raise TypeError("Both component mappings must contain only CustomProp instances.")
+
+    return calc_mixture_molecular_weight_from_mole_fractions_from_alls(
+        mole_fractions,
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+# ! ::: Mass-fraction basis from sequences
+
+def calc_mixture_molecular_weight_from_mass_fractions_from_sequence(
+    mass_fractions: Sequence[float | int | CustomProp],
+    molecular_weights: Sequence[float | int | CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate mixture molecular weight from mass-fraction sequence inputs."""
+    if isinstance(mass_fractions, Mapping) or isinstance(molecular_weights, Mapping):
+        raise TypeError("Both component inputs must be sequences.")
+
+    return calc_mixture_molecular_weight_from_mass_fractions_from_alls(
+        mass_fractions,
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn,
+    )
+
+
+# ! ::: Mass-fraction basis from mappings
+
+def calc_mixture_molecular_weight_from_mass_fractions_from_mapping(
+    mass_fractions: Mapping[str, float | int],
+    molecular_weights: Mapping[str, float | int],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate mixture molecular weight from numeric mass-fraction mapping inputs."""
+    if not isinstance(mass_fractions, Mapping) or not isinstance(molecular_weights, Mapping):
+        raise TypeError("Both component inputs must be mappings.")
+    if any(isinstance(value, CustomProp) for value in mass_fractions.values()):
+        raise TypeError("CustomProp mappings must use calc_mixture_molecular_weight_from_mass_fractions_from_props.")
+    if any(isinstance(value, CustomProp) for value in molecular_weights.values()):
+        raise TypeError("CustomProp mappings must use calc_mixture_molecular_weight_from_mass_fractions_from_props.")
+
+    return calc_mixture_molecular_weight_from_mass_fractions_from_alls(
+        mass_fractions,
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+# ! ::: Mass-fraction basis from props
+
+def calc_mixture_molecular_weight_from_mass_fractions_from_props(
+    mass_fractions: Mapping[str, CustomProp],
+    molecular_weights: Mapping[str, CustomProp],
+    output_molecular_weight_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+    components: Optional[List[Component]] = None,
+    component_key: Optional[ComponentKey] = None,
+    case_sensitive: bool = True,
+    sort_by_components_order: bool = True,
+) -> float:
+    """Calculate mixture molecular weight from unit-aware mass-fraction mapping inputs."""
+    if not isinstance(mass_fractions, Mapping) or not isinstance(molecular_weights, Mapping):
+        raise TypeError("Both component inputs must be mappings of CustomProp instances.")
+    if not _all_custom_props(mass_fractions) or not _all_custom_props(molecular_weights):
+        raise TypeError("Both component mappings must contain only CustomProp instances.")
+
+    return calc_mixture_molecular_weight_from_mass_fractions_from_alls(
+        mass_fractions,
+        molecular_weights,
+        output_molecular_weight_unit,
+        unit_conversion_fn,
+        components,
+        component_key,
+        case_sensitive,
+        sort_by_components_order,
+    )
+
+
+# SECTION: Backwards-compatible aliases
+calc_mixture_molecular_weight_from_mole_fractions_from_all = (
+    calc_mixture_molecular_weight_from_mole_fractions_from_alls
+)
+calc_mixture_molecular_weight_from_mass_fractions_from_all = (
+    calc_mixture_molecular_weight_from_mass_fractions_from_alls
+)
+calc_mixture_molecular_weight_from_mole_fractions = (
+    calc_mixture_molecular_weight_from_mole_fractions_from_all
+)
+calc_mixture_molecular_weight_from_mass_fractions = (
+    calc_mixture_molecular_weight_from_mass_fractions_from_all
+)
 
 # SECTION: Legacy compatibility wrappers
 
@@ -232,7 +422,7 @@ def calc_mixture_molecular_weight_1(
         component_molecular_weights,
     )
     if input_unit and output_unit:
-        return _resolve_unit_conversion_fn(None)(result, input_unit, output_unit)
+        return _resolve_unit_conversion_fn(None)(value=result, from_unit=input_unit, to_unit=output_unit)
     return result
 
 
@@ -262,7 +452,7 @@ def calc_mixture_molecular_weight_from_mass_fractions_1(
         component_molecular_weights,
     )
     if input_unit and output_unit:
-        return _resolve_unit_conversion_fn(None)(result, input_unit, output_unit)
+        return _resolve_unit_conversion_fn(None)(value=result, from_unit=input_unit, to_unit=output_unit)
     return result
 
 
@@ -281,11 +471,26 @@ def calc_mixture_molecular_weight_from_mass_fractions_2(
 
 # SECTION: Public exports
 __all__ = [
+    "calc_mixture_molecular_weight_from_mole_fractions_from_alls",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_all",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_sequence",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_mapping",
+    "calc_mixture_molecular_weight_from_mole_fractions_from_props",
     "calc_mixture_molecular_weight_from_mole_fractions",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_alls",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_all",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_sequence",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_mapping",
+    "calc_mixture_molecular_weight_from_mass_fractions_from_props",
     "calc_mixture_molecular_weight_from_mass_fractions",
     "calc_mixture_molecular_weight_1",
     "calc_mixture_molecular_weight_2",
     "calc_mixture_molecular_weight_from_mass_fractions_1",
     "calc_mixture_molecular_weight_from_mass_fractions_2",
 ]
+
+
+
+
+
 
