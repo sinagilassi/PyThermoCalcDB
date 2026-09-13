@@ -25,10 +25,50 @@ from .core.entropy import (
 )
 
 
-# SECTION: Ideal molar entropy of mixing
+# ! ::: Ideal molar entropy of mixing from mapping
+def calc_ideal_molar_entropy_of_mixing_from_mapping(
+    mole_fractions: Mapping[str, float | int],
+    gas_constant: float = R_J_molK,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate ideal molar entropy of mixing.
 
-def calc_ideal_molar_entropy_of_mixing(
-    mole_fractions: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    Parameters
+    ----------
+    mole_fractions : mapping or sequence of float | int
+        Component mole fractions. Zero fractions are allowed and contribute
+        zero through the ``x*ln(x)`` limiting behavior.
+    gas_constant : float, optional
+        Gas constant in entropy units per mol per K. Defaults to
+        ``8.314462618`` J/mol/K.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function used by shared quantity helpers.
+
+    Returns
+    -------
+    float
+        Ideal molar entropy of mixing, typically J/mol/K.
+
+    Notes
+    -----
+    Equation: ``delta_S_mix = -R*sum_i(x_i*ln(x_i))``. The mixture is assumed
+    ideal and no excess entropy term is included.
+    """
+    # SECTION: Validate inputs
+    fractions(mole_fractions, "mole_fractions")
+    r = pos(gas_constant, "gas_constant")
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    # SECTION: Normalize mixed/numeric mapping inputs
+    x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
+
+    return _calc_ideal_molar_entropy_of_mixing_from_mapping(x, r)
+
+
+# ! ::: Ideal molar entropy of mixing from mapping
+
+def calc_ideal_molar_entropy_of_mixing_from_props(
+    mole_fractions: Mapping[str, CustomProp],
     gas_constant: float = R_J_molK,
     unit_conversion_fn: UnitConversionFn | None = None,
     components: Optional[List[Component]] = None,
@@ -40,7 +80,7 @@ def calc_ideal_molar_entropy_of_mixing(
 
     Parameters
     ----------
-    mole_fractions : mapping or sequence of float | int | CustomProp
+    mole_fractions : mapping of CustomProp
         Component mole fractions. Zero fractions are allowed and contribute
         zero through the ``x*ln(x)`` limiting behavior.
     gas_constant : float, optional
@@ -85,17 +125,11 @@ def calc_ideal_molar_entropy_of_mixing(
                 case_sensitive,
                 sort_by_components_order,
             )
-
-        # SECTION: Normalize mixed/numeric mapping inputs
-        x = to_dict(mole_fractions, unit_conversion_fn=conversion_fn)
-        x = _configure_component_values(
-            x, components, component_key, case_sensitive, sort_by_components_order, "mole_fractions"
-        )
-        return _calc_ideal_molar_entropy_of_mixing_from_mapping(x, r)
-
-    # SECTION: Calculate ideal molar entropy of mixing
-    x = to_list(mole_fractions, unit_conversion_fn=conversion_fn)
-    return float(_calc_ideal_molar_entropy_of_mixing(x, r))
+        else:
+            raise ValueError(
+                "Mole fractions must be all CustomProp instances when provided as a mapping.")
+    else:
+        raise ValueError("Mole fractions must be provided as a mapping.")
 
 
 # SECTION: Total ideal entropy of mixing
@@ -190,4 +224,3 @@ __all__ = [
     "calc_ideal_molar_entropy_of_mixing",
     "calc_ideal_entropy_of_mixing",
 ]
-

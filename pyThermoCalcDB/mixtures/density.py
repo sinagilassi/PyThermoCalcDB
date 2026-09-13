@@ -77,6 +77,58 @@ def calc_ideal_mixture_density_from_sequence(
 
 
 def calc_ideal_mixture_density_from_mapping(
+    mass_fractions: Mapping[str, float | int],
+    densities: Mapping[str, float | int],
+    output_density_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """
+    Calculate ideal mixture density from mass fractions and pure densities using mappings.
+
+    Parameters
+    ----------
+    mass_fractions : mapping or sequence of float | int
+        Component mass fractions.
+    densities : mapping or sequence of float | int
+        Pure-component densities at the same temperature and pressure.
+    output_density_unit : str, optional
+        Unit used to normalize ``densities`` before calculation.
+    unit_conversion_fn : UnitConversionFn, optional
+        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
+
+    Returns
+    -------
+    float
+        Ideal mixture density in the normalized density unit.
+
+    Notes
+    -----
+    Assumption
+        Component volumes are additive and densities are evaluated at the same T,P.
+
+    Equation
+        `rho_mix = 1 / sum_i(w_i/rho_i)`
+    """
+    # SECTION: Validate inputs
+    fractions(mass_fractions, "mass_fractions")
+    positive(densities, "densities")
+    same_shape(mass_fractions, densities)
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+
+    # SECTION: Normalize mixed/numeric mapping inputs
+    w = to_dict(mass_fractions)
+    rho = to_dict(
+        densities,
+        output_density_unit,
+        unit_conversion_fn=conversion_fn,
+    )
+
+    return _calc_ideal_mixture_density_from_mapping(w, rho)
+
+# !::: Ideal mixture density from props
+
+
+def calc_ideal_mixture_density_from_props(
     mass_fractions: Mapping[str, CustomProp],
     densities: Mapping[str, CustomProp],
     output_density_unit: str | None = None,
@@ -141,23 +193,17 @@ def calc_ideal_mixture_density_from_mapping(
                 case_sensitive,
                 sort_by_components_order,
             )
-
-        # SECTION: Normalize mixed/numeric mapping inputs
-        w = to_dict(mass_fractions, unit_conversion_fn=conversion_fn)
-        rho = to_dict(
-            densities,
-            output_density_unit,
-            unit_conversion_fn=conversion_fn,
-        )
-        w = _configure_component_values(
-            w, components, component_key, case_sensitive, sort_by_components_order, "mass_fractions")
-        rho = _configure_component_values(
-            rho, components, component_key, case_sensitive, sort_by_components_order, "densities")
-        return _calc_ideal_mixture_density_from_mapping(w, rho)
+        else:
+            raise ValueError(
+                "Unsupported input types for mass_fractions and densities.")
+    else:
+        raise ValueError(
+            "Unsupported input types for mass_fractions and densities.")
 
 
 # SECTION: Public exports
 __all__ = [
     "calc_ideal_mixture_density_from_sequence",
     "calc_ideal_mixture_density_from_mapping",
+    "calc_ideal_mixture_density_from_props",
 ]
