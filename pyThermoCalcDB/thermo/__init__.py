@@ -18,6 +18,21 @@ from .chemical_potential import (
     calc_solution_chemical_potential,
 )
 
+# NOTE: activity helpers
+from .activity import (
+    calc_activity_from_mole_fraction,
+    calc_activity_from_concentration,
+    calc_effective_concentration,
+)
+
+# NOTE: fugacity helpers
+from .fugacity import (
+    calc_poynting_factor_incompressible,
+    calc_poynting_factor_from_integral,
+    calc_liquid_fugacity_coefficient,
+    calc_liquid_partial_fugacity,
+)
+
 # NOTE: heat-capacity helpers
 from .heat_capacity import (
     calc_ideal_gas_cv_from_cp,
@@ -82,6 +97,13 @@ __all__ = [
     "calc_ideal_gas_chemical_potential",
     "calc_chemical_potential_from_fugacity",
     "calc_solution_chemical_potential",
+    "calc_activity_from_mole_fraction",
+    "calc_activity_from_concentration",
+    "calc_effective_concentration",
+    "calc_poynting_factor_incompressible",
+    "calc_poynting_factor_from_integral",
+    "calc_liquid_fugacity_coefficient",
+    "calc_liquid_partial_fugacity",
     "calc_ideal_gas_cv_from_cp",
     "calc_ideal_gas_cp_from_cv",
     "calc_heat_capacity_ratio",
