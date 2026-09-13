@@ -1,127 +1,142 @@
+"""Core Gibbs-energy identity calculations."""
+
 # import libs
-from typing import Any
-import pycuc
-from pythermodb_settings.models import CustomProp, Temperature
+from typing import cast
+
+import numpy as np
+from numpy.typing import NDArray
+from pythermodb_settings.models import CustomProp, Temperature, UnitConversionFn
+
 # locals
-from pythermocalcdb.utils.conversions import _generic_temperature
+from pythermocalcdb.utils.conversions import (
+    NumericArrayInput,
+    _generic_temperature,
+    _resolve_unit_conversion_fn,
+    _return_scalar_if_zero_dim,
+    _scalar,
+    _validate_custom_prop_scalar,
+)
+
+# SECTION: Type aliases
+NumericInput = NumericArrayInput
 
 
-# ! ::: Calculate Gibbs energy
-
+# SECTION: Core numeric calculations
 
 def _calc_gibbs_energy(
-    enthalpy: CustomProp | float | int,
+    enthalpy: NumericInput,
+    temperature: NumericInput,
+    entropy: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate ``G = H - T*S`` using finite numeric inputs.
+
+    Inputs may be scalars, 1-D arrays, or 2-D arrays when their shapes are
+    broadcast-compatible. For 2-D inputs, axis 0 is states and axis 1 is
+    component/property values.
+    """
+    # SECTION: Normalize and validate
+    h = np.asarray(enthalpy, dtype=np.float64)
+    t = np.asarray(temperature, dtype=np.float64)
+    s = np.asarray(entropy, dtype=np.float64)
+
+    if any(arr.ndim > 2 for arr in (h, t, s)):
+        raise ValueError(
+            "enthalpy, temperature, and entropy must be scalar, 1-D, or 2-D values."
+        )
+    if not all(np.all(np.isfinite(arr)) for arr in (h, t, s)):
+        raise ValueError(
+            "enthalpy, temperature, and entropy values must be finite."
+        )
+
+    try:
+        gibbs_energy = h - t * s
+    except ValueError as exc:
+        raise ValueError(
+            "enthalpy, temperature, and entropy must be broadcast-compatible."
+        ) from exc
+
+    return _return_scalar_if_zero_dim(cast(NDArray[np.float64], gibbs_energy))
+
+
+# SECTION: Props adapters
+
+def _calc_gibbs_energy_from_props(
+    enthalpy: CustomProp,
     temperature: Temperature,
-    entropy: CustomProp | float | int,
+    entropy: CustomProp,
     output_enthalpy_unit: str | None = None,
     output_entropy_unit: str | None = None,
     output_temperature_unit: str | None = None,
-    unit_conversion_fn=None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
-    """Calculate Gibbs energy from enthalpy, temperature, and entropy.
+    """Calculate Gibbs energy from unit-aware scalar inputs."""
+    # SECTION: Validate props input contract
+    _validate_custom_prop_scalar(enthalpy, "enthalpy")
+    _validate_custom_prop_scalar(entropy, "entropy")
 
-    Parameters
-    ----------
-    enthalpy : float | int | CustomProp
-        Enthalpy on the desired amount basis.
-    temperature : Temperature
-        Temperature value used in the ``T*S`` product. When
-        ``output_temperature_unit`` is ``None``, ``temperature.value`` is used
-        as-is. When ``output_temperature_unit`` is provided, ``temperature`` is
-        converted to that unit before calculation. Supported unit labels are
-        determined by pycuc, commonly ``C``, ``K``, ``R``, and ``F``.
-    entropy : float | int | CustomProp
-        Entropy on the same amount basis as ``enthalpy`` and per the
-        temperature unit used in the ``T*S`` product.
-    output_enthalpy_unit : str, optional
-        Unit used to normalize ``enthalpy`` before calculation.
-    output_entropy_unit : str, optional
-        Unit used to normalize ``entropy`` before calculation.
-    output_temperature_unit : str, optional
-        Unit used to normalize ``temperature`` before calculation. Leave as
-        ``None`` to use ``temperature.value`` as supplied.
-    unit_conversion_fn : callable, optional
-        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
-
-    Returns
-    -------
-    float
-        Gibbs energy.
-
-    Notes
-    -----
-    Equation
-        `G = H - T*S`
-    """
-    # SECTION: Resolve conversion function
-    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
-
-    # SECTION: Normalize enthalpy
-    h = enthalpy.value if isinstance(enthalpy, CustomProp) else enthalpy
-    if isinstance(enthalpy, CustomProp) and output_enthalpy_unit and enthalpy.unit != output_enthalpy_unit:
-        h = conversion_fn(h, enthalpy.unit, output_enthalpy_unit)
-
-    # SECTION: Normalize temperature
+    # SECTION: Normalize units
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    h = _scalar(enthalpy, "enthalpy", output_enthalpy_unit, conversion_fn)
     t = _generic_temperature(
         temperature,
         output_temperature_unit,
-        unit_conversion_fn,
+        conversion_fn,
     )
-
-    # SECTION: Normalize entropy
-    s = entropy.value if isinstance(entropy, CustomProp) else entropy
-    if isinstance(entropy, CustomProp) and output_entropy_unit and entropy.unit != output_entropy_unit:
-        s = conversion_fn(s, entropy.unit, output_entropy_unit)
+    s = _scalar(entropy, "entropy", output_entropy_unit, conversion_fn)
 
     # SECTION: Calculate Gibbs energy
-    return float(h) - t * float(s)
+    return float(_calc_gibbs_energy(h, t, s))
+
+
+def _calc_gibbs_energy_from_scalars(
+    enthalpy: float | int | CustomProp,
+    temperature: Temperature,
+    entropy: float | int | CustomProp,
+    output_enthalpy_unit: str | None = None,
+    output_entropy_unit: str | None = None,
+    output_temperature_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Normalize scalar public inputs and calculate Gibbs energy."""
+    # SECTION: Normalize scalar inputs
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    h = _scalar(enthalpy, "enthalpy", output_enthalpy_unit, conversion_fn)
+    t = _generic_temperature(
+        temperature,
+        output_temperature_unit,
+        conversion_fn,
+    )
+    s = _scalar(entropy, "entropy", output_entropy_unit, conversion_fn)
+
+    # SECTION: Calculate Gibbs energy
+    return float(_calc_gibbs_energy(h, t, s))
 
 
 def _calc_gibbs_energy_change(
-    enthalpy_change: CustomProp | float | int,
-    entropy_change: CustomProp | float | int,
+    enthalpy_change: NumericInput,
+    entropy_change: NumericInput,
+    temperature: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate ``dG = dH - T*dS`` using finite numeric inputs."""
+    # SECTION: Delegate to the generic identity
+    return _calc_gibbs_energy(
+        enthalpy=enthalpy_change,
+        temperature=temperature,
+        entropy=entropy_change,
+    )
+
+
+def _calc_gibbs_energy_change_from_props(
+    enthalpy_change: CustomProp,
+    entropy_change: CustomProp,
     temperature: Temperature,
     output_enthalpy_change_unit: str | None = None,
     output_entropy_change_unit: str | None = None,
     output_temperature_unit: str | None = None,
-    unit_conversion_fn=None,
+    unit_conversion_fn: UnitConversionFn | None = None,
 ) -> float:
-    """Calculate Gibbs energy change at a common temperature.
-
-    Parameters
-    ----------
-    enthalpy_change : float | int | CustomProp
-        Enthalpy change on the desired amount basis.
-    entropy_change : float | int | CustomProp
-        Entropy change on the same amount basis and per the temperature unit
-        used in the ``T*dS`` product.
-    temperature : Temperature
-        Temperature value used in the ``T*dS`` product. When
-        ``output_temperature_unit`` is ``None``, ``temperature.value`` is used
-        as-is. When provided, ``temperature`` is converted to that unit before
-        calculation.
-    output_enthalpy_change_unit : str, optional
-        Unit used to normalize ``enthalpy_change`` before calculation.
-    output_entropy_change_unit : str, optional
-        Unit used to normalize ``entropy_change`` before calculation.
-    output_temperature_unit : str, optional
-        Unit used to normalize ``temperature`` before calculation. Leave as
-        ``None`` to use ``temperature.value`` as supplied.
-    unit_conversion_fn : callable, optional
-        Unit conversion function. Defaults to ``pycuc.convert_from_to``.
-
-    Returns
-    -------
-    float
-        Gibbs energy change.
-
-    Notes
-    -----
-    Equation
-        `dG = dH - T*dS`
-    """
-    # SECTION: Delegate to the generic identity
-    return _calc_gibbs_energy(
+    """Calculate Gibbs energy change from unit-aware scalar inputs."""
+    return _calc_gibbs_energy_from_props(
         enthalpy=enthalpy_change,
         temperature=temperature,
         entropy=entropy_change,
@@ -130,3 +145,35 @@ def _calc_gibbs_energy_change(
         output_temperature_unit=output_temperature_unit,
         unit_conversion_fn=unit_conversion_fn,
     )
+
+
+def _calc_gibbs_energy_change_from_scalars(
+    enthalpy_change: float | int | CustomProp,
+    entropy_change: float | int | CustomProp,
+    temperature: Temperature,
+    output_enthalpy_change_unit: str | None = None,
+    output_entropy_change_unit: str | None = None,
+    output_temperature_unit: str | None = None,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Normalize scalar public inputs and calculate Gibbs energy change."""
+    return _calc_gibbs_energy_from_scalars(
+        enthalpy=enthalpy_change,
+        temperature=temperature,
+        entropy=entropy_change,
+        output_enthalpy_unit=output_enthalpy_change_unit,
+        output_entropy_unit=output_entropy_change_unit,
+        output_temperature_unit=output_temperature_unit,
+        unit_conversion_fn=unit_conversion_fn,
+    )
+
+
+# SECTION: Core exports
+__all__ = [
+    "_calc_gibbs_energy",
+    "_calc_gibbs_energy_from_props",
+    "_calc_gibbs_energy_from_scalars",
+    "_calc_gibbs_energy_change",
+    "_calc_gibbs_energy_change_from_props",
+    "_calc_gibbs_energy_change_from_scalars",
+]

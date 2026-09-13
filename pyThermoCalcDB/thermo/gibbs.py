@@ -4,7 +4,13 @@ from typing import Optional, Dict, Any, Tuple, Literal, List
 from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # local
-from ..utils.conversions import _to_kelvin, _generic_temperature
+from ..utils.conversions import _to_kelvin
+from .core.gibbs import (
+    _calc_gibbs_energy_from_props,
+    _calc_gibbs_energy_from_scalars,
+    _calc_gibbs_energy_change_from_props,
+    _calc_gibbs_energy_change_from_scalars,
+)
 from .enthalpy import calc_En_IG
 from .entropy import calc_Ent_IG
 
@@ -352,28 +358,28 @@ def calc_gibbs_energy(
     Equation
         `G = H - T*S`
     """
-    # SECTION: Resolve conversion function
-    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if isinstance(enthalpy, CustomProp) and isinstance(entropy, CustomProp):
+        return _calc_gibbs_energy_from_props(
+            enthalpy=enthalpy,
+            temperature=temperature,
+            entropy=entropy,
+            output_enthalpy_unit=output_enthalpy_unit,
+            output_entropy_unit=output_entropy_unit,
+            output_temperature_unit=output_temperature_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        )
 
-    # SECTION: Normalize enthalpy
-    h = enthalpy.value if isinstance(enthalpy, CustomProp) else enthalpy
-    if isinstance(enthalpy, CustomProp) and output_enthalpy_unit and enthalpy.unit != output_enthalpy_unit:
-        h = conversion_fn(h, enthalpy.unit, output_enthalpy_unit)
-
-    # SECTION: Normalize temperature
-    t = _generic_temperature(
-        temperature,
-        output_temperature_unit,
-        unit_conversion_fn,
+    # SECTION: Normalize mixed/numeric scalar inputs
+    return _calc_gibbs_energy_from_scalars(
+        enthalpy=enthalpy,
+        temperature=temperature,
+        entropy=entropy,
+        output_enthalpy_unit=output_enthalpy_unit,
+        output_entropy_unit=output_entropy_unit,
+        output_temperature_unit=output_temperature_unit,
+        unit_conversion_fn=unit_conversion_fn,
     )
-
-    # SECTION: Normalize entropy
-    s = entropy.value if isinstance(entropy, CustomProp) else entropy
-    if isinstance(entropy, CustomProp) and output_entropy_unit and entropy.unit != output_entropy_unit:
-        s = conversion_fn(s, entropy.unit, output_entropy_unit)
-
-    # SECTION: Calculate Gibbs energy
-    return float(h) - t * float(s)
 
 
 def calc_gibbs_energy_change(
@@ -419,13 +425,28 @@ def calc_gibbs_energy_change(
     Equation
         `dG = dH - T*dS`
     """
-    # SECTION: Delegate to the generic identity
-    return calc_gibbs_energy(
-        enthalpy=enthalpy_change,
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if (
+        isinstance(enthalpy_change, CustomProp)
+        and isinstance(entropy_change, CustomProp)
+    ):
+        return _calc_gibbs_energy_change_from_props(
+            enthalpy_change=enthalpy_change,
+            entropy_change=entropy_change,
+            temperature=temperature,
+            output_enthalpy_change_unit=output_enthalpy_change_unit,
+            output_entropy_change_unit=output_entropy_change_unit,
+            output_temperature_unit=output_temperature_unit,
+            unit_conversion_fn=unit_conversion_fn,
+        )
+
+    # SECTION: Normalize mixed/numeric scalar inputs
+    return _calc_gibbs_energy_change_from_scalars(
+        enthalpy_change=enthalpy_change,
+        entropy_change=entropy_change,
         temperature=temperature,
-        entropy=entropy_change,
-        output_enthalpy_unit=output_enthalpy_change_unit,
-        output_entropy_unit=output_entropy_change_unit,
+        output_enthalpy_change_unit=output_enthalpy_change_unit,
+        output_entropy_change_unit=output_entropy_change_unit,
         output_temperature_unit=output_temperature_unit,
         unit_conversion_fn=unit_conversion_fn,
     )

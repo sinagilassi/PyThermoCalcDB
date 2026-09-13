@@ -4,6 +4,14 @@ from typing import Optional, Tuple, Dict, Any, Literal
 from pythermodb_settings.models import Temperature, CustomProp
 import pycuc
 # locals
+from .core.heat_capacity import (
+    _calc_ideal_gas_cv_from_cp_from_props,
+    _calc_ideal_gas_cp_from_cv_from_props,
+    _calc_heat_capacity_ratio_from_props,
+    _calc_ideal_gas_cv_from_cp_from_scalars,
+    _calc_ideal_gas_cp_from_cv_from_scalars,
+    _calc_heat_capacity_ratio_from_scalars,
+)
 
 
 # NOTE: logger setup
@@ -639,24 +647,6 @@ def Cp_IG(
 
 # SECTION: Ideal-gas Cp/Cv relationships
 
-def _hc_positive_scalar(
-        value,
-        name: str,
-        output_unit: str | None = None,
-        unit_conversion_fn=None,
-) -> float:
-    """Convert scalar input to a positive float, optionally normalizing units."""
-    # NOTE: Import locally to keep legacy heat-capacity imports stable.
-    from pythermodb_settings.utils.quantity import pos
-    from ..utils.conversions import _resolve_unit_conversion_fn
-
-    return pos(
-        value,
-        name,
-        output_unit,
-        unit_conversion_fn=_resolve_unit_conversion_fn(unit_conversion_fn),
-    )
-
 
 def calc_ideal_gas_cv_from_cp(
         cp,
@@ -694,20 +684,22 @@ def calc_ideal_gas_cv_from_cp(
     ValueError
         If ``cp`` or ``gas_constant`` is not positive, or if ``Cp - R <= 0``.
     """
-    # SECTION: Normalize inputs
-    cp_value = _hc_positive_scalar(
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if isinstance(cp, CustomProp) and isinstance(gas_constant, CustomProp):
+        return _calc_ideal_gas_cv_from_cp_from_props(
+            cp,
+            gas_constant,
+            output_heat_capacity_unit,
+            unit_conversion_fn,
+        )
+
+    # SECTION: Normalize mixed/numeric scalar inputs
+    return _calc_ideal_gas_cv_from_cp_from_scalars(
         cp,
-        "cp",
+        gas_constant,
         output_heat_capacity_unit,
         unit_conversion_fn,
     )
-    r_value = _hc_positive_scalar(gas_constant, "gas_constant")
-
-    # SECTION: Calculate Cv
-    cv_value = cp_value - r_value
-    if cv_value <= 0.0:
-        raise ValueError("calculated cv must be greater than zero; cp must be greater than R.")
-    return cv_value
 
 
 def calc_ideal_gas_cp_from_cv(
@@ -741,17 +733,22 @@ def calc_ideal_gas_cp_from_cv(
     Equation: ``Cp = Cv + R``. This relation applies to ideal gases on a molar
     basis with a gas constant in matching units.
     """
-    # SECTION: Normalize inputs
-    cv_value = _hc_positive_scalar(
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if isinstance(cv, CustomProp) and isinstance(gas_constant, CustomProp):
+        return _calc_ideal_gas_cp_from_cv_from_props(
+            cv,
+            gas_constant,
+            output_heat_capacity_unit,
+            unit_conversion_fn,
+        )
+
+    # SECTION: Normalize mixed/numeric scalar inputs
+    return _calc_ideal_gas_cp_from_cv_from_scalars(
         cv,
-        "cv",
+        gas_constant,
         output_heat_capacity_unit,
         unit_conversion_fn,
     )
-    r_value = _hc_positive_scalar(gas_constant, "gas_constant")
-
-    # SECTION: Calculate Cp
-    return cv_value + r_value
 
 
 # SECTION: Heat-capacity ratio
@@ -790,20 +787,20 @@ def calc_heat_capacity_ratio(
     ValueError
         If ``cp`` or ``cv`` is not positive.
     """
-    # SECTION: Normalize inputs
-    cp_value = _hc_positive_scalar(
-        cp,
-        "cp",
-        output_heat_capacity_unit,
-        unit_conversion_fn,
-    )
-    cv_value = _hc_positive_scalar(
-        cv,
-        "cv",
-        output_heat_capacity_unit,
-        unit_conversion_fn,
-    )
+    # SECTION: Delegate unit-aware inputs to the props adapter
+    if isinstance(cp, CustomProp) and isinstance(cv, CustomProp):
+        return _calc_heat_capacity_ratio_from_props(
+            cp,
+            cv,
+            output_heat_capacity_unit,
+            unit_conversion_fn,
+        )
 
-    # SECTION: Calculate heat-capacity ratio
-    return cp_value / cv_value
+    # SECTION: Normalize mixed/numeric scalar inputs
+    return _calc_heat_capacity_ratio_from_scalars(
+        cp,
+        cv,
+        output_heat_capacity_unit,
+        unit_conversion_fn,
+    )
 
