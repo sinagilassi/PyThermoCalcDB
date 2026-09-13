@@ -108,6 +108,31 @@ def calc_reaction_entropy_std_from_sequence(
     )
     return float(_calc_reaction_entropy_std(nu, entropy))
 
+
+def calc_reaction_entropy_std(
+    stoichiometric_coefficients: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    standard_entropies: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    output_entropy_unit: str | None = "J/mol.K",
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float:
+    """Calculate standard reaction entropy from species standard entropies."""
+    if isinstance(stoichiometric_coefficients, Mapping) and isinstance(standard_entropies, Mapping):
+        return calc_reaction_entropy_std_from_mapping(
+            stoichiometric_coefficients,
+            standard_entropies,
+            output_entropy_unit,
+            unit_conversion_fn,
+        )
+    if isinstance(stoichiometric_coefficients, Mapping) or isinstance(standard_entropies, Mapping):
+        raise TypeError(
+            "Both component inputs must be mappings or both sequences.")
+    return calc_reaction_entropy_std_from_sequence(
+        stoichiometric_coefficients,
+        standard_entropies,
+        output_entropy_unit,
+        unit_conversion_fn,
+    )
+
 # ! ::: Entropy from enthalpy and Gibbs energy
 
 
@@ -177,6 +202,7 @@ def calc_reaction_entropy_std_from_enthalpy_gibbs(
 
 # SECTION: Public exports
 __all__ = [
+    "calc_reaction_entropy_std",
     "calc_reaction_entropy_std_from_mapping",
     "calc_reaction_entropy_std_from_sequence",
     "calc_reaction_entropy_std_from_enthalpy_gibbs",
