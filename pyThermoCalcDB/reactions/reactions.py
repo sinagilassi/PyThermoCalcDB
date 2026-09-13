@@ -21,7 +21,13 @@ def build_hsg_reaction(
     **kwargs
 ) -> Optional[HSGReaction]:
     """
-    Build an HSGReaction object from a Reaction object and a ModelSource.
+    Build an HSGReaction object from a reaction and thermodynamic model source.
+
+    The function initializes the thermodynamic source required by ``HSGReaction``
+    and associates it with the supplied chemical reaction. The returned object can
+    then be reused for reaction enthalpy, Gibbs-energy, and equilibrium-constant
+    calculations.
+
 
     Parameters
     ----------
@@ -38,6 +44,14 @@ def build_hsg_reaction(
     -------
     Optional[HSGReaction]
         An HSGReaction object if successful, or None if an error occurs.
+
+    Notes
+    -----
+    The function does not perform a thermodynamic calculation by itself. It
+    creates the reusable reaction-thermodynamics object required by subsequent
+    enthalpy, Gibbs-energy, and equilibrium calculations.
+
+    Errors encountered during initialization are logged and result in ``None``.
     """
     try:
         # SECTION: Prepare source
@@ -62,7 +76,7 @@ def dH_rxn_298(
     **kwargs
 ) -> Optional[CustomProp]:
     """
-    Calculate the standard enthalpy of reaction at 298.15 K using HSG properties.
+    Calculate the standard reaction enthalpy at 298.15 K.
 
     Parameters
     ----------
@@ -138,7 +152,10 @@ def dH_rxn_STD(
     **kwargs
 ) -> Optional[CustomProp]:
     """
-    Calculate the standard enthalpy of reaction using HSG properties.
+    Calculate the standard reaction enthalpy at the specified temperature.
+
+    The calculation uses the reaction stoichiometry together with the standard
+    molar enthalpy of each participating species at the requested temperature.
 
     Parameters
     ----------
@@ -223,7 +240,11 @@ def dG_rxn_STD(
     **kwargs
 ) -> Optional[CustomProp]:
     """
-    Calculate the standard Gibbs free energy of reaction using HSG properties.
+    Calculate the standard reaction Gibbs energy at the specified temperature.
+
+    The calculation combines the reaction stoichiometry with the standard molar
+    Gibbs energy assigned to each participating species by the underlying HSG
+    thermodynamic model.
 
     Parameters
     ----------
@@ -257,11 +278,13 @@ def dG_rxn_STD(
         ΔG°_rxn(T) = Σ(ν_i * G_i°,IG(T))
 
     where:
-        - ν_i is the stoichiometric coefficient
-        - G_i°,IG(T) is the standard molar Gibbs free energy of species i in
-        the ideal-gas standard state at temperature T
+
+    - ``ν_i`` is the stoichiometric coefficient
+    - ``G_i°,IG(T)`` is the standard molar Gibbs free energy of species i in
+    the ideal-gas standard state at temperature T
 
     This quantity is used to calculate the equilibrium constant:
+
         K_eq = exp(-ΔG°_rxn / (R * T))
 
     Notes on phase information
@@ -307,8 +330,11 @@ def Keq_STD(
     **kwargs
 ) -> Optional[CustomProp]:
     """
-    Calculate the standard equilibrium constant of reaction using HSG properties using Van't Hoff equation as:
-        Keq_std = exp(-ΔG_rxn_std / (R * T))
+    Calculate the thermodynamic equilibrium constant at the specified temperature.
+
+    The standard reaction Gibbs energy is obtained from the supplied reaction and
+    thermodynamic model and converted to the corresponding dimensionless
+    equilibrium constant.
 
     Parameters
     ----------
@@ -331,6 +357,29 @@ def Keq_STD(
     -------
     Optional[CustomProp]
         The standard equilibrium constant of reaction, or None if calculation fails.
+
+    Notes
+    -----
+    The equilibrium constant is calculated from the standard reaction Gibbs
+    energy according to
+
+        K(T) = exp[-ΔG°_rxn(T) / (R T)]
+
+    where
+
+    - ``ΔG°_rxn(T)`` is the standard reaction Gibbs energy,
+    - ``R`` is the universal gas constant,
+    - ``T`` is the absolute temperature.
+
+    This relation is the thermodynamic Gibbs-energy definition of the
+    equilibrium constant. It should not be confused with the differential or
+    integrated van 't Hoff relation used to propagate an equilibrium constant
+    between temperatures.
+
+    The equilibrium constant is dimensionless and corresponds to the standard
+    states used by the underlying Gibbs-energy model.
+
+    Errors are logged and result in ``None``.
     """
     try:
         # SECTION: Prepare source
@@ -370,13 +419,19 @@ def Keq_VH(
     """
     Calculates the equilibrium constant of a reaction at a given temperature using Van't Hoff equation as:
 
-            ln(K_T) = ln(K_ref) + (1/R) ∫(ΔH°(T) / T²) dT from T_ref to T
+        d(ln K) / dT = ΔH°_rxn(T) / (R T^2)
 
-        where:
-        - K_T is the equilibrium constant at temperature T
-        - K_ref is the equilibrium constant at reference temperature T_ref
-        - ΔH°(T) is the standard enthalpy change of the reaction at temperature T
-        - R is the universal gas constant
+    which may be integrated between a reference temperature ``T_ref`` and the
+    target temperature ``T`` as:
+
+        ln(K_T) = ln(K_ref) + (1/R) ∫[T_ref -> T](ΔH°(T) / T²) dT
+
+    where:
+
+    - ``K_T`` is the equilibrium constant at temperature T
+    - ``K_ref`` is the equilibrium constant at reference temperature T_ref
+    - ``ΔH°(T)`` is the standard enthalpy change of the reaction at temperature T
+    - ``R`` is the universal gas constant
 
     Parameters
     ----------
@@ -399,6 +454,17 @@ def Keq_VH(
     -------
     Optional[CustomProp]
         The equilibrium constant of reaction at the given temperature, or None if calculation fails.
+
+    Notes
+    -----
+    Unlike a constant-enthalpy shortcut, the formulation permits the standard
+    reaction enthalpy to vary with temperature when the underlying HSG model
+    provides that dependence.
+
+    The equilibrium constant is dimensionless and is tied to the standard-state
+    convention used by the thermodynamic model.
+
+    Errors are logged and result in ``None``.
     """
     try:
         # SECTION: Prepare source
@@ -434,8 +500,10 @@ def Keq(
     **kwargs
 ) -> Optional[CustomProp]:
     """
-    Calculate the equilibrium constant of reaction at a given temperature as:
-        Keq = exp(-ΔG_rxn_std / (R * T))
+    Calculate the equilibrium constant from a standard reaction Gibbs energy.
+
+    This low-level calculation evaluates the thermodynamic relation between
+    standard reaction Gibbs energy and the dimensionless equilibrium constant.
 
     Parameters
     ----------
@@ -452,6 +520,27 @@ def Keq(
     -------
     Optional[CustomProp]
         The equilibrium constant of reaction at the given temperature, or None if calculation fails.
+
+    Notes
+    -----
+    The equilibrium constant is evaluated as
+
+        K(T) = exp[-ΔG°_rxn(T) / (R T)]
+
+    where
+
+    - ``ΔG°_rxn(T)`` is the standard reaction Gibbs energy in J/mol,
+    - ``R`` is the universal gas constant,
+    - ``T`` is the absolute temperature in K.
+
+    The supplied Gibbs energy must correspond to the same temperature used in
+    the equation. This function does not calculate ``ΔG°_rxn`` from species
+    properties; it only converts an already-known standard reaction Gibbs energy
+    to the corresponding equilibrium constant.
+
+    The equilibrium constant returned by this relation is dimensionless.
+
+    Errors are logged and result in ``None``.
     """
     try:
         # SECTION: input validation
@@ -499,7 +588,15 @@ def Keq_VH_Shortcut(
     **kwargs
 ) -> Optional[CustomProp]:
     """
-    Shortcut for Van't Hoff equation to calculate equilibrium constant at different temperatures as:
+    Estimate the equilibrium constant at a new temperature using the
+    constant-enthalpy van 't Hoff approximation.
+
+    The method uses a known equilibrium constant at a reference temperature and
+    assumes that the standard reaction enthalpy remains constant over the
+    temperature interval.
+
+    Shortcut for Van't Hoff equation at different temperatures as:
+
         Keq = Keq_std * exp( (-ΔH_rxn_std / R) * (1/T - 1/T_ref) )
 
     where, Keq_std is the equilibrium constant at standard conditions (T_ref), and ΔH_rxn_std is the enthalpy of reaction at standard conditions.
@@ -522,6 +619,29 @@ def Keq_VH_Shortcut(
     -------
     Optional[CustomProp]
         The equilibrium constant of reaction at the given temperature, or None if calculation fails.
+
+    Notes
+    -----
+    With a constant standard reaction enthalpy, integration of the van 't Hoff
+    equation gives
+
+        ln[K(T) / K(T_ref)] = -(ΔH°_rxn / R) (1/T - 1/T_ref)
+
+    or equivalently
+
+        K(T) = K(T_ref) exp[-(ΔH°_rxn / R) (1/T - 1/T_ref)].
+
+    In the current implementation, the reference temperature is fixed at
+
+        T_ref = 298.15 K.
+
+    This expression assumes that ``ΔH°_rxn`` is approximately constant between
+    ``T_ref`` and ``T``. The approximation may become inaccurate when the
+    reaction enthalpy changes appreciably with temperature.
+
+    The supplied reference equilibrium constant must be dimensionless.
+
+    Errors are logged and result in ``None``.
     """
     try:
         # SECTION: input validation
