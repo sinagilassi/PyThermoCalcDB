@@ -3,6 +3,7 @@
 # import libs
 from collections.abc import Mapping, Sequence
 import math
+from typing import Literal
 
 # >> pythermodb-settings
 from pythermodb_settings.models import CustomProp, ScalarValue, Temperature
@@ -21,10 +22,27 @@ from .core.equilibrium import (
     _calc_log_equilibrium_constant,
     _calc_log_reaction_quotient,
     _calc_log_reaction_quotient_from_mapping,
+    _classify_reaction_direction_from_logs,
     _calc_reaction_gibbs_energy,
     _calc_reaction_quotient,
     _calc_reaction_quotient_from_mapping,
 )
+
+
+def _scalar_energy_to_j_per_mol(value):
+    """Normalize numeric or CustomProp energy to J/mol."""
+    if isinstance(value, CustomProp):
+        return to_J_per_mol(value=value.value, from_unit=value.unit)
+    return _to_scalar(value, "delta_g_reaction_std")
+
+
+def _temperature_to_k(value):
+    """Normalize numeric or Temperature input to K."""
+    if isinstance(value, Temperature):
+        return _to_kelvin(value)
+    if isinstance(value, CustomProp):
+        return _pos(value, "temperature", "K")
+    return _pos(value, "temperature")
 
 
 # SECTION: Equilibrium constant
@@ -59,12 +77,8 @@ def calc_log_equilibrium_constant(
     """
     # SECTION: Normalize inputs
     # ! to J/mol
-    dg = to_J_per_mol(
-        value=delta_g_reaction_std.value,
-        from_unit=delta_g_reaction_std.unit,
-    )
-    # ! to K
-    temperature_k = _to_kelvin(temperature)
+    dg = _scalar_energy_to_j_per_mol(delta_g_reaction_std)
+    temperature_k = _temperature_to_k(temperature)
 
     # NOTE: ln(K) is exposed to avoid unnecessary exp overflow/underflow.
     return float(_calc_log_equilibrium_constant(dg, temperature_k))
@@ -97,12 +111,8 @@ def calc_equilibrium_constant(
     """
     # SECTION: Normalize inputs
     # ! to J/mol
-    dg = to_J_per_mol(
-        value=delta_g_reaction_std.value,
-        from_unit=delta_g_reaction_std.unit,
-    )
-    # ! to K
-    temperature_k = _to_kelvin(temperature)
+    dg = _scalar_energy_to_j_per_mol(delta_g_reaction_std)
+    temperature_k = _temperature_to_k(temperature)
 
     # SECTION: Calculate equilibrium constant
     return float(_calc_equilibrium_constant(dg, temperature_k))
@@ -227,6 +237,14 @@ def calc_reaction_quotient_from_sequence(
     return float(_calc_reaction_quotient(nu, a))
 
 
+def calc_reaction_quotient(
+    stoichiometric_coefficients: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+    activities: Mapping[str, float | int | CustomProp] | Sequence[float | int | CustomProp],
+) -> float:
+    """Calculate the dimensionless reaction quotient from activities."""
+    return float(math.exp(calc_log_reaction_quotient(stoichiometric_coefficients, activities)))
+
+
 # ! ::: Actual reaction Gibbs energy
 
 def calc_reaction_gibbs_energy(
@@ -275,15 +293,8 @@ def calc_reaction_gibbs_energy(
 
     # SECTION: Normalize thermodynamic inputs
     # ! to J/mol
-    dg_std = to_J_per_mol(
-        delta_g_reaction_std.value,
-        from_unit=delta_g_reaction_std.unit,
-    )
-    # ! to K
-    temperature_k = to_K(
-        temperature.value,
-        from_unit=temperature.unit,
-    )
+    dg_std = _scalar_energy_to_j_per_mol(delta_g_reaction_std)
+    temperature_k = _temperature_to_k(temperature)
 
     # NOTE: Prefer caller-provided ln(Q) when available for numerical stability.
     if log_reaction_quotient is not None:
@@ -344,12 +355,8 @@ def calc_dlnK_dT(
     """
     # SECTION: Normalize inputs
     # ! to J/mol
-    dh = to_J_per_mol(
-        delta_h_reaction_std.value,
-        from_unit=delta_h_reaction_std.unit,
-    )
-    # ! to K
-    temperature_k = _to_kelvin(temperature)
+    dh = _scalar_energy_to_j_per_mol(delta_h_reaction_std)
+    temperature_k = _temperature_to_k(temperature)
 
     # SECTION: Calculate derivative
     return float(_calc_dlnK_dT(dh, temperature_k))
@@ -411,13 +418,9 @@ def calc_equilibrium_constant_at_temperature(
         "equilibrium_constant_initial"
     )
     # ! to J/mol
-    dh = to_J_per_mol(
-        delta_h_reaction_std.value,
-        from_unit=delta_h_reaction_std.unit,
-    )
-    # ! to K
-    t_initial = _to_kelvin(temperature_initial)
-    t_final = _to_kelvin(temperature_final)
+    dh = _scalar_energy_to_j_per_mol(delta_h_reaction_std)
+    t_initial = _temperature_to_k(temperature_initial)
+    t_final = _temperature_to_k(temperature_final)
 
     # SECTION: Calculate final equilibrium constant
     return float(
@@ -505,13 +508,38 @@ def calc_log_equilibrium_constant_at_temperature(
                 equilibrium_constant_initial,
                 "equilibrium_constant_initial"
             ),
-            to_J_per_mol(
-                delta_h_reaction_std.value,
-                from_unit=delta_h_reaction_std.unit,
-            ),
-            _to_kelvin(temperature_initial),
-            _to_kelvin(temperature_final),
+            _scalar_energy_to_j_per_mol(delta_h_reaction_std),
+            _temperature_to_k(temperature_initial),
+            _temperature_to_k(temperature_final),
         )
+    )
+
+
+def classify_reaction_direction_from_logs(
+    log_reaction_quotient: float | int | CustomProp,
+    log_equilibrium_constant: float | int | CustomProp,
+    tolerance: float | int = 1e-12,
+) -> Literal["forward", "equilibrium", "reverse"]:
+    """Classify reaction direction from logarithmic reaction quotient and K."""
+    return _classify_reaction_direction_from_logs(
+        _to_scalar(log_reaction_quotient, "log_reaction_quotient"),
+        _to_scalar(log_equilibrium_constant, "log_equilibrium_constant"),
+        tolerance,
+    )
+
+
+def classify_reaction_direction(
+    reaction_quotient: float | int | CustomProp,
+    equilibrium_constant: float | int | CustomProp,
+    tolerance: float | int = 1e-12,
+) -> Literal["forward", "equilibrium", "reverse"]:
+    """Classify reaction direction from positive ``Q`` and ``K`` values."""
+    q = _pos(reaction_quotient, "reaction_quotient")
+    k = _pos(equilibrium_constant, "equilibrium_constant")
+    return _classify_reaction_direction_from_logs(
+        math.log(q),
+        math.log(k),
+        tolerance,
     )
 
 
@@ -520,10 +548,13 @@ __all__ = [
     "calc_log_equilibrium_constant",
     "calc_equilibrium_constant",
     "calc_log_reaction_quotient",
+    "calc_reaction_quotient",
     "calc_reaction_quotient_from_mapping",
     "calc_reaction_quotient_from_sequence",
     "calc_reaction_gibbs_energy",
     "calc_dlnK_dT",
     "calc_equilibrium_constant_at_temperature",
     "calc_log_equilibrium_constant_at_temperature",
+    "classify_reaction_direction",
+    "classify_reaction_direction_from_logs",
 ]
