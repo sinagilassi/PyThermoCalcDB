@@ -12,7 +12,9 @@ from ...utils.conversions import (
     NumericArrayInput,
     _return_scalar_if_zero_dim,
     _validate_non_negative_array,
+    _validate_positive_array,
 )
+from ...configs.constants import R_J_molK
 
 # SECTION: Type aliases
 NumericInput = NumericArrayInput
@@ -64,9 +66,38 @@ def _calc_osmolality_from_mapping(
     return float(_calc_osmolality(list(species_molalities.values())))
 
 
+def _calc_ideal_osmotic_pressure(
+    molar_concentration: NumericInput,
+    temperature: NumericInput,
+    vant_hoff_factor: NumericInput = 1.0,
+    gas_constant: NumericInput = R_J_molK,
+) -> float | NDArray[np.float64]:
+    """Calculate ideal osmotic pressure ``Pi = i*c*R*T``."""
+    c = np.asarray(molar_concentration, dtype=np.float64)
+    t = np.asarray(temperature, dtype=np.float64)
+    i = np.asarray(vant_hoff_factor, dtype=np.float64)
+    r = np.asarray(gas_constant, dtype=np.float64)
+    for name, arr in (
+        ("molar_concentration", c),
+        ("temperature", t),
+        ("vant_hoff_factor", i),
+        ("gas_constant", r),
+    ):
+        if arr.ndim > 2:
+            raise ValueError(f"{name} must be scalar, one-dimensional, or two-dimensional.")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"{name} values must be finite.")
+    _validate_non_negative_array(c, "molar_concentration")
+    _validate_positive_array(t, "temperature")
+    _validate_positive_array(i, "vant_hoff_factor")
+    _validate_positive_array(r, "gas_constant")
+    return _return_scalar_if_zero_dim(c * r * t * i)
+
+
 __all__ = [
     "_calc_osmolarity",
     "_calc_osmolality",
     "_calc_osmolarity_from_mapping",
     "_calc_osmolality_from_mapping",
+    "_calc_ideal_osmotic_pressure",
 ]

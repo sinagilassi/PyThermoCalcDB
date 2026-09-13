@@ -7,17 +7,22 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 from pythermodb_settings.decorators import calculation_info
-from pythermodb_settings.models import AnnotatedValue, Component, ComponentKey, CustomProp
+from pythermodb_settings.models import AnnotatedValue, Component, ComponentKey, CustomProp, Temperature
 from pythermodb_settings.utils import to_annotated_value
 from pythermodb_settings.utils.quantity import to_dict, to_list
 
 # locals
+from ..configs.constants import R_J_molK
 from ..utils.conversions import (
     _configure_component_values,
+    _pos,
+    _resolve_unit_conversion_fn,
+    _to_kelvin,
     _to_values,
     _validate_custom_prop_mapping,
 )
 from .core.osmotic import (
+    _calc_ideal_osmotic_pressure,
     _calc_osmolality,
     _calc_osmolality_from_mapping,
     _calc_osmolarity,
@@ -277,6 +282,68 @@ def calc_osmolality_from_props(
     )
 
 
+@calculation_info(
+    name="ideal_osmotic_pressure",
+    description="Calculate dilute ideal osmotic pressure from molar concentration.",
+    equation="Pi = i*c*R*T",
+    inputs={
+        "molar_concentration": "Osmotically active molar concentration.",
+        "temperature": "Absolute temperature.",
+        "vant_hoff_factor": "Optional van 't Hoff factor.",
+    },
+    outputs={"osmotic_pressure": "Ideal osmotic pressure."},
+    aliases=("van't Hoff osmotic pressure",),
+    notes=("No osmotic coefficient or detailed electrolyte model is inferred.",),
+    tags=("osmotic_pressure", "composition", "electrolyte", "low_level"),
+)
+def calc_ideal_osmotic_pressure(
+    molar_concentration,
+    temperature,
+    vant_hoff_factor: float = 1.0,
+    gas_constant: float = R_J_molK,
+    output_concentration_unit: str | None = None,
+    output_pressure_unit: str = "Pa",
+    unit_conversion_fn=None,
+    *,
+    name: str = "ideal_osmotic_pressure",
+    description: str = "Calculate dilute ideal osmotic pressure.",
+    symbol: str | None = None,
+) -> AnnotatedValue[float]:
+    """Calculate ideal osmotic pressure ``Pi = i*c*R*T``.
+
+    Numeric concentrations are assumed to be in ``mol/m3`` unless the caller
+    supplies a unit-aware ``CustomProp`` and ``output_concentration_unit``.
+    """
+    # SECTION: Normalize scalar inputs
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    concentration_unit = output_concentration_unit or "mol/m3"
+    c = _pos(
+        molar_concentration,
+        "molar_concentration",
+        concentration_unit if isinstance(molar_concentration, CustomProp) else None,
+        conversion_fn,
+    )
+    if concentration_unit != "mol/m3":
+        c = float(conversion_fn(c, concentration_unit, "mol/m3"))
+    t = _to_kelvin(temperature) if isinstance(temperature, Temperature) else _pos(
+        temperature,
+        "temperature",
+        "K" if isinstance(temperature, CustomProp) else None,
+        conversion_fn,
+    )
+    pressure = float(_calc_ideal_osmotic_pressure(c, t, vant_hoff_factor, gas_constant))
+    if output_pressure_unit != "Pa":
+        pressure = float(conversion_fn(pressure, "Pa", output_pressure_unit))
+    return to_annotated_value(
+        pressure,
+        name=name,
+        description=description,
+        unit=output_pressure_unit,
+        symbol=symbol,
+        implementation="_calc_ideal_osmotic_pressure",
+    )
+
+
 __all__ = [
     "calc_osmolarity",
     "calc_osmolarity_from_sequence",
@@ -286,4 +353,5 @@ __all__ = [
     "calc_osmolality_from_sequence",
     "calc_osmolality_from_mapping",
     "calc_osmolality_from_props",
+    "calc_ideal_osmotic_pressure",
 ]
