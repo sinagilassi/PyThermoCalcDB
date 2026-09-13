@@ -66,14 +66,22 @@ def calc_molalities(
     description: str = "Calculate the molality of each component in a solution.",
     unit: str | None = None,
     symbol: str | None = None,
-) -> AnnotatedValue[NDArray[np.float64]]:
+    as_list: bool = False,
+) -> AnnotatedValue[NDArray[np.float64] | list[Any]]:
     """Calculate annotated molality values from array-like inputs."""
-    value = _calc_molalities(
-        component_moles=component_moles,
-        solvent_mass=solvent_mass,
-    )
+    if as_list:
+        value = _calc_molalities(
+            component_moles=component_moles,
+            solvent_mass=solvent_mass,
+            as_list=True,
+        )
+    else:
+        value = _calc_molalities(
+            component_moles=component_moles,
+            solvent_mass=solvent_mass,
+        )
     return cast(
-        AnnotatedValue[NDArray[np.float64]],
+        AnnotatedValue[NDArray[np.float64] | list[Any]],
         to_annotated_value(
             value,
             name=name,
@@ -267,10 +275,14 @@ def calc_molalities_from_props(
     )
 
 
+calc_component_molalities_from_props = calc_molalities_from_props
+
+
 # all
 __all__ = [
     "calc_molalities",
     "calc_molalities_from_sequence",
     "calc_molalities_from_mapping",
     "calc_molalities_from_props",
+    "calc_component_molalities_from_props",
 ]

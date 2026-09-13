@@ -114,11 +114,11 @@ def _calc_molalities(
 
 @overload
 def _calc_molalities(
-    component_moles: Sequence[float | int],
-    solvent_mass: float | int,
+    component_moles: Sequence[float | int] | NDArray[np.number],
+    solvent_mass: float | int | NDArray[np.number],
     *,
     as_list: Literal[True],
-) -> list[float]:
+) -> list[Any]:
     ...
 
 
@@ -127,7 +127,7 @@ def _calc_molalities(
     solvent_mass: float | int | NDArray[np.number],
     *,
     as_list: bool = False,
-) -> NDArray[np.float64] | list[float]:
+) -> NDArray[np.float64] | list[Any]:
     """
     Calculate molalities using NumPy vectorization.
 
@@ -157,7 +157,7 @@ def _calc_molalities(
 
     molalities = cast(NDArray[np.float64], moles / mass)
     if as_list:
-        return cast(list[float], molalities.tolist())
+        return cast(list[Any], molalities.tolist())
     return molalities
 
 
