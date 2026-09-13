@@ -23,7 +23,15 @@ from .entropy import (
 # NOTE: ideal mixing Gibbs energy
 from .gibbs import (
     calc_ideal_molar_gibbs_energy_of_mixing,
+    calc_ideal_molar_gibbs_energy_of_mixing_from_sequence,
+    calc_ideal_molar_gibbs_energy_of_mixing_from_mapping,
+    calc_ideal_molar_gibbs_energy_of_mixing_from_props,
     calc_ideal_gibbs_energy_of_mixing,
+    calc_ideal_gibbs_energy_of_mixing_from_alls,
+    calc_ideal_gibbs_energy_of_mixing_from_all,
+    calc_ideal_gibbs_energy_of_mixing_from_sequence,
+    calc_ideal_gibbs_energy_of_mixing_from_mapping,
+    calc_ideal_gibbs_energy_of_mixing_from_props,
 )
 
 # NOTE: volume fraction conversions
@@ -45,7 +53,17 @@ __all__ = [
     "calc_ideal_molar_entropy_of_mixing",
     "calc_ideal_entropy_of_mixing",
     "calc_ideal_molar_gibbs_energy_of_mixing",
+    "calc_ideal_molar_gibbs_energy_of_mixing_from_sequence",
+    "calc_ideal_molar_gibbs_energy_of_mixing_from_mapping",
+    "calc_ideal_molar_gibbs_energy_of_mixing_from_props",
     "calc_ideal_gibbs_energy_of_mixing",
+    "calc_ideal_gibbs_energy_of_mixing_from_alls",
+    "calc_ideal_gibbs_energy_of_mixing_from_all",
+    "calc_ideal_gibbs_energy_of_mixing_from_sequence",
+    "calc_ideal_gibbs_energy_of_mixing_from_mapping",
+    "calc_ideal_gibbs_energy_of_mixing_from_props",
     "calc_volume_fractions",
     "mass_fraction_to_volume_fraction",
 ]
+
+
