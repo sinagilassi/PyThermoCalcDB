@@ -121,10 +121,61 @@ def _calc_liquid_partial_fugacity(
     return _return_scalar_if_zero_dim(x * gamma * phi_sat * p_sat * f_poynting)
 
 
+
+def _calc_fugacity_coefficient(
+    fugacity: NumericArrayInput,
+    mole_fraction: NumericArrayInput,
+    pressure: NumericArrayInput,
+) -> float | NDArray[np.float64]:
+    """Calculate fugacity coefficient from fugacity, mole fraction, and pressure.
+
+    Equation: ``phi_i = f_i/(y_i*P)``. Fugacity and pressure must share a
+    pressure unit basis, commonly Pa. Mole fraction is dimensionless and must be
+    positive for this coefficient definition.
+    """
+    f = _as_state_array(fugacity, "fugacity")
+    y = _as_state_array(mole_fraction, "mole_fraction")
+    p = _as_state_array(pressure, "pressure")
+    _validate_positive(f, "fugacity")
+    _validate_positive(y, "mole_fraction")
+    _validate_positive(p, "pressure")
+    return _return_scalar_if_zero_dim(f / (y * p))
+
+
+def _calc_fugacity_from_coefficient(
+    fugacity_coefficient: NumericArrayInput,
+    mole_fraction: NumericArrayInput,
+    pressure: NumericArrayInput,
+) -> float | NDArray[np.float64]:
+    """Calculate fugacity from coefficient: ``f_i = phi_i*y_i*P``."""
+    phi = _as_state_array(fugacity_coefficient, "fugacity_coefficient")
+    y = _as_state_array(mole_fraction, "mole_fraction")
+    p = _as_state_array(pressure, "pressure")
+    _validate_positive(phi, "fugacity_coefficient")
+    _validate_non_negative(y, "mole_fraction")
+    _validate_positive(p, "pressure")
+    return _return_scalar_if_zero_dim(phi * y * p)
+
+
+def _calc_phase_equilibrium_fugacity_residual(
+    fugacity_phase_1: NumericArrayInput,
+    fugacity_phase_2: NumericArrayInput,
+) -> float | NDArray[np.float64]:
+    """Calculate phase-equilibrium fugacity residual ``f1 - f2``."""
+    f1 = _as_state_array(fugacity_phase_1, "fugacity_phase_1")
+    f2 = _as_state_array(fugacity_phase_2, "fugacity_phase_2")
+    _validate_positive(f1, "fugacity_phase_1")
+    _validate_positive(f2, "fugacity_phase_2")
+    return _return_scalar_if_zero_dim(f1 - f2)
 # SECTION: Core exports
 __all__ = [
     "_calc_poynting_factor_incompressible",
     "_calc_poynting_factor_from_integral",
     "_calc_liquid_fugacity_coefficient",
     "_calc_liquid_partial_fugacity",
+    "_calc_fugacity_coefficient",
+    "_calc_fugacity_from_coefficient",
+    "_calc_phase_equilibrium_fugacity_residual",
 ]
+
+

@@ -13,6 +13,9 @@ from .core.fugacity import (
     _calc_liquid_partial_fugacity,
     _calc_poynting_factor_from_integral,
     _calc_poynting_factor_incompressible,
+    _calc_fugacity_coefficient,
+    _calc_fugacity_from_coefficient,
+    _calc_phase_equilibrium_fugacity_residual,
 )
 
 
@@ -125,10 +128,60 @@ def calc_liquid_partial_fugacity(
     return value
 
 
+
+def calc_fugacity_coefficient(
+    fugacity,
+    mole_fraction,
+    pressure,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float | NDArray[np.float64]:
+    """Calculate fugacity coefficient ``phi_i = f_i/(y_i*P)``."""
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    f = _pressure_to_pa(fugacity, "fugacity", conversion_fn)
+    y = _pos(mole_fraction, "mole_fraction")
+    p = _pressure_to_pa(pressure, "pressure", conversion_fn)
+    return _calc_fugacity_coefficient(f, y, p)
+
+
+def calc_fugacity_from_coefficient(
+    fugacity_coefficient,
+    mole_fraction,
+    pressure,
+    output_pressure_unit: str = "Pa",
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float | CustomProp | NDArray[np.float64]:
+    """Calculate fugacity from coefficient ``f_i = phi_i*y_i*P``."""
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    phi = _pos(fugacity_coefficient, "fugacity_coefficient")
+    y = _scalar(mole_fraction, "mole_fraction")
+    p = _pressure_to_pa(pressure, "pressure", conversion_fn)
+    value = _calc_fugacity_from_coefficient(phi, y, p)
+    if output_pressure_unit != "Pa":
+        value = conversion_fn(value=float(value), from_unit="Pa", to_unit=output_pressure_unit)
+    if isinstance(pressure, (CustomProp, Pressure)) or output_pressure_unit != "Pa":
+        return CustomProp(value=float(value), unit=output_pressure_unit)
+    return value
+
+
+def calc_phase_equilibrium_fugacity_residual(
+    fugacity_phase_1,
+    fugacity_phase_2,
+    unit_conversion_fn: UnitConversionFn | None = None,
+) -> float | NDArray[np.float64]:
+    """Calculate phase-equilibrium fugacity residual ``f1 - f2``."""
+    conversion_fn = _resolve_unit_conversion_fn(unit_conversion_fn)
+    f1 = _pressure_to_pa(fugacity_phase_1, "fugacity_phase_1", conversion_fn)
+    f2 = _pressure_to_pa(fugacity_phase_2, "fugacity_phase_2", conversion_fn)
+    return _calc_phase_equilibrium_fugacity_residual(f1, f2)
 # SECTION: Public exports
 __all__ = [
     "calc_poynting_factor_incompressible",
     "calc_poynting_factor_from_integral",
     "calc_liquid_fugacity_coefficient",
     "calc_liquid_partial_fugacity",
+    "calc_fugacity_coefficient",
+    "calc_fugacity_from_coefficient",
+    "calc_phase_equilibrium_fugacity_residual",
 ]
+
+
