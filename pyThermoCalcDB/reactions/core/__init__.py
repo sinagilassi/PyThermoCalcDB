@@ -28,6 +28,12 @@ from .equilibrium import (
 )
 
 
+# NOTE: reaction stoichiometry
+from .stoichiometry import (
+    _calc_component_moles_from_reaction_extent,
+    _calc_component_moles_from_reaction_extents,
+)
+
 __all__ = [
     "_calc_reaction_entropy_std",
     "_calc_reaction_entropy_std_from_enthalpy_gibbs",
@@ -48,4 +54,9 @@ __all__ = [
     "_calc_reaction_gibbs_energy",
     "_calc_reaction_quotient",
     "_calc_reaction_quotient_from_mapping",
+    "_calc_component_moles_from_reaction_extent",
+    "_calc_component_moles_from_reaction_extents",
 ]
+
+
+

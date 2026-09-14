@@ -11,6 +11,10 @@ from .diffusivity import (
     calc_wilke_chang_diffusivity,
     calc_wilke_lee_diffusivity,
 )
+from .viscosity import (
+    calc_liquid_mixture_viscosity_log_rule,
+    calc_viscosity_exponential_correlation,
+)
 from .surface_tension import (
     calc_ideal_vapor_liquid_surface_tension,
     calc_winterfeld_vapor_liquid_surface_tension,
@@ -32,4 +36,8 @@ __all__ = [
     "calc_ideal_liquid_thermal_conductivity",
     "calc_ideal_vapor_liquid_surface_tension",
     "calc_winterfeld_vapor_liquid_surface_tension",
+    "calc_liquid_mixture_viscosity_log_rule",
+    "calc_viscosity_exponential_correlation",
 ]
+
+

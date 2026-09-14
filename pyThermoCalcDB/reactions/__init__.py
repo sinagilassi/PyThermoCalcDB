@@ -35,6 +35,12 @@ from .equilibrium import (
 )
 
 
+# NOTE: stoichiometry primitives
+from .stoichiometry import (
+    calc_component_moles_from_reaction_extent,
+    calc_component_moles_from_reaction_extents,
+)
+
 __all__ = [
     "build_hsg_reaction",
     "dH_rxn_STD",
@@ -60,4 +66,9 @@ __all__ = [
     "calc_log_equilibrium_constant_at_temperature",
     "classify_reaction_direction",
     "classify_reaction_direction_from_logs",
+    "calc_component_moles_from_reaction_extent",
+    "calc_component_moles_from_reaction_extents",
 ]
+
+
+

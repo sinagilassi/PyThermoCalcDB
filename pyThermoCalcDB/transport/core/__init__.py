@@ -15,6 +15,10 @@ from .surface_tension import (
     _calc_ideal_vapor_liquid_surface_tension,
     _calc_winterfeld_vapor_liquid_surface_tension,
 )
+from .viscosity import (
+    _calc_liquid_mixture_viscosity_log_rule,
+    _calc_viscosity_exponential_correlation,
+)
 from .thermal_conductivity import (
     _calc_ideal_liquid_thermal_conductivity,
     _calc_stiel_thodos_gas_thermal_conductivity,
@@ -32,4 +36,8 @@ __all__ = [
     "_calc_ideal_liquid_thermal_conductivity",
     "_calc_ideal_vapor_liquid_surface_tension",
     "_calc_winterfeld_vapor_liquid_surface_tension",
+    "_calc_liquid_mixture_viscosity_log_rule",
+    "_calc_viscosity_exponential_correlation",
 ]
+
+

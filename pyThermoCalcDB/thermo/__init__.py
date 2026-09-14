@@ -19,10 +19,20 @@ from .chemical_potential import (
 )
 
 # NOTE: activity helpers
+from .departure import (
+    calc_enthalpy_departure,
+    calc_entropy_departure,
+    calc_dimensionless_enthalpy_departure,
+    calc_dimensionless_entropy_departure,
+    calc_enthalpy_from_ideal_and_departure,
+    calc_entropy_from_ideal_and_departure,
+    calc_cp_departure_from_eos_derivatives,
+)
 from .activity import (
     calc_activity_from_mole_fraction,
     calc_activity_from_concentration,
     calc_effective_concentration,
+    calc_activity_coefficient_from_fugacity,
 )
 
 # NOTE: fugacity helpers
@@ -31,6 +41,9 @@ from .fugacity import (
     calc_poynting_factor_from_integral,
     calc_liquid_fugacity_coefficient,
     calc_liquid_partial_fugacity,
+    calc_fugacity_coefficient,
+    calc_fugacity_from_coefficient,
+    calc_phase_equilibrium_fugacity_residual,
 )
 
 # NOTE: heat-capacity helpers
@@ -120,13 +133,24 @@ __all__ = [
     "calc_ideal_gas_chemical_potential",
     "calc_chemical_potential_from_fugacity",
     "calc_solution_chemical_potential",
+    "calc_enthalpy_departure",
+    "calc_entropy_departure",
+    "calc_dimensionless_enthalpy_departure",
+    "calc_dimensionless_entropy_departure",
+    "calc_enthalpy_from_ideal_and_departure",
+    "calc_entropy_from_ideal_and_departure",
+    "calc_cp_departure_from_eos_derivatives",
     "calc_activity_from_mole_fraction",
     "calc_activity_from_concentration",
     "calc_effective_concentration",
+    "calc_activity_coefficient_from_fugacity",
     "calc_poynting_factor_incompressible",
     "calc_poynting_factor_from_integral",
     "calc_liquid_fugacity_coefficient",
     "calc_liquid_partial_fugacity",
+    "calc_fugacity_coefficient",
+    "calc_fugacity_from_coefficient",
+    "calc_phase_equilibrium_fugacity_residual",
     "calc_ideal_gas_cv_from_cp",
     "calc_ideal_gas_cp_from_cv",
     "calc_heat_capacity_ratio",
@@ -167,3 +191,5 @@ __all__ = [
     "calc_pressure_from_virial_density_form",
     "calc_compressibility_from_virial_pressure_form",
 ]
+
+

@@ -24,16 +24,29 @@ from .density import (
     _calc_ideal_gas_pressure,
     _calc_ideal_gas_volume,
 )
+from .departure import (
+    _calc_enthalpy_departure,
+    _calc_entropy_departure,
+    _calc_dimensionless_enthalpy_departure,
+    _calc_dimensionless_entropy_departure,
+    _calc_enthalpy_from_ideal_and_departure,
+    _calc_entropy_from_ideal_and_departure,
+    _calc_cp_departure_from_eos_derivatives,
+)
 from .activity import (
     _calc_activity_from_mole_fraction,
     _calc_activity_from_concentration,
     _calc_effective_concentration,
+    _calc_activity_coefficient_from_fugacity,
 )
 from .fugacity import (
     _calc_poynting_factor_incompressible,
     _calc_poynting_factor_from_integral,
     _calc_liquid_fugacity_coefficient,
     _calc_liquid_partial_fugacity,
+    _calc_fugacity_coefficient,
+    _calc_fugacity_from_coefficient,
+    _calc_phase_equilibrium_fugacity_residual,
 )
 from .virial import (
     _calc_compressibility_from_second_virial,
@@ -64,16 +77,29 @@ __all__ = [
     "_calc_ideal_gas_volume",
     "_calc_gas_pressure_from_z",
     "_calc_gas_volume_from_z",
+    "_calc_enthalpy_departure",
+    "_calc_entropy_departure",
+    "_calc_dimensionless_enthalpy_departure",
+    "_calc_dimensionless_entropy_departure",
+    "_calc_enthalpy_from_ideal_and_departure",
+    "_calc_entropy_from_ideal_and_departure",
+    "_calc_cp_departure_from_eos_derivatives",
     "_calc_activity_from_mole_fraction",
     "_calc_activity_from_concentration",
     "_calc_effective_concentration",
+    "_calc_activity_coefficient_from_fugacity",
     "_calc_poynting_factor_incompressible",
     "_calc_poynting_factor_from_integral",
     "_calc_liquid_fugacity_coefficient",
     "_calc_liquid_partial_fugacity",
+    "_calc_fugacity_coefficient",
+    "_calc_fugacity_from_coefficient",
+    "_calc_phase_equilibrium_fugacity_residual",
     "_calc_compressibility_from_second_virial",
     "_calc_second_virial_from_compressibility",
     "_calc_compressibility_from_virial_density_form",
     "_calc_pressure_from_virial_density_form",
     "_calc_compressibility_from_virial_pressure_form",
 ]
+
+
