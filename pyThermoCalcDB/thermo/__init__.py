@@ -40,6 +40,7 @@ from .heat_capacity import (
     calc_heat_capacity_ratio,
     calc_ideal_gas_isentropic_temperature,
     calc_cp_minus_cv_general,
+    calc_cp_minus_cv_from_pressure_derivatives,
     calc_cv_from_cp_general,
     calc_cp_from_cv_general,
 )
@@ -70,9 +71,11 @@ from .phase_change import (
     calc_phase_transition_entropy,
     calc_enthalpy_of_sublimation,
     calc_clapeyron_slope,
+    calc_transition_enthalpy_from_clapeyron,
     calc_enthalpy_vaporization_watson,
     calc_transition_enthalpy_from_constant_delta_cp,
     calc_transition_enthalpy_from_cp_integral,
+    calc_sublimation_pressure_clapeyron,
 )
 
 # NOTE: derivative-property helpers
@@ -92,6 +95,15 @@ from .vapor_pressure import (
     calc_log_vapor_pressure_ratio_clausius_clapeyron,
     calc_vapor_pressure_clausius_clapeyron,
     calc_enthalpy_vaporization_clausius_clapeyron,
+)
+
+# NOTE: virial EOS helpers
+from .virial import (
+    calc_compressibility_from_second_virial,
+    calc_second_virial_from_compressibility,
+    calc_compressibility_from_virial_density_form,
+    calc_pressure_from_virial_density_form,
+    calc_compressibility_from_virial_pressure_form,
 )
 
 
@@ -120,6 +132,7 @@ __all__ = [
     "calc_heat_capacity_ratio",
     "calc_ideal_gas_isentropic_temperature",
     "calc_cp_minus_cv_general",
+    "calc_cp_minus_cv_from_pressure_derivatives",
     "calc_cv_from_cp_general",
     "calc_cp_from_cv_general",
     "calc_gibbs_energy",
@@ -132,9 +145,11 @@ __all__ = [
     "calc_phase_transition_entropy",
     "calc_enthalpy_of_sublimation",
     "calc_clapeyron_slope",
+    "calc_transition_enthalpy_from_clapeyron",
     "calc_enthalpy_vaporization_watson",
     "calc_transition_enthalpy_from_constant_delta_cp",
     "calc_transition_enthalpy_from_cp_integral",
+    "calc_sublimation_pressure_clapeyron",
     "calc_thermal_expansion_coefficient",
     "calc_isothermal_compressibility",
     "calc_isothermal_compressibility_from_density",
@@ -146,4 +161,9 @@ __all__ = [
     "calc_log_vapor_pressure_ratio_clausius_clapeyron",
     "calc_vapor_pressure_clausius_clapeyron",
     "calc_enthalpy_vaporization_clausius_clapeyron",
+    "calc_compressibility_from_second_virial",
+    "calc_second_virial_from_compressibility",
+    "calc_compressibility_from_virial_density_form",
+    "calc_pressure_from_virial_density_form",
+    "calc_compressibility_from_virial_pressure_form",
 ]
