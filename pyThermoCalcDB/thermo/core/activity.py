@@ -85,9 +85,34 @@ def _calc_effective_concentration(
         raise ValueError("activity and reference_concentration must be broadcast-compatible.") from exc
 
 
+
+def _calc_activity_coefficient_from_fugacity(
+    liquid_fugacity: NumericArrayInput,
+    mole_fraction: NumericArrayInput,
+    standard_state_fugacity: NumericArrayInput,
+) -> float | NDArray[np.float64]:
+    """Calculate activity coefficient from fugacity definition.
+
+    Equation: ``gamma_i = f_i^L/(x_i*f_i^0)``. Fugacities must share a pressure
+    unit basis, mole fraction is dimensionless, and all denominator terms must
+    be positive.
+    """
+    f_l = _as_state_array(liquid_fugacity, "liquid_fugacity")
+    x = _as_state_array(mole_fraction, "mole_fraction")
+    f0 = _as_state_array(standard_state_fugacity, "standard_state_fugacity")
+    _validate_positive(f_l, "liquid_fugacity")
+    _validate_positive(x, "mole_fraction")
+    _validate_positive(f0, "standard_state_fugacity")
+    try:
+        return _return_scalar_if_zero_dim(f_l / (x * f0))
+    except ValueError as exc:
+        raise ValueError("liquid_fugacity, mole_fraction, and standard_state_fugacity must be broadcast-compatible.") from exc
 # SECTION: Core exports
 __all__ = [
     "_calc_activity_from_mole_fraction",
     "_calc_activity_from_concentration",
     "_calc_effective_concentration",
+    "_calc_activity_coefficient_from_fugacity",
 ]
+
+

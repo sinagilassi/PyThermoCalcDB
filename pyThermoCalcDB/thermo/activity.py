@@ -10,6 +10,7 @@ from ..utils.conversions import _pos, _resolve_unit_conversion_fn, _scalar
 from .core.activity import (
     _calc_activity_from_concentration,
     _calc_activity_from_mole_fraction,
+    _calc_activity_coefficient_from_fugacity,
     _calc_effective_concentration,
 )
 
@@ -101,9 +102,27 @@ def calc_effective_concentration(
     return value
 
 
+
+def calc_activity_coefficient_from_fugacity(
+    liquid_fugacity,
+    mole_fraction,
+    standard_state_fugacity,
+) -> float | NDArray[np.float64]:
+    """Calculate activity coefficient from fugacity definition.
+
+    Equation: ``gamma_i = f_i^L/(x_i*f_i^0)``. Numeric fugacities are assumed
+    to already share a pressure unit basis.
+    """
+    f_l = _pos(liquid_fugacity, "liquid_fugacity")
+    x = _pos(mole_fraction, "mole_fraction")
+    f0 = _pos(standard_state_fugacity, "standard_state_fugacity")
+    return _calc_activity_coefficient_from_fugacity(f_l, x, f0)
 # SECTION: Public exports
 __all__ = [
     "calc_activity_from_mole_fraction",
     "calc_activity_from_concentration",
     "calc_effective_concentration",
+    "calc_activity_coefficient_from_fugacity",
 ]
+
+
