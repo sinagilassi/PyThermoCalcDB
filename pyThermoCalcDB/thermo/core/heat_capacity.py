@@ -145,6 +145,32 @@ def _calc_cp_minus_cv_general(
     )
 
 
+def _calc_cp_minus_cv_from_pressure_derivatives(
+    temperature: NumericInput,
+    dpressure_dtemperature_at_volume: NumericInput,
+    dpressure_dvolume_at_temperature: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate ``Cp - Cv = -T*(dP/dT)_V^2/(dP/dV)_T``."""
+    t = _as_positive_heat_capacity_array(temperature, "temperature")
+    dpdt_v = np.asarray(dpressure_dtemperature_at_volume, dtype=np.float64)
+    dpdv_t = np.asarray(dpressure_dvolume_at_temperature, dtype=np.float64)
+    for name, arr in (
+        ("dpressure_dtemperature_at_volume", dpdt_v),
+        ("dpressure_dvolume_at_temperature", dpdv_t),
+    ):
+        if arr.ndim > 2:
+            raise ValueError(f"{name} must be scalar, 1-D, or 2-D values.")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"{name} values must be finite.")
+    # ! Stable fluids have negative (dP/dV)_T; zero would make the identity singular.
+    if np.any(dpdv_t == 0.0):
+        raise ValueError("dpressure_dvolume_at_temperature must not be zero.")
+    delta = -t * np.power(dpdt_v, 2.0) / dpdv_t
+    if np.any(delta < 0.0):
+        raise ValueError("calculated Cp - Cv must be non-negative.")
+    return _return_scalar_if_zero_dim(cast(NDArray[np.float64], delta))
+
+
 def _calc_cv_from_cp_general(
     cp: NumericInput,
     temperature: NumericInput,
@@ -299,6 +325,7 @@ __all__ = [
     "_calc_heat_capacity_ratio",
     "_calc_ideal_gas_isentropic_temperature",
     "_calc_cp_minus_cv_general",
+    "_calc_cp_minus_cv_from_pressure_derivatives",
     "_calc_cv_from_cp_general",
     "_calc_cp_from_cv_general",
     "_calc_ideal_gas_cv_from_cp_from_props",

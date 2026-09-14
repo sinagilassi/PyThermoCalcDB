@@ -6,6 +6,7 @@ import pycuc
 # locals
 from .core.heat_capacity import (
     _calc_cp_from_cv_general,
+    _calc_cp_minus_cv_from_pressure_derivatives,
     _calc_cp_minus_cv_general,
     _calc_cv_from_cp_general,
     _calc_ideal_gas_cv_from_cp_from_props,
@@ -897,6 +898,47 @@ def calc_cp_minus_cv_general(
         conversion_fn,
     )
     result = float(_calc_cp_minus_cv_general(t, v, alpha, kappa_t))
+    if output_heat_capacity_unit != "J/(mol.K)":
+        result = float(conversion_fn(result, "J/(mol.K)", output_heat_capacity_unit))
+    return result
+
+
+def calc_cp_minus_cv_from_pressure_derivatives(
+        temperature,
+        dpressure_dtemperature_at_volume,
+        dpressure_dvolume_at_temperature,
+        output_heat_capacity_unit: str = "J/(mol.K)",
+        unit_conversion_fn=None,
+) -> float:
+    """Calculate general-fluid ``Cp - Cv`` from pressure derivatives.
+
+    Equation
+    --------
+    Cp - Cv = -T*(dP/dT)_V^2/(dP/dV)_T
+    """
+    conversion_fn = pycuc.convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    if isinstance(temperature, Temperature):
+        t = _to_kelvin(temperature)
+    else:
+        t = _pos(
+            temperature,
+            "temperature",
+            "K" if isinstance(temperature, CustomProp) else None,
+            conversion_fn,
+        )
+    dpdt_v = _scalar(
+        dpressure_dtemperature_at_volume,
+        "dpressure_dtemperature_at_volume",
+        "Pa/K" if isinstance(dpressure_dtemperature_at_volume, CustomProp) else None,
+        conversion_fn,
+    )
+    dpdv_t = _scalar(
+        dpressure_dvolume_at_temperature,
+        "dpressure_dvolume_at_temperature",
+        "Pa/(m3/mol)" if isinstance(dpressure_dvolume_at_temperature, CustomProp) else None,
+        conversion_fn,
+    )
+    result = float(_calc_cp_minus_cv_from_pressure_derivatives(t, dpdt_v, dpdv_t))
     if output_heat_capacity_unit != "J/(mol.K)":
         result = float(conversion_fn(result, "J/(mol.K)", output_heat_capacity_unit))
     return result
