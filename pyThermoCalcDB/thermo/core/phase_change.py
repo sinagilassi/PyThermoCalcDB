@@ -73,6 +73,22 @@ def _calc_clapeyron_slope(
     return _return_scalar_if_zero_dim(h_tr / (t * dv))
 
 
+def _calc_transition_enthalpy_from_clapeyron(
+    temperature: NumericInput,
+    transition_volume_change: NumericInput,
+    dpressure_dtemperature: NumericInput,
+) -> float | NDArray[np.float64]:
+    """Calculate ``delta_H_tr = T*delta_V_tr*(dP/dT)``."""
+    t = _as_finite_float_array(temperature, "temperature")
+    dv = _as_finite_float_array(
+        transition_volume_change,
+        "transition_volume_change",
+    )
+    dpdt = _as_finite_float_array(dpressure_dtemperature, "dpressure_dtemperature")
+    _validate_positive_array(t, "temperature")
+    return _return_scalar_if_zero_dim(t * dv * dpdt)
+
+
 def _calc_enthalpy_vaporization_watson(
     enthalpy_vaporization_reference: NumericInput,
     temperature_reference: NumericInput,
@@ -135,11 +151,35 @@ def _calc_transition_enthalpy_from_cp_integral(
     return _return_scalar_if_zero_dim(h_ref + integral)
 
 
+def _calc_sublimation_pressure_clapeyron(
+    pressure_reference: NumericInput,
+    sublimation_enthalpy: NumericInput,
+    temperature_reference: NumericInput,
+    temperature: NumericInput,
+    gas_constant: NumericInput = 8.314462618,
+) -> float | NDArray[np.float64]:
+    """Calculate sublimation pressure from integrated Clapeyron relation."""
+    p_ref = _as_finite_float_array(pressure_reference, "pressure_reference")
+    h_sub = _as_finite_float_array(sublimation_enthalpy, "sublimation_enthalpy")
+    t_ref = _as_finite_float_array(temperature_reference, "temperature_reference")
+    t = _as_finite_float_array(temperature, "temperature")
+    r = _as_finite_float_array(gas_constant, "gas_constant")
+    _validate_positive_array(p_ref, "pressure_reference")
+    _validate_positive_array(h_sub, "sublimation_enthalpy")
+    _validate_positive_array(t_ref, "temperature_reference")
+    _validate_positive_array(t, "temperature")
+    _validate_positive_array(r, "gas_constant")
+    ln_ratio = -(h_sub / r) * (1.0 / t - 1.0 / t_ref)
+    return _return_scalar_if_zero_dim(p_ref * np.exp(ln_ratio))
+
+
 __all__ = [
     "_calc_phase_transition_entropy",
     "_calc_enthalpy_of_sublimation",
     "_calc_clapeyron_slope",
+    "_calc_transition_enthalpy_from_clapeyron",
     "_calc_enthalpy_vaporization_watson",
     "_calc_transition_enthalpy_from_constant_delta_cp",
     "_calc_transition_enthalpy_from_cp_integral",
+    "_calc_sublimation_pressure_clapeyron",
 ]

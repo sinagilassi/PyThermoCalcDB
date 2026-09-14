@@ -11,7 +11,9 @@ from .core.phase_change import (
     _calc_enthalpy_of_sublimation,
     _calc_enthalpy_vaporization_watson,
     _calc_phase_transition_entropy,
+    _calc_sublimation_pressure_clapeyron,
     _calc_transition_enthalpy_from_constant_delta_cp,
+    _calc_transition_enthalpy_from_clapeyron,
     _calc_transition_enthalpy_from_cp_integral,
 )
 
@@ -129,6 +131,39 @@ def calc_clapeyron_slope(
     return result
 
 
+def calc_transition_enthalpy_from_clapeyron(
+    temperature: Temperature | ScalarValue,
+    transition_volume_change: ScalarValue,
+    dpressure_dtemperature: ScalarValue,
+    output_unit: str = "J/mol",
+    unit_conversion_fn=None,
+) -> float:
+    """Calculate transition enthalpy from the differential Clapeyron equation."""
+    conversion_fn = convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    t = _to_kelvin(temperature) if isinstance(temperature, Temperature) else _pos(
+        temperature,
+        "temperature",
+        "K" if isinstance(temperature, CustomProp) else None,
+        conversion_fn,
+    )
+    dv = _scalar(
+        transition_volume_change,
+        "transition_volume_change",
+        "m3/mol" if isinstance(transition_volume_change, CustomProp) else None,
+        conversion_fn,
+    )
+    dpdt = _scalar(
+        dpressure_dtemperature,
+        "dpressure_dtemperature",
+        "Pa/K" if isinstance(dpressure_dtemperature, CustomProp) else None,
+        conversion_fn,
+    )
+    result = float(_calc_transition_enthalpy_from_clapeyron(t, dv, dpdt))
+    if output_unit != "J/mol":
+        result = float(conversion_fn(result, "J/mol", output_unit))
+    return result
+
+
 def calc_enthalpy_vaporization_watson(
     enthalpy_vaporization_reference: ScalarValue,
     temperature_reference: Temperature | ScalarValue,
@@ -243,11 +278,54 @@ def calc_transition_enthalpy_from_cp_integral(
     return result
 
 
+def calc_sublimation_pressure_clapeyron(
+    pressure_reference: ScalarValue,
+    sublimation_enthalpy: ScalarValue,
+    temperature_reference: Temperature | ScalarValue,
+    temperature: Temperature | ScalarValue,
+    output_pressure_unit: str = "Pa",
+    gas_constant: float = 8.314462618,
+    unit_conversion_fn=None,
+) -> float:
+    """Calculate sublimation pressure from an integrated Clapeyron relation."""
+    conversion_fn = convert_from_to if unit_conversion_fn is None else unit_conversion_fn
+    p_ref = _pos(
+        pressure_reference,
+        "pressure_reference",
+        output_pressure_unit if isinstance(pressure_reference, CustomProp) else None,
+        conversion_fn,
+    )
+    h_sub = _pos(
+        sublimation_enthalpy,
+        "sublimation_enthalpy",
+        "J/mol" if isinstance(sublimation_enthalpy, CustomProp) else None,
+        conversion_fn,
+    )
+    t_ref = _to_kelvin(temperature_reference) if isinstance(temperature_reference, Temperature) else _pos(
+        temperature_reference,
+        "temperature_reference",
+        "K" if isinstance(temperature_reference, CustomProp) else None,
+        conversion_fn,
+    )
+    t = _to_kelvin(temperature) if isinstance(temperature, Temperature) else _pos(
+        temperature,
+        "temperature",
+        "K" if isinstance(temperature, CustomProp) else None,
+        conversion_fn,
+    )
+    pressure = float(_calc_sublimation_pressure_clapeyron(p_ref, h_sub, t_ref, t, gas_constant))
+    if output_pressure_unit != "Pa":
+        pressure = float(conversion_fn(pressure, "Pa", output_pressure_unit))
+    return pressure
+
+
 __all__ = [
     "calc_phase_transition_entropy",
     "calc_enthalpy_of_sublimation",
     "calc_clapeyron_slope",
+    "calc_transition_enthalpy_from_clapeyron",
     "calc_enthalpy_vaporization_watson",
     "calc_transition_enthalpy_from_constant_delta_cp",
     "calc_transition_enthalpy_from_cp_integral",
+    "calc_sublimation_pressure_clapeyron",
 ]
